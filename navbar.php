@@ -341,7 +341,7 @@
 
             <li>
 
-                <a href="qr.php">
+                <a href="generated_currency.php">
 
                     📱 QR Currency
 
@@ -349,7 +349,15 @@
 
             </li>
 
+            <li>
 
+                <a href="synchronize.php">
+
+                    🔄 Syn
+
+                </a>
+            </li>
+            
         <?php } ?>
         <li>
 
@@ -360,6 +368,8 @@
             </a>
 
         </li>
+
+
         <li>
 
             <a href="logout.php" class="logout-btn">

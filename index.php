@@ -993,7 +993,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     <!-- Quick Actions -->
                     <div class="wallet-actions">
 
-                        <a href="generate_qr.php" class="action-btn">
+                        <a href="generate_qr_currency.php" class="action-btn">
                             💸
                             <span>Generate QR</span>
                         </a>
@@ -1003,7 +1003,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                             <span>Scan QR</span>
                         </a>
 
-                        <a href="sync.php" class="action-btn">
+                        <a href="synchronize.php" class="action-btn">
                             🔄
                             <span>Sync</span>
                         </a>
