@@ -2,6 +2,7 @@
 session_start();
 require "conn.php";
 
+define("CACHE_DIR", __DIR__ . "/cache/users/");
 define("SECRET_KEY", "MBDPAY@2026_SUPER_SECRET_KEY_32");
 
 /* Decrypt Function */
@@ -26,19 +27,38 @@ function decryptData($text)
     );
 }
 
-$mobile = $_SESSION['mobile'];
+try {
+    $mobile = $_SESSION['mobile'];
 
-$sql = "SELECT * FROM users WHERE mobile='$mobile'";
-$result = mysqli_query($conn, $sql);
-$user = mysqli_fetch_assoc($result);
+    $sql = "SELECT * FROM users WHERE mobile='$mobile'";
+    $result = mysqli_query($conn, $sql);
+    $user = mysqli_fetch_assoc($result);
 
-$name = $user['name'];
-$email = $user['email'];
-$account = $user['account_no'];
-$mobile = $user['mobile'];
-$balance = decryptData($user['balance']);
+    $name = $user['name'];
+    $email = $user['email'];
+    $account = $user['account_no'];
+    $mobile = $user['mobile'];
+    $balance = decryptData($user['balance']);
 
-$initial = strtoupper(substr($name, 0, 1));
+    $initial = strtoupper(substr($name, 0, 1));
+} catch (\Throwable $th) {
+    // user cache path
+
+    $userId = hash("sha256", $mobile);
+
+    $profile = CACHE_DIR . $userId . "/profile.json";
+
+    $cache = json_decode(
+        file_get_contents($profile),
+        true
+    );
+    $_SESSION['name'] = decryptData($cache['name']);
+    $initial = strtoupper(substr($_SESSION['name'], 0, 1));
+    $_SESSION['email'] = decryptData($cache['email']);
+    $_SESSION['account'] = decryptData($cache['account']);
+    $_SESSION['mobile'] = decryptData($cache['mobile']);
+    $balance = decryptData($cache['balance']);
+}
 ?>
 
 <!DOCTYPE html>
@@ -51,6 +71,11 @@ $initial = strtoupper(substr($name, 0, 1));
     <title>MBD Pay | Profile</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' 
+viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext 
+x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' 
+fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
     <style>
         /* ==========================
@@ -370,7 +395,12 @@ $initial = strtoupper(substr($name, 0, 1));
                     <?php echo $initial; ?>
                 </div>
 
-                <h2 class="profile-name"><?php echo htmlspecialchars($name); ?></h2>
+                <h2 class="profile-name"><?php if ($serverConnected) {
+
+                                                echo htmlspecialchars($name);
+                                            } else {
+                                                echo htmlspecialchars($_SESSION['name']);
+                                            } ?></h2>
 
                 <p class="profile-status">
                     ✔ Verified MBD Pay User
@@ -378,11 +408,17 @@ $initial = strtoupper(substr($name, 0, 1));
 
                 <div class="profile-balance">
                     <h4>Wallet Balance</h4>
-                    <h1>₹<?php echo $balance; ?></h1>
+                    <h1>₹<?php if ($serverConnected) {
+
+                                echo htmlspecialchars($balance);
+                            } else {
+                                echo htmlspecialchars($balance);
+                            } ?></h1>
                 </div>
 
                 <div class="profile-actions">
-
+<?php if ($serverConnected) { ?>
+    
                     <a href="#">
                         ✏ Edit Profile
                     </a>
@@ -394,7 +430,7 @@ $initial = strtoupper(substr($name, 0, 1));
                     <a href="transaction.php">
                         💳 Transaction History
                     </a>
-
+<?php } ?>
                     <a href="logout.php">
                         🚪 Logout
                     </a>
@@ -414,21 +450,38 @@ $initial = strtoupper(substr($name, 0, 1));
                     <div class="profile-info">
                         <div class="profile-label">Full Name</div>
                         <div class="profile-value">
-                            <?php echo htmlspecialchars($name); ?>
+                            <?php
+                            if ($serverConnected) {
+
+                                echo htmlspecialchars($name);
+                            } else {
+                                echo htmlspecialchars($_SESSION['name']);
+                            }
+                            ?>
                         </div>
                     </div>
 
                     <div class="profile-info">
                         <div class="profile-label">Mobile Number</div>
                         <div class="profile-value">
-                            <?php echo htmlspecialchars($mobile); ?>
+                            <?php if ($serverConnected) {
+
+                                echo htmlspecialchars($mobile);
+                            } else {
+                                echo htmlspecialchars($_SESSION['mobile']);
+                            } ?>
                         </div>
                     </div>
 
                     <div class="profile-info">
                         <div class="profile-label">Email Address</div>
                         <div class="profile-value">
-                            <?php echo htmlspecialchars($email); ?>
+                            <?php if ($serverConnected) {
+
+                                echo htmlspecialchars($email);
+                            } else {
+                                echo htmlspecialchars($_SESSION['email']);
+                            } ?>
                         </div>
                     </div>
 
@@ -442,7 +495,12 @@ $initial = strtoupper(substr($name, 0, 1));
                     <div class="profile-info">
                         <div class="profile-label">Linked Account Number</div>
                         <div class="profile-value">
-                            <?php echo htmlspecialchars($account); ?>
+                            <?php if ($serverConnected) {
+
+                                echo htmlspecialchars($account);
+                            } else {
+                                echo htmlspecialchars($_SESSION['account']);
+                            } ?>
                         </div>
                     </div>
 
@@ -486,7 +544,12 @@ $initial = strtoupper(substr($name, 0, 1));
                 <div class="profile-stats">
 
                     <div class="profile-stat-box">
-                        <h2>₹<?php echo $balance; ?></h2>
+                        <h2>₹<?php if ($serverConnected) {
+
+                                    echo htmlspecialchars($balance);
+                                } else {
+                                    echo htmlspecialchars($balance);
+                                } ?></h2>
                         <p>Available Balance</p>
                     </div>
 

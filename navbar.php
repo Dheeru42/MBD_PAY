@@ -350,16 +350,16 @@
             </li>
 
 
-            <li>
-
-                <a href="profile.php">
-
-                    👤 Profile
-
-                </a>
-
-            </li>
         <?php } ?>
+        <li>
+
+            <a href="profile.php">
+
+                👤 Profile
+
+            </a>
+
+        </li>
         <li>
 
             <a href="logout.php" class="logout-btn">
