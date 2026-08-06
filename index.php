@@ -1,8 +1,6 @@
 <?php
 
 // data from server,add in server
-$generatedToday = 100;
-$receivedToday = 100;
 $pendingSync = 0;
 
 
@@ -10,6 +8,7 @@ session_start();
 
 require "conn.php";
 require "bank_conn.php";
+require "currency_con.php";
 
 date_default_timezone_set('Asia/Kolkata');
 
@@ -48,6 +47,7 @@ if (!isset($_SESSION['user'])) {
 }
 
 $u_account = $_SESSION['account'];
+$u_mob = $_SESSION['mobile'];
 
 if (!isset($_SESSION['user']) && isset($_COOKIE['remember_user'])) {
     $_SESSION['user'] = $_COOKIE['remember_user'];
@@ -105,7 +105,192 @@ try {
     $_SESSION['balance'] = $cache['balance'];
 }
 
+/*FETCH GENERATED CURRENCIES*/
 
+try {
+
+    $sql = "SELECT
+                id,
+                serial_no,
+                encrypted_serial,
+                amount,
+                sender_mobile,
+                receiver_mobile,
+                status,
+                generated_at
+            FROM currency
+            WHERE status = 'GENERATED'
+              AND sender_mobile = '$u_mob'
+              AND generated_at >= CURDATE()
+              AND generated_at < CURDATE() + INTERVAL 1 DAY
+            ORDER BY generated_at DESC";
+
+
+    $result = mysqli_query(
+        $c_conn,
+        $sql
+    );
+
+
+    if (!$result) {
+
+        die("Currency query failed: "
+            . mysqli_error($c_conn));
+    }
+
+
+    $total_currency =
+        mysqli_num_rows($result);
+
+
+    $total_value = 0;
+
+    $currency_rows = [];
+
+
+    while (
+        $row = mysqli_fetch_assoc($result)
+    ) {
+
+        $currency_rows[] = $row;
+
+        $total_value +=
+            decryptData(
+                $row['amount']
+            );
+
+        $generatedToday = $total_value;
+    }
+} catch (\Throwable $th) {
+
+    $total_currency = 0;
+
+    $total_value = 0;
+
+    $generatedToday = $total_value;
+
+    $currency_rows = [];
+}
+
+// FETCH Recived CURRENCIES
+
+
+try {
+
+    // Fetch Today's Currency Received Transactions
+
+    $sql = "
+        SELECT
+            type,
+            amount,
+            status,
+            created_at
+        FROM transactions
+        WHERE mobile = ?
+          AND status = 'Currency Received'
+          AND created_at >= CURDATE()
+          AND created_at < CURDATE() + INTERVAL 1 DAY
+        ORDER BY created_at DESC
+    ";
+
+
+    $stmt2 = mysqli_prepare(
+        $conn,
+        $sql
+    );
+
+
+    if (!$stmt2) {
+
+        throw new Exception(
+            "Transaction query preparation failed: "
+            . mysqli_error($conn)
+        );
+    }
+
+
+    mysqli_stmt_bind_param(
+        $stmt2,
+        "s",
+        $u_mobile
+    );
+
+
+    if (!mysqli_stmt_execute($stmt2)) {
+
+        throw new Exception(
+            "Transaction query failed: "
+            . mysqli_stmt_error($stmt2)
+        );
+    }
+
+
+    $transactions =
+        mysqli_stmt_get_result($stmt2);
+
+
+    if (!$transactions) {
+
+        throw new Exception(
+            "Unable to fetch transactions."
+        );
+    }
+
+
+    // Reset totals before calculation
+
+    $total_credit = 0;
+
+    $receivedToday = 0;
+
+
+    // Calculate Today's Total Credit
+
+    while (
+        $row = mysqli_fetch_assoc($transactions)
+    ) {
+
+        if (
+            $row['type'] === 'Currency Received'
+            &&
+            $row['status'] === 'Currency Received'
+        ) {
+
+            $amount =
+                decryptData(
+                    $row['amount']
+                );
+
+            $total_credit += $amount;
+
+            $receivedToday += $amount;
+        }
+    }
+
+
+    // Reset pointer for table display
+
+    mysqli_data_seek(
+        $transactions,
+        0
+    );
+
+
+    mysqli_stmt_close($stmt2);
+
+
+} catch (\Throwable $th) {
+
+    $total_credit = 0;
+
+    $receivedToday = 0;
+
+    $transactions = false;
+
+    $message1 =
+        "Unable to fetch today's transactions.";
+
+}
 
 session_abort();
 ?>
@@ -995,17 +1180,17 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                         <a href="generate_qr_currency.php" class="action-btn">
                             💸
-                            <span>Generate QR</span>
+                            <span>Generate QR Currency</span>
                         </a>
 
-                        <a href="scan_qr.php" class="action-btn">
+                        <a href="qr_scanner.php" class="action-btn">
                             📷
-                            <span>Scan QR</span>
+                            <span>Scan QR Currency</span>
                         </a>
 
                         <a href="synchronize.php" class="action-btn">
                             🔄
-                            <span>Sync</span>
+                            <span>Syncrinization</span>
                         </a>
 
                     </div>

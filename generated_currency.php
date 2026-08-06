@@ -1,28 +1,2278 @@
 <?php
+
 session_start();
+
+$message = "";
+
+$message1 = "";
 
 require 'conn.php';
 require 'bank_conn.php';
-session_abort();
+require 'currency_con.php';
+
+if (!isset($_SESSION['user'])) {
+
+    header("location:login.php");
+    exit;
+}
+
+$u_account = $_SESSION['account'];
+
+if (!isset($_SESSION['user']) && isset($_COOKIE['remember_user'])) {
+    $_SESSION['user'] = $_COOKIE['remember_user'];
+}
+
+
+
+if (isset($_SESSION['user'])) {
+
+    $username = $_SESSION['user'];
+}
+
+if (isset($_SESSION['mobile'])) {
+    $u_mob = $_SESSION['mobile'];
+}
+
+if (!isset($_SESSION['account'])) {
+    header("location:login.php");
+    exit;
+}
+
+
+define("SECRET_KEY", "MBDPAY@2026_SUPER_SECRET_KEY_32");
+
+/* Decrypt Function */
+
+function decryptData($text)
+{
+    $key = hash("sha256", SECRET_KEY, true);
+
+    $data = base64_decode($text);
+
+    $iv = substr($data, 0, 16);
+
+    $cipher = substr($data, 16);
+
+
+    return openssl_decrypt(
+        $cipher,
+        "AES-256-CBC",
+        $key,
+        OPENSSL_RAW_DATA,
+        $iv
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| PIN VERIFICATION
+|--------------------------------------------------------------------------
+*/
+
+$unlocked_currency = null;
+$pin_error = "";
+
+try {
+    if ($_SERVER["REQUEST_METHOD"] === "POST") {
+
+        if (
+            isset($_POST['action']) &&
+            $_POST['action'] === 'verify_pin'
+        ) {
+
+            $currency_id = intval($_POST['currency_id'] ?? 0);
+
+            $entered_pin = $_POST['pin'] ?? "";
+
+
+            if ($currency_id <= 0 || $entered_pin === "") {
+
+                $pin_error = "Please enter your PIN.";
+            } else {
+
+                /*
+            |--------------------------------------------------------------------------
+            | Get currency
+            |--------------------------------------------------------------------------
+            */
+
+                $stmt = mysqli_prepare(
+                    $c_conn,
+                    "SELECT
+                    id,
+                    serial_no,
+                    encrypted_serial,
+                    amount,
+                    sender_mobile,
+                    receiver_mobile,
+                    status,
+                    generated_at
+                 FROM currency
+                 WHERE sender_mobile = ?
+                 AND status = 'GENERATED'
+                 LIMIT 1"
+                );
+
+
+                mysqli_stmt_bind_param(
+                    $stmt,
+                    "i",
+                    $u_mob
+                );
+
+
+                mysqli_stmt_execute($stmt);
+
+
+                $currency_result =
+                    mysqli_stmt_get_result($stmt);
+
+
+                $currency =
+                    mysqli_fetch_assoc(
+                        $currency_result
+                    );
+
+
+                mysqli_stmt_close($stmt);
+
+
+                if (!$currency) {
+
+                    $pin_error =
+                        "Currency is no longer available.";
+                } else {
+
+                    /*
+                |--------------------------------------------------------------------------
+                | Get sender PIN
+                |--------------------------------------------------------------------------
+                */
+
+                    $stmt = mysqli_prepare(
+                        $conn,
+                        "SELECT pin
+                     FROM users
+                     WHERE mobile = ?
+                     LIMIT 1"
+                    );
+
+
+                    mysqli_stmt_bind_param(
+                        $stmt,
+                        "s",
+                        $currency['sender_mobile']
+                    );
+
+
+                    mysqli_stmt_execute($stmt);
+
+
+                    $user_result =
+                        mysqli_stmt_get_result($stmt);
+
+
+                    $user =
+                        mysqli_fetch_assoc(
+                            $user_result
+                        );
+
+                    $u_pin = $user['pin'];
+                    mysqli_stmt_close($stmt);
+
+
+                    /*
+                |--------------------------------------------------------------------------
+                | Verify PIN
+                |--------------------------------------------------------------------------
+                */
+
+                    if (
+                        $user &&
+                        password_verify(
+                            $entered_pin,
+                            $u_pin
+                        )
+                    ) {
+
+                        /*
+                    |--------------------------------------------------------------------------
+                    | PIN CORRECT
+                    |--------------------------------------------------------------------------
+                    */
+
+                        $unlocked_currency =
+                            $currency;
+                    } else {
+
+                        $pin_error =
+                            "Incorrect PIN. Please try again.";
+                    }
+                }
+            }
+        }
+    }
+} catch (\Throwable $th) {
+    // 
+}
+
+/*FETCH GENERATED CURRENCIES*/
+
+try {
+    $sql = "SELECT
+            id,
+            serial_no,
+            encrypted_serial,
+            amount,
+            sender_mobile,
+            receiver_mobile,
+            status, 
+            generated_at
+        FROM currency
+        WHERE status = 'GENERATED' AND sender_mobile=$u_mob
+        ORDER BY generated_at DESC";
+
+
+    $result = mysqli_query(
+        $c_conn,
+        $sql
+    );
+
+
+    if (!$result) {
+
+        die("Currency query failed: "
+            . mysqli_error($conn));
+    }
+
+
+    $total_currency =
+        mysqli_num_rows($result);
+
+
+    $total_value = 0;
+
+    $currency_rows = [];
+
+
+    while (
+        $row = mysqli_fetch_assoc($result)
+    ) {
+
+        $currency_rows[] = $row;
+
+        $total_value +=
+            decryptData($row['amount']);
+    }
+} catch (\Throwable $th) {
+
+    $total_currency = 0;
+    $total_value = 0;
+    $currency_rows[] = '';
+}
+
 ?>
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MBDPAY | Generated Currency</title>
-    <link rel="icon" type="image/svg+xml"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' 
-viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext 
-x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' 
-fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
+
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>
+        MBDPAY | Generated Currency
+    </title>
+
+
+    <link rel="icon"
+        type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
+
+
+    <!--
+|--------------------------------------------------------------------------
+| QR CODE LIBRARY
+|--------------------------------------------------------------------------
+-->
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+
+    <style>
+        /* =========================================================
+   RESET
+========================================================= */
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+
+        /* =========================================================
+   BODY
+========================================================= */
+
+        body {
+
+            font-family:
+                Inter,
+                Arial,
+                Helvetica,
+                sans-serif;
+
+            min-height: 100vh;
+
+            color: #022c22;
+
+            background:
+
+                radial-gradient(circle at 10% 10%,
+                    rgba(16, 185, 129, .25),
+                    transparent 30%),
+
+                radial-gradient(circle at 90% 20%,
+                    rgba(52, 211, 153, .18),
+                    transparent 28%),
+
+                linear-gradient(135deg,
+                    #ecfdf5,
+                    #f0fdf4,
+                    #d1fae5);
+
+            overflow-x: hidden;
+        }
+
+
+        /* =========================================================
+   PAGE
+========================================================= */
+
+        .currency-page {
+
+            width: 100%;
+
+            max-width: 1250px;
+
+            margin: auto;
+
+            padding: 35px 25px 130px;
+        }
+
+
+        /* =========================================================
+   HEADER
+========================================================= */
+
+        .hero-header {
+
+            position: relative;
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            gap: 25px;
+
+            margin-bottom: 30px;
+
+            padding: 30px;
+
+            border-radius: 30px;
+
+            overflow: hidden;
+
+            background:
+                linear-gradient(135deg,
+                    rgba(255, 255, 255, .9),
+                    rgba(236, 253, 245, .78));
+
+            backdrop-filter: blur(20px);
+
+            border:
+                1px solid rgba(255, 255, 255, .9);
+
+            box-shadow:
+                0 25px 60px rgba(0, 0, 0, .08);
+        }
+
+
+        .hero-header::before {
+
+            content: "";
+
+            position: absolute;
+
+            width: 220px;
+            height: 220px;
+
+            border-radius: 50%;
+
+            background:
+                rgba(16, 185, 129, .10);
+
+            top: -130px;
+
+            right: -50px;
+        }
+
+
+        .hero-content {
+
+            position: relative;
+
+            z-index: 2;
+        }
+
+
+        .title-row {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 15px;
+        }
+
+
+        .title-icon {
+
+            width: 58px;
+            height: 58px;
+
+            border-radius: 18px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            font-size: 29px;
+
+            color: white;
+
+            background:
+                linear-gradient(135deg,
+                    #047857,
+                    #10b981);
+
+            box-shadow:
+                0 10px 25px rgba(5, 150, 105, .3);
+        }
+
+
+        .hero-content h1 {
+
+            font-size: 34px;
+
+            font-weight: 800;
+
+            color: #022c22;
+        }
+
+
+        .hero-content p {
+
+            margin-top: 7px;
+
+            color: #64748b;
+
+            font-size: 14px;
+        }
+
+
+        /* =========================================================
+   SUMMARY
+========================================================= */
+
+        .summary {
+
+            position: relative;
+
+            z-index: 2;
+
+            display: flex;
+
+            gap: 14px;
+        }
+
+
+        .summary-card {
+
+            min-width: 150px;
+
+            padding: 18px;
+
+            border-radius: 20px;
+
+            background:
+                rgba(255, 255, 255, .8);
+
+            border:
+                1px solid rgba(255, 255, 255, .9);
+
+            box-shadow:
+                0 12px 30px rgba(0, 0, 0, .07);
+        }
+
+
+        .summary-label {
+
+            display: block;
+
+            color: #64748b;
+
+            font-size: 11px;
+
+            margin-bottom: 5px;
+
+            text-transform: uppercase;
+
+            letter-spacing: .7px;
+        }
+
+
+        .summary-value {
+
+            font-size: 24px;
+
+            font-weight: 800;
+
+            color: #047857;
+        }
+
+
+        /* =========================================================
+   SECTION
+========================================================= */
+
+        .section-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            margin: 30px 3px 18px;
+        }
+
+
+        .section-title {
+
+            font-size: 20px;
+
+            font-weight: 750;
+
+            color: #064e3b;
+        }
+
+
+        .live-indicator {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding: 7px 12px;
+
+            border-radius: 20px;
+
+            background:
+                rgba(220, 252, 231, .85);
+
+            color: #15803d;
+
+            font-size: 11px;
+
+            font-weight: 700;
+        }
+
+
+        /* =========================================================
+   LIVE DOT
+========================================================= */
+
+        .live-dot {
+
+            position: relative;
+
+            width: 9px;
+            height: 9px;
+
+            border-radius: 50%;
+
+            background: #22c55e;
+
+            box-shadow:
+                0 0 6px rgba(34, 197, 94, .9),
+                0 0 14px rgba(34, 197, 94, .6);
+
+            animation:
+                liveGlow 1.5s ease-in-out infinite;
+        }
+
+
+        .live-dot::before {
+
+            content: "";
+
+            position: absolute;
+
+            top: 50%;
+            left: 50%;
+
+            width: 100%;
+            height: 100%;
+
+            border-radius: 50%;
+
+            border: 2px solid #22c55e;
+
+            transform:
+                translate(-50%, -50%);
+
+            animation:
+                liveRing 1.5s ease-out infinite;
+        }
+
+
+        @keyframes liveGlow {
+
+            0%,
+            100% {
+
+                transform: scale(1);
+
+                box-shadow:
+                    0 0 5px rgba(34, 197, 94, .8),
+                    0 0 12px rgba(34, 197, 94, .5);
+            }
+
+            50% {
+
+                transform: scale(1.25);
+
+                box-shadow:
+                    0 0 9px rgba(34, 197, 94, 1),
+                    0 0 20px rgba(34, 197, 94, .75);
+            }
+        }
+
+
+        @keyframes liveRing {
+
+            0% {
+
+                width: 100%;
+                height: 100%;
+
+                opacity: .9;
+            }
+
+            100% {
+
+                width: 300%;
+                height: 300%;
+
+                opacity: 0;
+            }
+        }
+
+
+        /* =========================================================
+   GRID
+========================================================= */
+
+        .currency-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(auto-fit,
+                    minmax(350px, 1fr));
+
+            gap: 25px;
+        }
+
+
+        /* =========================================================
+   CURRENCY CARD
+========================================================= */
+
+        .currency-card {
+
+            position: relative;
+
+            overflow: hidden;
+
+            padding: 25px;
+
+            border-radius: 30px;
+
+            background:
+                rgba(255, 255, 255, .88);
+
+            backdrop-filter:
+                blur(20px);
+
+            border:
+                1px solid rgba(255, 255, 255, .95);
+
+            box-shadow:
+                0 20px 50px rgba(0, 0, 0, .09);
+
+            transition:
+                transform .3s ease,
+                box-shadow .3s ease;
+
+            animation:
+                cardAppear .6s ease both;
+        }
+
+
+        .currency-card:hover {
+
+            transform:
+                translateY(-8px);
+
+            box-shadow:
+                0 30px 65px rgba(0, 0, 0, .14);
+        }
+
+
+        @keyframes cardAppear {
+
+            from {
+
+                opacity: 0;
+
+                transform:
+                    translateY(25px) scale(.97);
+            }
+
+            to {
+
+                opacity: 1;
+
+                transform:
+                    translateY(0) scale(1);
+            }
+        }
+
+
+        /* =========================================================
+   CARD TOP
+========================================================= */
+
+        .card-top {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            margin-bottom: 23px;
+        }
+
+
+        .currency-logo {
+
+            width: 55px;
+            height: 55px;
+
+            border-radius: 17px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            color: white;
+
+            font-size: 28px;
+
+            font-weight: bold;
+
+            background:
+                linear-gradient(135deg,
+                    #059669,
+                    #10b981);
+
+            box-shadow:
+                0 10px 25px rgba(5, 150, 105, .25);
+        }
+
+
+        .status-badge {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding: 8px 13px;
+
+            border-radius: 20px;
+
+            background:
+                #ecfdf5;
+
+            color:
+                #047857;
+
+            font-size: 11px;
+
+            font-weight: 800;
+        }
+
+
+        /* =========================================================
+   AMOUNT
+========================================================= */
+
+        .amount-section {
+
+            margin-bottom: 22px;
+        }
+
+
+        .amount {
+
+            font-size: 42px;
+
+            font-weight: 850;
+
+            color: #022c22;
+        }
+
+
+        .amount .rupee {
+
+            color: #059669;
+
+            font-size: 29px;
+
+            vertical-align: 5px;
+        }
+
+
+        .amount-label {
+
+            color: #94a3b8;
+
+            font-size: 12px;
+
+            margin-top: 3px;
+        }
+
+
+        /* =========================================================
+   SERIAL
+========================================================= */
+
+        .serial-box {
+
+            padding: 13px 15px;
+
+            margin-bottom: 20px;
+
+            border-radius: 15px;
+
+            background:
+                linear-gradient(135deg,
+                    #f0fdf4,
+                    #ecfdf5);
+
+            border:
+                1px dashed #86efac;
+        }
+
+
+        .serial-label {
+
+            display: block;
+
+            color: #64748b;
+
+            font-size: 10px;
+
+            text-transform: uppercase;
+
+            letter-spacing: 1px;
+
+            margin-bottom: 5px;
+        }
+
+
+        .serial-value {
+
+            font-family:
+                "Courier New",
+                monospace;
+
+            color: #047857;
+
+            font-size: 13px;
+
+            font-weight: bold;
+
+            word-break: break-all;
+        }
+
+
+        /* =========================================================
+   QR LOCKED AREA
+========================================================= */
+
+        .qr-section {
+
+            position: relative;
+
+            display: flex;
+
+            flex-direction: column;
+
+            align-items: center;
+
+            justify-content: center;
+
+            min-height: 190px;
+
+            margin-bottom: 20px;
+
+            border-radius: 22px;
+
+            background:
+                linear-gradient(135deg,
+                    #f8fafc,
+                    #ecfdf5);
+
+            border:
+                1px solid #d1fae5;
+
+            overflow: hidden;
+        }
+
+
+        /* QR hidden before PIN */
+
+        .qr-lock {
+
+            display: flex;
+
+            flex-direction: column;
+
+            align-items: center;
+
+            text-align: center;
+
+            padding: 20px;
+        }
+
+
+        .lock-icon {
+
+            width: 55px;
+            height: 55px;
+
+            border-radius: 17px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            background:
+                #dcfce7;
+
+            color:
+                #059669;
+
+            font-size: 25px;
+
+            margin-bottom: 12px;
+        }
+
+
+        .qr-lock strong {
+
+            color: #064e3b;
+
+            font-size: 14px;
+        }
+
+
+        .qr-lock span {
+
+            color: #94a3b8;
+
+            font-size: 11px;
+
+            margin-top: 5px;
+        }
+
+
+        /* =========================================================
+   SHOW QR BUTTON
+========================================================= */
+
+        .show-qr-btn {
+
+            margin-top: 15px;
+
+            border: none;
+
+            outline: none;
+
+            cursor: pointer;
+
+            padding: 11px 18px;
+
+            border-radius: 13px;
+
+            color: white;
+
+            font-size: 12px;
+
+            font-weight: 750;
+
+            background:
+                linear-gradient(135deg,
+                    #047857,
+                    #10b981);
+
+            box-shadow:
+                0 8px 18px rgba(5, 150, 105, .25);
+
+            transition:
+                transform .2s ease,
+                box-shadow .2s ease;
+        }
+
+
+        .show-qr-btn:hover {
+
+            transform:
+                translateY(-2px);
+
+            box-shadow:
+                0 12px 25px rgba(5, 150, 105, .35);
+        }
+
+
+        /* =========================================================
+   UNLOCKED QR
+========================================================= */
+
+        .qr-unlocked {
+
+            display: flex;
+
+            flex-direction: column;
+
+            align-items: center;
+
+            padding: 15px;
+        }
+
+
+        .qr-code {
+
+            width: 150px;
+            height: 150px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            padding: 8px;
+
+            background: white;
+
+            border-radius: 15px;
+
+            box-shadow:
+                0 10px 30px rgba(0, 0, 0, .12);
+        }
+
+
+        .qr-title {
+
+            margin-top: 10px;
+
+            color: #047857;
+
+            font-size: 11px;
+
+            font-weight: 750;
+        }
+
+
+        /* =========================================================
+   DETAILS
+========================================================= */
+
+        .details {
+
+            border-top:
+                1px solid #e2e8f0;
+
+            padding-top: 15px;
+        }
+
+
+        .detail-row {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            gap: 15px;
+
+            padding: 7px 0;
+        }
+
+
+        .detail-label {
+
+            color: #94a3b8;
+
+            font-size: 11px;
+        }
+
+
+        .detail-value {
+
+            color: #334155;
+
+            font-size: 12px;
+
+            font-weight: 650;
+
+            text-align: right;
+
+            word-break: break-all;
+        }
+
+
+        .mode {
+
+            display: inline-flex;
+
+            padding: 5px 9px;
+
+            border-radius: 9px;
+
+            background: #f0fdf4;
+
+            color: #15803d;
+
+            font-size: 10px;
+
+            font-weight: 800;
+        }
+
+
+        /* =========================================================
+   PIN MODAL
+========================================================= */
+
+        .pin-modal {
+
+            position: fixed;
+
+            inset: 0;
+
+            z-index: 9999;
+
+            display: none;
+
+            align-items: center;
+
+            justify-content: center;
+
+            padding: 20px;
+
+            background:
+                rgba(2, 44, 34, .55);
+
+            backdrop-filter:
+                blur(10px);
+        }
+
+
+        .pin-modal.active {
+
+            display: flex;
+        }
+
+
+        .pin-box {
+
+            width: 100%;
+
+            max-width: 380px;
+
+            padding: 30px;
+
+            border-radius: 28px;
+
+            background:
+                rgba(255, 255, 255, .96);
+
+            box-shadow:
+                0 30px 80px rgba(0, 0, 0, .25);
+
+            animation:
+                modalShow .25s ease;
+        }
+
+
+        @keyframes modalShow {
+
+            from {
+
+                opacity: 0;
+
+                transform:
+                    scale(.9) translateY(15px);
+            }
+
+            to {
+
+                opacity: 1;
+
+                transform:
+                    scale(1) translateY(0);
+            }
+        }
+
+
+        .pin-icon {
+
+            width: 60px;
+            height: 60px;
+
+            margin:
+                0 auto 17px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 19px;
+
+            background:
+                #dcfce7;
+
+            color:
+                #059669;
+
+            font-size: 27px;
+        }
+
+
+        .pin-box h2 {
+
+            text-align: center;
+
+            color: #064e3b;
+
+            font-size: 22px;
+
+            margin-bottom: 7px;
+        }
+
+
+        .pin-box p {
+
+            text-align: center;
+
+            color: #64748b;
+
+            font-size: 12px;
+
+            margin-bottom: 22px;
+        }
+
+
+        .pin-input {
+
+            width: 100%;
+
+            height: 52px;
+
+            border: 1px solid #d1d5db;
+
+            border-radius: 14px;
+
+            outline: none;
+
+            text-align: center;
+
+            letter-spacing: 8px;
+
+            font-size: 20px;
+
+            font-weight: bold;
+
+            color: #064e3b;
+
+            transition:
+                border .2s ease,
+                box-shadow .2s ease;
+        }
+
+
+        .pin-input:focus {
+
+            border-color:
+                #10b981;
+
+            box-shadow:
+                0 0 0 4px rgba(16, 185, 129, .12);
+        }
+
+
+        .pin-actions {
+
+            display: flex;
+
+            gap: 10px;
+
+            margin-top: 17px;
+        }
+
+
+        .pin-cancel {
+
+            flex: 1;
+
+            border: none;
+
+            cursor: pointer;
+
+            border-radius: 13px;
+
+            padding: 12px;
+
+            background: #f1f5f9;
+
+            color: #475569;
+
+            font-weight: 700;
+        }
+
+
+        .pin-submit {
+
+            flex: 1;
+
+            border: none;
+
+            cursor: pointer;
+
+            border-radius: 13px;
+
+            padding: 12px;
+
+            background:
+                linear-gradient(135deg,
+                    #047857,
+                    #10b981);
+
+            color: white;
+
+            font-weight: 750;
+        }
+
+
+        .pin-error {
+
+            margin-top: 12px;
+
+            padding: 10px;
+
+            border-radius: 10px;
+
+            background: #fef2f2;
+
+            color: #dc2626;
+
+            text-align: center;
+
+            font-size: 12px;
+        }
+
+
+        /* =========================================================
+   EMPTY
+========================================================= */
+
+        .empty-box {
+
+            padding: 80px 25px;
+
+            text-align: center;
+
+            border-radius: 30px;
+
+            background:
+                rgba(255, 255, 255, .8);
+
+            box-shadow:
+                0 20px 50px rgba(0, 0, 0, .08);
+        }
+
+
+        .empty-icon {
+
+            width: 85px;
+            height: 85px;
+
+            margin:
+                0 auto 20px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 25px;
+
+            background: #dcfce7;
+
+            color: #059669;
+
+            font-size: 42px;
+        }
+
+
+        .empty-box h2 {
+
+            color: #064e3b;
+
+            margin-bottom: 8px;
+        }
+
+
+        .empty-box p {
+
+            color: #64748b;
+
+            font-size: 13px;
+        }
+
+
+        /* =========================================================
+   MOBILE
+========================================================= */
+
+        @media (max-width: 800px) {
+
+            .hero-header {
+
+                flex-direction: column;
+
+                align-items: flex-start;
+            }
+
+            .summary {
+
+                width: 100%;
+            }
+
+            .summary-card {
+
+                flex: 1;
+            }
+        }
+
+
+        @media (max-width: 550px) {
+
+            .currency-page {
+
+                padding:
+                    20px 15px 120px;
+            }
+
+            .hero-header {
+
+                padding: 23px;
+            }
+
+            .hero-content h1 {
+
+                font-size: 27px;
+            }
+
+            .summary {
+
+                flex-direction: column;
+            }
+
+            .summary-card {
+
+                width: 100%;
+            }
+
+            .currency-grid {
+
+                grid-template-columns: 1fr;
+            }
+
+            .currency-card {
+
+                padding: 20px;
+            }
+
+            .amount {
+
+                font-size: 37px;
+            }
+        }
+    </style>
+
 </head>
 
+
 <body>
-    <?php require 'navbar.php' ?>
-    <?php require 'footer.php' ?>
+
+
+    <?php require 'navbar.php'; ?>
+
+
+    <main class="currency-page">
+
+        <?php
+
+        if ($message != "") {
+
+            echo "
+
+<div class='message'>
+$message
+</div>
+
+";
+        }
+
+        ?>
+        <?php
+
+        if ($message1 != "") {
+
+            echo "
+
+<div class='message1'>
+$message1
+</div>
+
+";
+        }
+
+        ?>
+        <!-- =====================================================
+     HEADER
+====================================================== -->
+
+        <section class="hero-header">
+
+
+            <div class="hero-content">
+
+                <div class="title-row">
+
+                    <div class="title-icon">
+                        ₹
+                    </div>
+
+                    <div>
+
+                        <h1>
+                            Generated Currency
+                        </h1>
+
+                        <p>
+                            Secure digital currency generated through MBD Pay
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="summary">
+
+
+                <div class="summary-card">
+
+                    <span class="summary-label">
+                        Currency
+                    </span>
+
+                    <span class="summary-value">
+                        <?php echo $total_currency; ?>
+                    </span>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <span class="summary-label">
+                        Total Value
+                    </span>
+
+                    <span class="summary-value">
+
+                        ₹<?php
+                            echo number_format(
+                                $total_value,
+                                2
+                            );
+                            ?>
+
+                    </span>
+
+                </div>
+
+
+            </div>
+
+
+        </section>
+
+
+        <!-- =====================================================
+     SECTION HEADER
+====================================================== -->
+
+        <div class="section-header">
+
+            <div class="section-title">
+                Active Generated Currency
+            </div>
+
+
+            <div class="live-indicator">
+
+                <span class="live-dot"></span>
+
+                LIVE
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+     CURRENCY CARDS
+====================================================== -->
+
+        <?php if ($total_currency > 0): ?>
+
+
+            <div class="currency-grid">
+
+
+                <?php foreach (
+                    $currency_rows
+                    as $currency
+                ): ?>
+
+
+                    <article class="currency-card">
+
+
+                        <!-- CARD HEADER -->
+
+                        <div class="card-top">
+
+
+                            <div class="currency-logo">
+                                ₹
+                            </div>
+
+
+                            <div class="status-badge">
+
+                                <span class="live-dot"></span>
+
+                                GENERATED
+
+                            </div>
+
+
+                        </div>
+
+
+                        <!-- AMOUNT -->
+
+                        <div class="amount-section">
+
+                            <div class="amount">
+
+                                <span class="rupee">
+                                    ₹
+                                </span>
+
+                                <?php
+                                echo number_format(
+                                    decryptData($currency['amount']),
+                                    2
+                                );
+                                ?>
+
+                            </div>
+
+
+                            <div class="amount-label">
+
+                                MBD Pay Digital Currency
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- SERIAL -->
+
+                        <div class="serial-box">
+
+                            <span class="serial-label">
+                                Currency Serial Number
+                            </span>
+
+                            <span class="serial-value">
+
+                                <?php
+                                echo htmlspecialchars(
+                                    $currency['serial_no']
+                                );
+                                ?>
+
+                            </span>
+
+                        </div>
+
+
+                        <!-- =================================================
+         QR AREA
+    ================================================== -->
+
+                        <div class="qr-section">
+
+
+                            <?php
+
+                            /*
+        |--------------------------------------------------------------------------
+        | SHOW QR ONLY AFTER CORRECT PIN
+        |--------------------------------------------------------------------------
+        */
+
+                            if (
+                                $unlocked_currency &&
+                                $unlocked_currency['id']
+                                == $currency['id']
+                            ):
+
+                            ?>
+
+
+                                <div class="qr-unlocked">
+
+                                    <div
+                                        class="qr-code"
+                                        id="qr-<?php
+                                                echo (int)$currency['id'];
+                                                ?>"></div>
+
+
+                                    <div class="qr-title">
+
+                                        Scan to receive ₹<?php
+                                                            echo number_format(
+                                                                decryptData($currency['amount']),
+                                                                2
+                                                            );
+                                                            ?>
+
+                                    </div>
+
+                                </div>
+
+
+                                <script>
+                                    document.addEventListener(
+                                        "DOMContentLoaded",
+                                        function() {
+
+                                            new QRCode(
+                                                document.getElementById(
+                                                    "qr-<?php
+                                                        echo (int)$currency['id'];
+                                                        ?>"
+                                                ), {
+
+                                                    text: <?php
+                                                            echo json_encode(
+                                                                $currency['encrypted_serial']
+                                                            );
+                                                            ?>,
+
+                                                    width: 130,
+
+                                                    height: 130,
+
+                                                    colorDark: "#022c22",
+
+                                                    colorLight: "#ffffff",
+
+                                                    correctLevel: QRCode.CorrectLevel.H
+
+                                                }
+                                            );
+
+                                        }
+                                    );
+                                </script>
+
+
+                            <?php else: ?>
+
+
+                                <div class="qr-lock">
+
+
+                                    <div class="lock-icon">
+                                        🔒
+                                    </div>
+
+
+                                    <strong>
+                                        QR Code Locked
+                                    </strong>
+
+
+                                    <span>
+                                        Enter your PIN to display this currency QR
+                                    </span>
+
+
+                                    <button
+                                        type="button"
+                                        class="show-qr-btn"
+                                        onclick="openPinModal(
+                        <?php
+                                echo (int)$currency['id'];
+                        ?>
+                    )">
+                                        🔐 Show QR
+                                    </button>
+
+
+                                </div>
+
+
+                            <?php endif; ?>
+
+
+                        </div>
+
+
+                        <!-- =================================================
+         DETAILS
+    ================================================== -->
+
+                        <div class="details">
+
+
+                            <div class="detail-row">
+
+                                <span class="detail-label">
+                                    Sender
+                                </span>
+
+                                <span class="detail-value">
+
+                                    <?php
+                                    echo htmlspecialchars(
+                                        $currency['sender_mobile']
+                                    );
+                                    ?>
+
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-row">
+
+                                <span class="detail-label">
+                                    Receiver
+                                </span>
+
+                                <span class="detail-value">
+
+                                    <?php
+
+                                    if (
+                                        !empty($currency['receiver_mobile'])
+                                    ) {
+
+                                        echo htmlspecialchars(
+                                            $currency['receiver_mobile']
+                                        );
+                                    } else {
+
+                                        echo "Not scanned";
+                                    }
+
+                                    ?>
+
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-row">
+
+                                <span class="detail-label">
+                                    Generation
+                                </span>
+
+                                <span class="detail-value">
+
+
+                                    <?php if (
+                                        $currency['generated_online']
+                                    ): ?>
+
+
+                                        <span class="mode">
+                                            ● ONLINE
+                                        </span>
+
+
+                                    <?php else: ?>
+
+
+                                        <span class="mode">
+                                            ● OFFLINE
+                                        </span>
+
+
+                                    <?php endif; ?>
+
+
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-row">
+
+                                <span class="detail-label">
+                                    Synchronization
+                                </span>
+
+                                <span class="detail-value">
+
+                                    <?php
+                                    echo htmlspecialchars(
+                                        $currency['sync_status']
+                                    );
+                                    ?>
+
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-row">
+
+                                <span class="detail-label">
+                                    Generated
+                                </span>
+
+                                <span class="detail-value">
+
+                                    <?php
+                                    echo date(
+                                        'd M Y, h:i A',
+                                        strtotime(
+                                            $currency['generated_at']
+                                        )
+                                    );
+                                    ?>
+
+                                </span>
+
+                            </div>
+
+
+                        </div>
+
+
+                    </article>
+
+
+                <?php endforeach; ?>
+
+
+            </div>
+
+
+        <?php else: ?>
+
+
+            <!-- EMPTY STATE -->
+
+            <div class="empty-box">
+
+                <div class="empty-icon">
+                    ₹
+                </div>
+
+                <h2>
+                    No Currency Generated
+                </h2>
+
+                <p>
+                    Your MBD Pay system currently has
+                    no active generated currency.
+                </p>
+
+            </div>
+
+
+        <?php endif; ?>
+
+
+    </main>
+
+
+    <!-- =====================================================
+     PIN MODAL
+====================================================== -->
+
+    <div
+        class="pin-modal"
+        id="pinModal">
+
+
+        <div class="pin-box">
+
+
+            <div class="pin-icon">
+                🔐
+            </div>
+
+
+            <h2>
+                Unlock Currency
+            </h2>
+
+
+            <p>
+                Enter your MBD Pay PIN to display
+                the QR code.
+            </p>
+
+
+            <form
+                method="POST"
+                autocomplete="off">
+
+
+                <input
+                    type="hidden"
+                    name="action"
+                    value="verify_pin">
+
+
+                <input
+                    type="hidden"
+                    name="currency_id"
+                    id="currencyId">
+
+
+                <input
+                    type="password"
+                    name="pin"
+                    class="pin-input"
+                    maxlength="6"
+                    inputmode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="••••"
+                    required
+                    autofocus>
+
+
+                <div class="pin-actions">
+
+
+                    <button
+                        type="button"
+                        class="pin-cancel"
+                        onclick="closePinModal()">
+                        Cancel
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="pin-submit">
+                        Unlock QR
+                    </button>
+
+
+                </div>
+
+
+            </form>
+
+
+            <?php if ($pin_error !== ""): ?>
+
+
+                <div class="pin-error">
+
+                    <?php
+                    echo htmlspecialchars(
+                        $pin_error
+                    );
+                    ?>
+
+                </div>
+
+
+            <?php endif; ?>
+
+
+        </div>
+
+
+    </div>
+
+
+    <?php require 'footer.php'; ?>
+
+
+    <script>
+        /*
+|--------------------------------------------------------------------------
+| PIN MODAL
+|--------------------------------------------------------------------------
+*/
+
+        function openPinModal(currencyId) {
+
+            document.getElementById(
+                "currencyId"
+            ).value = currencyId;
+
+
+            document.getElementById(
+                "pinModal"
+            ).classList.add("active");
+
+
+            setTimeout(
+                function() {
+
+                    const input =
+                        document.querySelector(
+                            ".pin-input"
+                        );
+
+                    if (input) {
+
+                        input.focus();
+                    }
+
+                },
+                100
+            );
+        }
+
+
+        function closePinModal() {
+
+            document.getElementById(
+                "pinModal"
+            ).classList.remove("active");
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CLOSE WHEN CLICKING OUTSIDE
+        |--------------------------------------------------------------------------
+        */
+
+        document
+            .getElementById("pinModal")
+            .addEventListener(
+                "click",
+                function(event) {
+
+                    if (
+                        event.target === this
+                    ) {
+
+                        closePinModal();
+                    }
+
+                }
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | AUTO OPEN MODAL AFTER WRONG PIN
+        |--------------------------------------------------------------------------
+        */
+
+        <?php if ($pin_error !== ""): ?>
+
+            document.addEventListener(
+                "DOMContentLoaded",
+                function() {
+
+                    document
+                        .getElementById("pinModal")
+                        .classList.add("active");
+
+                }
+            );
+
+        <?php endif; ?>
+    </script>
+
+
 </body>
 
 </html>
