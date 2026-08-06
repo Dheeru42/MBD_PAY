@@ -97,277 +97,278 @@ $generated_currency = null;
 |--------------------------------------------------------------------------
 */
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+try {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    $amount = isset($_POST['amount'])
-        ? (float) $_POST['amount']
-        : 0;
+        $amount = isset($_POST['amount'])
+            ? (float) $_POST['amount']
+            : 0;
 
 
-    /*
+        /*
     |--------------------------------------------------------------------------
     | BASIC VALIDATION
     |--------------------------------------------------------------------------
     */
 
-    if ($amount <= 0) {
+        if ($amount <= 0) {
 
-        $message = "Please enter a valid amount.";
-        $message_type = "error";
-    } elseif ($amount > 1000) {
+            $message = "Please enter a valid amount.";
+            $message_type = "error";
+        } elseif ($amount > 1000) {
 
-        $message = "Maximum currency amount is ₹1,000.";
-        $message_type = "error";
+            $message = "Maximum currency amount is ₹1,000.";
+            $message_type = "error";
 
 
-        /*
+            /*
     |--------------------------------------------------------------------------
     | CHECK SERVER CONNECTION
     |--------------------------------------------------------------------------
     */
-    } elseif (!isset($serverConnected) || !$serverConnected) {
+        } elseif (!isset($serverConnected) || !$serverConnected) {
 
-        $message =
-            "MBD Server is offline. Currency generation is available only when online.";
+            $message =
+                "MBD Server is offline. Currency generation is available only when online.";
 
-        $message_type = "error";
-    } else {
+            $message_type = "error";
+        } else {
 
-        $u_account = $_SESSION['account'];
-        $u_mob     = $_SESSION['mobile'];
+            $u_account = $_SESSION['account'];
+            $u_mob     = $_SESSION['mobile'];
 
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | START DATABASE TRANSACTION
         |--------------------------------------------------------------------------
         */
 
-        $conn->begin_transaction();
+            $conn->begin_transaction();
 
-        try {
+            try {
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | LOCK USER WALLET
             |--------------------------------------------------------------------------
             */
 
-            $stmt = $conn->prepare(
-                "SELECT id, name, balance
+                $stmt = $conn->prepare(
+                    "SELECT id, name, balance
                  FROM users
                  WHERE account_no = ?
                  LIMIT 1
                  FOR UPDATE"
-            );
-
-            if (!$stmt) {
-                throw new Exception(
-                    "Unable to access wallet."
                 );
-            }
 
-            $stmt->bind_param(
-                "s",
-                $u_account
-            );
+                if (!$stmt) {
+                    throw new Exception(
+                        "Unable to access wallet."
+                    );
+                }
 
-            $stmt->execute();
+                $stmt->bind_param(
+                    "s",
+                    $u_account
+                );
 
-            $result = $stmt->get_result();
+                $stmt->execute();
 
-            $user = $result->fetch_assoc();
+                $result = $stmt->get_result();
 
-            $stmt->close();
+                $user = $result->fetch_assoc();
 
-            // fetch latest id 
-            $result = mysqli_query(
-                $c_conn,
-                "SELECT id FROM currency ORDER BY id DESC LIMIT 1"
-            );
+                $stmt->close();
 
-            $row = mysqli_fetch_assoc($result);
+                // fetch latest id 
+                $result = mysqli_query(
+                    $c_conn,
+                    "SELECT id FROM currency ORDER BY id DESC LIMIT 1"
+                );
 
-            $last_id = $row['id'];
+                $row = mysqli_fetch_assoc($result);
 
-            $next_id = $last_id + 1;
+                $last_id = $row['id'];
 
-            // GENERATE UNIQUE CURRENCY SERIAL
-            $serial_no = "MBD-" . str_pad(
-                $next_id,
-                3,
-                "0",
-                STR_PAD_LEFT
-            );
+                $next_id = $last_id + 1;
+
+                // GENERATE UNIQUE CURRENCY SERIAL
+                $serial_no = "MBD-" . str_pad(
+                    $next_id,
+                    3,
+                    "0",
+                    STR_PAD_LEFT
+                );
 
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | CHECK USER
             |--------------------------------------------------------------------------
             */
 
-            if (!$user) {
+                if (!$user) {
 
-                throw new Exception(
-                    "User account not found."
-                );
-            }
+                    throw new Exception(
+                        "User account not found."
+                    );
+                }
 
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | DECRYPT CURRENT BALANCE
             |--------------------------------------------------------------------------
             */
 
-            $current_balance =
-                (float) decryptData(
-                    $user['balance']
-                );
+                $current_balance =
+                    (float) decryptData(
+                        $user['balance']
+                    );
 
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | CHECK BALANCE
             |--------------------------------------------------------------------------
             */
 
-            if ($current_balance < $amount) {
+                if ($current_balance < $amount) {
 
-                throw new Exception(
-                    "Insufficient wallet balance."
-                );
-            }
+                    throw new Exception(
+                        "Insufficient wallet balance."
+                    );
+                }
 
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | CALCULATE NEW BALANCE
             |--------------------------------------------------------------------------
             */
 
-            $new_balance =
-                round(
-                    $current_balance - $amount,
-                    2
-                );
+                $new_balance =
+                    round(
+                        $current_balance - $amount,
+                        2
+                    );
 
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | ENCRYPT AMOUNT AND BALANCES
             |--------------------------------------------------------------------------
             */
 
-            $encrypted_amount =
-                encryptData(
-                    number_format(
-                        $amount,
-                        2,
-                        '.',
-                        ''
-                    )
-                );
+                $encrypted_amount =
+                    encryptData(
+                        number_format(
+                            $amount,
+                            2,
+                            '.',
+                            ''
+                        )
+                    );
 
-            $encrypted_old_balance =
-                encryptData(
-                    number_format(
-                        $current_balance,
-                        2,
-                        '.',
-                        ''
-                    )
-                );
+                $encrypted_old_balance =
+                    encryptData(
+                        number_format(
+                            $current_balance,
+                            2,
+                            '.',
+                            ''
+                        )
+                    );
 
-            $encrypted_new_balance =
-                encryptData(
-                    number_format(
-                        $new_balance,
-                        2,
-                        '.',
-                        ''
-                    )
-                );
-
-
-            // GENERATE UNIQUE CURRENCY SERIAL
-            $c_serial_no =
-                "MBD-" .
-                date("YmdHis") .
-                "-" .
-                strtoupper(
-                    bin2hex(
-                        random_bytes(8)
-                    )
-                );
+                $encrypted_new_balance =
+                    encryptData(
+                        number_format(
+                            $new_balance,
+                            2,
+                            '.',
+                            ''
+                        )
+                    );
 
 
-            /*
+                // GENERATE UNIQUE CURRENCY SERIAL
+                $c_serial_no =
+                    "MBD-" .
+                    date("YmdHis") .
+                    "-" .
+                    strtoupper(
+                        bin2hex(
+                            random_bytes(8)
+                        )
+                    );
+
+
+                /*
             |--------------------------------------------------------------------------
             | ENCRYPT SERIAL
             |--------------------------------------------------------------------------
             */
 
-            $encrypted_serial =
-                encryptData(
-                    $c_serial_no
-                );
+                $encrypted_serial =
+                    encryptData(
+                        $c_serial_no
+                    );
 
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | GENERATE TRANSACTION ID
             |--------------------------------------------------------------------------
             */
 
-            $transaction_id =
-                "MBD" .
-                date("YmdHis") .
-                strtoupper(
-                    bin2hex(
-                        random_bytes(5)
-                    )
-                );
+                $transaction_id =
+                    "MBD" .
+                    date("YmdHis") .
+                    strtoupper(
+                        bin2hex(
+                            random_bytes(5)
+                        )
+                    );
 
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | UPDATE USER BALANCE
             |--------------------------------------------------------------------------
             */
 
-            $stmt = $conn->prepare(
-                "UPDATE users
+                $stmt = $conn->prepare(
+                    "UPDATE users
                  SET balance = ?
                  WHERE id = ?"
-            );
-
-            if (!$stmt) {
-                throw new Exception(
-                    "Unable to update wallet."
                 );
-            }
 
-            $stmt->bind_param(
-                "si",
-                $encrypted_new_balance,
-                $user['id']
-            );
+                if (!$stmt) {
+                    throw new Exception(
+                        "Unable to update wallet."
+                    );
+                }
 
-            if (!$stmt->execute()) {
+                $stmt->bind_param(
+                    "si",
+                    $encrypted_new_balance,
+                    $user['id']
+                );
+
+                if (!$stmt->execute()) {
+
+                    $stmt->close();
+
+                    throw new Exception(
+                        "Unable to reserve wallet balance."
+                    );
+                }
 
                 $stmt->close();
 
-                throw new Exception(
-                    "Unable to reserve wallet balance."
-                );
-            }
 
-            $stmt->close();
-
-
-            /*
+                /*
             |--------------------------------------------------------------------------
             | INSERT CURRENCY
             |--------------------------------------------------------------------------
@@ -376,8 +377,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             |
             */
 
-            $stmt = $c_conn->prepare(
-                "INSERT INTO currency
+                $stmt = $c_conn->prepare(
+                    "INSERT INTO currency
                 (
                     serial_no,
                     encrypted_serial,
@@ -395,58 +396,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ?,
                     NOW()
                 )"
-            );
-
-            if (!$stmt) {
-                throw new Exception(
-                    "Unable to prepare currency creation."
                 );
-            }
+
+                if (!$stmt) {
+                    throw new Exception(
+                        "Unable to prepare currency creation."
+                    );
+                }
 
 
-            $currency_status = "GENERATED";
+                $currency_status = "GENERATED";
 
 
-            $stmt->bind_param(
-                "sssss",
-                $serial_no,
-                $encrypted_serial,
-                $u_mob,
-                $encrypted_amount,
-                $currency_status
-            );
+                $stmt->bind_param(
+                    "sssss",
+                    $serial_no,
+                    $encrypted_serial,
+                    $u_mob,
+                    $encrypted_amount,
+                    $currency_status
+                );
 
 
-            if (!$stmt->execute()) {
+                if (!$stmt->execute()) {
+
+                    $stmt->close();
+
+                    throw new Exception(
+                        "Unable to create currency."
+                    );
+                }
 
                 $stmt->close();
 
-                throw new Exception(
-                    "Unable to create currency."
-                );
-            }
 
-            $stmt->close();
-
-
-            /*
+                /*
             |--------------------------------------------------------------------------
             | INSERT WALLET TRANSACTION
             |--------------------------------------------------------------------------
             */
 
-            $transaction_type =
-                "Currency Generated";
+                $transaction_type =
+                    "Currency Generated";
 
-            $description =
-                "MBD Pay currency generated";
+                $description =
+                    "MBD Pay currency generated";
 
-            $transaction_status =
-                "Success";
+                $transaction_status =
+                    "Success";
 
 
-            $stmt = $conn->prepare(
-                "INSERT INTO transactions
+                $stmt = $conn->prepare(
+                    "INSERT INTO transactions
                 (
                     transaction_id,
                     mobile,
@@ -468,42 +469,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ?,
                     ?
                 )"
-            );
-
-
-            if (!$stmt) {
-                throw new Exception(
-                    "Unable to create transaction."
                 );
-            }
 
 
-            $stmt->bind_param(
-                "ssssssss",
-                $transaction_id,
-                $u_mob,
-                $transaction_type,
-                $encrypted_amount,
-                $encrypted_old_balance,
-                $encrypted_new_balance,
-                $description,
-                $transaction_status
-            );
+                if (!$stmt) {
+                    throw new Exception(
+                        "Unable to create transaction."
+                    );
+                }
 
 
-            if (!$stmt->execute()) {
+                $stmt->bind_param(
+                    "ssssssss",
+                    $transaction_id,
+                    $u_mob,
+                    $transaction_type,
+                    $encrypted_amount,
+                    $encrypted_old_balance,
+                    $encrypted_new_balance,
+                    $description,
+                    $transaction_status
+                );
+
+
+                if (!$stmt->execute()) {
+
+                    $stmt->close();
+
+                    throw new Exception(
+                        "Unable to record transaction."
+                    );
+                }
 
                 $stmt->close();
 
-                throw new Exception(
-                    "Unable to record transaction."
-                );
-            }
 
-            $stmt->close();
-
-
-            /*
+                /*
             |--------------------------------------------------------------------------
             | QR PAYLOAD
             |--------------------------------------------------------------------------
@@ -515,91 +516,163 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             |
             */
 
-            $qr_payload = json_encode([
-                "type"     => "MBD_CURRENCY",
-                "version"  => 1,
-                "serial"   => $serial_no,
-                "currency" => "INR"
-            ], JSON_UNESCAPED_SLASHES);
+                $qr_payload = json_encode([
+                    "type"     => "MBD_CURRENCY",
+                    "version"  => 1,
+                    "serial"   => $serial_no,
+                    "currency" => "INR"
+                ], JSON_UNESCAPED_SLASHES);
 
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | COMMIT
             |--------------------------------------------------------------------------
             */
 
-            $conn->commit();
+                $conn->commit();
 
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | UPDATE SESSION BALANCE
             |--------------------------------------------------------------------------
             */
 
-            $_SESSION['balance'] =
-                $new_balance;
+                $_SESSION['balance'] =
+                    $new_balance;
 
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | GENERATED CURRENCY
             |--------------------------------------------------------------------------
             */
 
-            $generated_currency = [
+                $generated_currency = [
 
-                "serial_no" =>
-                $serial_no,
+                    "serial_no" =>
+                    $serial_no,
 
-                "amount" =>
-                number_format(
-                    $amount,
-                    2
-                ),
+                    "amount" =>
+                    number_format(
+                        $amount,
+                        2
+                    ),
 
-                "qr_payload" =>
-                $qr_payload,
+                    "qr_payload" =>
+                    $qr_payload,
 
-                "transaction_id" =>
-                $transaction_id
+                    "transaction_id" =>
+                    $transaction_id
 
-            ];
+                ];
 
 
-            /*
+                // catch update
+
+
+                $userId =
+                    hash(
+                        "sha256",
+                        $u_mob
+                    );
+
+
+                $file =
+                    "cache/users/$userId/profile.json";
+
+
+                if (
+                    file_exists($file)
+                ) {
+
+
+                    $data =
+                        json_decode(
+                            file_get_contents(
+                                $file
+                            ),
+                            true
+                        );
+
+
+                    /*
+                                         * Store encrypted
+                                         * wallet balance
+                                         */
+
+                    $data['balance'] =
+                        $encrypted_new_balance;
+
+
+                    /*
+                                         * Server is synchronized
+                                         */
+
+                    $data['server_sync'] =
+                        true;
+
+
+                    /*
+                                         * Save transaction ID
+                                         */
+
+                    $data['last_transaction'] =
+                        $transaction_id;
+
+
+                    /*
+                                         * Save cache
+                                         */
+
+                    file_put_contents(
+                        $file,
+                        json_encode(
+                            $data,
+                            JSON_PRETTY_PRINT
+                        )
+                    );
+                }
+
+
+
+                /*
             |--------------------------------------------------------------------------
             | SUCCESS
             |--------------------------------------------------------------------------
             */
 
-            $message =
-                "₹" .
-                number_format(
-                    $amount,
-                    2
-                ) .
-                " currency generated successfully.";
+                $message =
+                    "₹" .
+                    number_format(
+                        $amount,
+                        2
+                    ) .
+                    " currency generated successfully.";
 
-            $message_type = "success";
-        } catch (Throwable $e) {
+                $message_type = "success";
+            } catch (Throwable $e) {
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | ROLLBACK
             |--------------------------------------------------------------------------
             */
 
-            $conn->rollback();
+                $conn->rollback();
 
-            $message =
-                $e->getMessage();
+                $message =
+                    $e->getMessage();
 
-            $message_type =
-                "error";
+                $message_type =
+                    "error";
+            }
         }
     }
+} catch (\Throwable $th) {
+    $message = 'Please Connect to Internet';
+    $message_type = 'error';
 }
 
 // FETCH RECENT CURRENCY
