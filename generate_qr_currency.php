@@ -2,12 +2,42 @@
 
 session_start();
 
-
 require 'conn.php';
 require 'bank_conn.php';
 require 'currency_con.php';
 
-define("SECRET_KEY", "MBDPAY@2026_SUPER_SECRET_KEY_32");
+define(
+    "SECRET_KEY",
+    "MBDPAY@2026_SUPER_SECRET_KEY_32"
+);
+
+$message = "";
+$message_type = "";
+
+$generated_currency = null;
+
+
+/*
+|--------------------------------------------------------------------------
+| AUTHENTICATION
+|--------------------------------------------------------------------------
+*/
+
+if (!isset($_SESSION['user'])) {
+
+    header("Location: login.php");
+    exit;
+}
+
+if (!isset($_SESSION['account'])) {
+
+    header("Location: login.php");
+    exit;
+}
+
+$user_id = (int) $_SESSION['user'];
+
+$u_account = $_SESSION['account'];
 
 $mess_c = "";
 $m_type = "";
@@ -23,18 +53,23 @@ if (isset($_SESSION['mobile'])) {
     $u_mob = $_SESSION['mobile'];
 }
 
-if (!isset($_SESSION['account'])) {
-    header("location:login.php");
-    exit;
-}
 
-$u_account = $_SESSION['account'];
+/*
+|--------------------------------------------------------------------------
+| ENCRYPT DATA
+|--------------------------------------------------------------------------
+*/
 
-/* Encrypt Function */
 function encryptData($text)
 {
-    $key = hash("sha256", SECRET_KEY, true);
-    $iv  = random_bytes(16);
+
+    $key = hash(
+        "sha256",
+        SECRET_KEY,
+        true
+    );
+
+    $iv = random_bytes(16);
 
     $cipher = openssl_encrypt(
         $text,
@@ -44,22 +79,47 @@ function encryptData($text)
         $iv
     );
 
-    return base64_encode($iv . $cipher);
+    return base64_encode(
+        $iv . $cipher
+    );
 }
 
 
-/* Decrypt Function */
+/*
+|--------------------------------------------------------------------------
+| DECRYPT DATA
+|--------------------------------------------------------------------------
+*/
 
 function decryptData($text)
 {
-    $key = hash("sha256", SECRET_KEY, true);
+
+    $key = hash(
+        "sha256",
+        SECRET_KEY,
+        true
+    );
 
     $data = base64_decode($text);
 
-    $iv = substr($data, 0, 16);
+    if (
+        $data === false ||
+        strlen($data) < 17
+    ) {
 
-    $cipher = substr($data, 16);
+        return false;
+    }
 
+    $iv = substr(
+        $data,
+        0,
+        16
+    );
+
+    $cipher = substr(
+        $data,
+        16
+    );
 
     return openssl_decrypt(
         $cipher,
@@ -70,35 +130,6 @@ function decryptData($text)
     );
 }
 
-/*
-|--------------------------------------------------------------------------
-| AUTHENTICATION
-|--------------------------------------------------------------------------
-*/
-
-if (!isset($_SESSION['user'])) {
-    header("Location: login.php");
-    exit;
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| USER INFORMATION
-|--------------------------------------------------------------------------
-|
-| This assumes your login session stores the user's ID in:
-| $_SESSION['user']
-|
-*/
-
-$user_id = (int) $_SESSION['user'];
-
-$message = "";
-$message_type = "";
-
-$generated_currency = null;
-
 
 /*
 |--------------------------------------------------------------------------
@@ -107,90 +138,211 @@ $generated_currency = null;
 */
 
 try {
+
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FORM DATA
+        |--------------------------------------------------------------------------
+        */
 
         $amount = isset($_POST['amount'])
             ? (float) $_POST['amount']
             : 0;
 
+        $pin = isset($_POST['pin'])
+            ? trim($_POST['pin'])
+            : "";
+
 
         /*
-    |--------------------------------------------------------------------------
-    | BASIC VALIDATION
-    |--------------------------------------------------------------------------
-    */
-
-        if ($amount <= 0) {
-
-            $message = "Please enter a valid amount.";
-            $message_type = "error";
-        } elseif ($amount > 1000) {
-
-            $message = "Maximum currency amount is ₹1,000.";
-            $message_type = "error";
-
-
-            /*
-    |--------------------------------------------------------------------------
-    | CHECK SERVER CONNECTION
-    |--------------------------------------------------------------------------
-    */
-        } elseif (!isset($serverConnected) || !$serverConnected) {
-
-            $message =
-                "MBD Server is offline. Currency generation is available only when online.";
-
-            $message_type = "error";
-        } else {
-
-            $u_account = $_SESSION['account'];
-            $u_mob     = $_SESSION['mobile'];
-
-
-            /*
         |--------------------------------------------------------------------------
-        | START DATABASE TRANSACTION
+        | VALIDATE AMOUNT
         |--------------------------------------------------------------------------
         */
 
-            $conn->begin_transaction();
+        if ($amount <= 0) {
 
-            try {
+            throw new Exception(
+                "Please enter a valid amount."
+            );
+        }
 
-                /*
+
+        if ($amount > 1000) {
+
+            throw new Exception(
+                "Maximum currency amount is ₹1,000."
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | VALIDATE PIN
+        |--------------------------------------------------------------------------
+        */
+
+        if (!preg_match('/^\d{4}$/', $pin)) {
+
+            throw new Exception(
+                "Please enter a valid 4 digit PIN."
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SERVER CONNECTION
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            isset($serverConnected) &&
+            !$serverConnected
+        ) {
+
+            throw new Exception(
+                "MBD Pay server is offline. Currency generation is unavailable."
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GET USER
+        |--------------------------------------------------------------------------
+        */
+
+        $stmt = $conn->prepare(
+            "SELECT
+                id,
+                name,
+                balance,
+                pin
+             FROM users
+             WHERE account_no = ?
+             LIMIT 1"
+        );
+
+
+        if (!$stmt) {
+
+            throw new Exception(
+                "Unable to access user account."
+            );
+        }
+
+
+        $stmt->bind_param(
+            "s",
+            $u_account
+        );
+
+
+        $stmt->execute();
+
+
+        $result =
+            $stmt->get_result();
+
+
+        $user =
+            $result->fetch_assoc();
+
+
+        $stmt->close();
+
+
+        if (!$user) {
+
+            throw new Exception(
+                "User account not found."
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | VERIFY PIN
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            empty($user['pin']) ||
+            !password_verify(
+                $pin,
+                $user['pin']
+            )
+        ) {
+
+            throw new Exception(
+                "Incorrect PIN. Currency was not generated."
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | START TRANSACTION
+        |--------------------------------------------------------------------------
+        */
+
+        $conn->begin_transaction();
+
+
+        try {
+
+
+            /*
             |--------------------------------------------------------------------------
-            | LOCK USER WALLET
+            | LOCK WALLET
             |--------------------------------------------------------------------------
             */
 
-                $stmt = $conn->prepare(
-                    "SELECT id, name, balance
+            $stmt = $conn->prepare(
+                "SELECT
+                    id,
+                    name,
+                    balance,
+                    pin
                  FROM users
                  WHERE account_no = ?
                  LIMIT 1
                  FOR UPDATE"
+            );
+
+
+            if (!$stmt) {
+
+                throw new Exception(
+                    "Unable to lock wallet."
                 );
+            }
 
-                if (!$stmt) {
-                    throw new Exception(
-                        "Unable to access wallet."
-                    );
-                }
 
-                $stmt->bind_param(
-                    "s",
-                    $u_account
-                );
+            $stmt->bind_param(
+                "s",
+                $u_account
+            );
 
-                $stmt->execute();
 
-                $result = $stmt->get_result();
+            $stmt->execute();
 
-                $user = $result->fetch_assoc();
 
-                $stmt->close();
+            $result =
+                $stmt->get_result();
 
-                // fetch latest id 
+
+            $locked_user =
+                $result->fetch_assoc();
+
+
+            $stmt->close();
+
+              // fetch latest id 
                 $result = mysqli_query(
                     $c_conn,
                     "SELECT id FROM currency ORDER BY id DESC LIMIT 1"
@@ -210,184 +362,214 @@ try {
                     STR_PAD_LEFT
                 );
 
+            if (!$locked_user) {
 
-                /*
+                throw new Exception(
+                    "User account not found."
+                );
+            }
+
+
+            /*
             |--------------------------------------------------------------------------
-            | CHECK USER
-            |--------------------------------------------------------------------------
-            */
-
-                if (!$user) {
-
-                    throw new Exception(
-                        "User account not found."
-                    );
-                }
-
-
-                /*
-            |--------------------------------------------------------------------------
-            | DECRYPT CURRENT BALANCE
+            | VERIFY PIN AGAIN
             |--------------------------------------------------------------------------
             */
 
-                $current_balance =
-                    (float) decryptData(
-                        $user['balance']
-                    );
+            if (
+                empty($locked_user['pin']) ||
+                !password_verify(
+                    $pin,
+                    $locked_user['pin']
+                )
+            ) {
+
+                throw new Exception(
+                    "PIN verification failed."
+                );
+            }
 
 
-                /*
+            /*
+            |--------------------------------------------------------------------------
+            | GET BALANCE
+            |--------------------------------------------------------------------------
+            */
+
+            $current_balance =
+                decryptData(
+                    $locked_user['balance']
+                );
+
+
+            if ($current_balance === false) {
+
+                throw new Exception(
+                    "Unable to read wallet balance."
+                );
+            }
+
+
+            $current_balance =
+                (float) $current_balance;
+
+
+            /*
             |--------------------------------------------------------------------------
             | CHECK BALANCE
             |--------------------------------------------------------------------------
             */
 
-                if ($current_balance < $amount) {
+            if (
+                $current_balance < $amount
+            ) {
 
-                    throw new Exception(
-                        "Insufficient wallet balance."
-                    );
-                }
+                throw new Exception(
+                    "Insufficient wallet balance."
+                );
+            }
 
 
-                /*
+            /*
             |--------------------------------------------------------------------------
-            | CALCULATE NEW BALANCE
-            |--------------------------------------------------------------------------
-            */
-
-                $new_balance =
-                    round(
-                        $current_balance - $amount,
-                        2
-                    );
-
-
-                /*
-            |--------------------------------------------------------------------------
-            | ENCRYPT AMOUNT AND BALANCES
+            | NEW BALANCE
             |--------------------------------------------------------------------------
             */
 
-                $encrypted_amount =
-                    encryptData(
-                        number_format(
-                            $amount,
-                            2,
-                            '.',
-                            ''
-                        )
-                    );
-
-                $encrypted_old_balance =
-                    encryptData(
-                        number_format(
-                            $current_balance,
-                            2,
-                            '.',
-                            ''
-                        )
-                    );
-
-                $encrypted_new_balance =
-                    encryptData(
-                        number_format(
-                            $new_balance,
-                            2,
-                            '.',
-                            ''
-                        )
-                    );
+            $new_balance =
+                round(
+                    $current_balance - $amount,
+                    2
+                );
 
 
-                // GENERATE UNIQUE CURRENCY SERIAL
-                $c_serial_no =
-                    "MBD-" .
-                    date("YmdHis") .
-                    "-" .
-                    strtoupper(
-                        bin2hex(
-                            random_bytes(8)
-                        )
-                    );
-
-
-                /*
+            /*
             |--------------------------------------------------------------------------
-            | ENCRYPT SERIAL
+            | GENERATE SERIAL
             |--------------------------------------------------------------------------
             */
 
-                $encrypted_serial =
-                    encryptData(
-                        $c_serial_no
-                    );
+            $c_serial_no =
+                "MBD-" .
+                date("YmdHis") .
+                "-" .
+                strtoupper(
+                    bin2hex(
+                        random_bytes(8)
+                    )
+                );
 
 
-                /*
+            /*
             |--------------------------------------------------------------------------
-            | GENERATE TRANSACTION ID
-            |--------------------------------------------------------------------------
-            */
-
-                $transaction_id =
-                    "MBD" .
-                    date("YmdHis") .
-                    strtoupper(
-                        bin2hex(
-                            random_bytes(5)
-                        )
-                    );
-
-
-                /*
-            |--------------------------------------------------------------------------
-            | UPDATE USER BALANCE
+            | ENCRYPT CURRENCY DATA
             |--------------------------------------------------------------------------
             */
 
-                $stmt = $conn->prepare(
-                    "UPDATE users
+            $encrypted_serial =
+                encryptData(
+                    $c_serial_no
+                );
+
+
+            $encrypted_amount =
+                encryptData(
+                    number_format(
+                        $amount,
+                        2,
+                        '.',
+                        ''
+                    )
+                );
+
+
+            $encrypted_old_balance =
+                encryptData(
+                    number_format(
+                        $current_balance,
+                        2,
+                        '.',
+                        ''
+                    )
+                );
+
+
+            $encrypted_new_balance =
+                encryptData(
+                    number_format(
+                        $new_balance,
+                        2,
+                        '.',
+                        ''
+                    )
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | TRANSACTION ID
+            |--------------------------------------------------------------------------
+            */
+
+            $transaction_id =
+                "MBD" .
+                date("YmdHis") .
+                strtoupper(
+                    bin2hex(
+                        random_bytes(5)
+                    )
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | UPDATE WALLET
+            |--------------------------------------------------------------------------
+            */
+
+            $stmt = $conn->prepare(
+                "UPDATE users
                  SET balance = ?
                  WHERE id = ?"
+            );
+
+
+            if (!$stmt) {
+
+                throw new Exception(
+                    "Unable to update wallet."
                 );
+            }
 
-                if (!$stmt) {
-                    throw new Exception(
-                        "Unable to update wallet."
-                    );
-                }
 
-                $stmt->bind_param(
-                    "si",
-                    $encrypted_new_balance,
-                    $user['id']
-                );
+            $stmt->bind_param(
+                "si",
+                $encrypted_new_balance,
+                $locked_user['id']
+            );
 
-                if (!$stmt->execute()) {
 
-                    $stmt->close();
-
-                    throw new Exception(
-                        "Unable to reserve wallet balance."
-                    );
-                }
+            if (!$stmt->execute()) {
 
                 $stmt->close();
 
+                throw new Exception(
+                    "Unable to update wallet balance."
+                );
+            }
 
-                /*
+
+            $stmt->close();
+
+
+            /*
             |--------------------------------------------------------------------------
             | INSERT CURRENCY
             |--------------------------------------------------------------------------
-            |
-            | Currency remains active until scanned.
-            |
             */
 
-                $stmt = $c_conn->prepare(
-                    "INSERT INTO currency
+            $stmt = $c_conn->prepare(
+                "INSERT INTO currency
                 (
                     serial_no,
                     encrypted_serial,
@@ -405,58 +587,64 @@ try {
                     ?,
                     NOW()
                 )"
+            );
+
+
+            if (!$stmt) {
+
+                throw new Exception(
+                    "Unable to prepare currency creation."
                 );
-
-                if (!$stmt) {
-                    throw new Exception(
-                        "Unable to prepare currency creation."
-                    );
-                }
+            }
 
 
-                $currency_status = "GENERATED";
+            $currency_status =
+                "GENERATED";
 
 
-                $stmt->bind_param(
-                    "sssss",
-                    $serial_no,
-                    $encrypted_serial,
-                    $u_mob,
-                    $encrypted_amount,
-                    $currency_status
-                );
+            $stmt->bind_param(
+                "sssss",
+                $serial_no,
+                $encrypted_serial,
+                $u_mob,
+                $encrypted_amount,
+                $currency_status
+            );
 
 
-                if (!$stmt->execute()) {
-
-                    $stmt->close();
-
-                    throw new Exception(
-                        "Unable to create currency."
-                    );
-                }
+            if (!$stmt->execute()) {
 
                 $stmt->close();
 
+                throw new Exception(
+                    "Unable to create currency."
+                );
+            }
 
-                /*
+
+            $stmt->close();
+
+
+            /*
             |--------------------------------------------------------------------------
-            | INSERT WALLET TRANSACTION
+            | INSERT TRANSACTION
             |--------------------------------------------------------------------------
             */
 
-                $transaction_type =
-                    "Currency Generated";
-
-                $description =
-                    "MBD Pay currency generated";
-
-                $transaction_status =
-                    "Success";
+            $transaction_type =
+                "Currency Generated";
 
 
-                $stmt = $conn->prepare(
-                    "INSERT INTO transactions
+            $description =
+                "MBD Pay currency generated";
+
+
+            $transaction_status =
+                "Success";
+
+
+            $stmt = $conn->prepare(
+                "INSERT INTO transactions
                 (
                     transaction_id,
                     mobile,
@@ -478,253 +666,239 @@ try {
                     ?,
                     ?
                 )"
+            );
+
+
+            if (!$stmt) {
+
+                throw new Exception(
+                    "Unable to create transaction."
                 );
+            }
 
 
-                if (!$stmt) {
-                    throw new Exception(
-                        "Unable to create transaction."
-                    );
-                }
+            $stmt->bind_param(
+                "ssssssss",
+                $transaction_id,
+                $u_mob,
+                $transaction_type,
+                $encrypted_amount,
+                $encrypted_old_balance,
+                $encrypted_new_balance,
+                $description,
+                $transaction_status
+            );
 
 
-                $stmt->bind_param(
-                    "ssssssss",
-                    $transaction_id,
-                    $u_mob,
-                    $transaction_type,
-                    $encrypted_amount,
-                    $encrypted_old_balance,
-                    $encrypted_new_balance,
-                    $description,
-                    $transaction_status
-                );
-
-
-                if (!$stmt->execute()) {
-
-                    $stmt->close();
-
-                    throw new Exception(
-                        "Unable to record transaction."
-                    );
-                }
+            if (!$stmt->execute()) {
 
                 $stmt->close();
 
-
-                /*
-            |--------------------------------------------------------------------------
-            | QR PAYLOAD
-            |--------------------------------------------------------------------------
-            |
-            | No expiry.
-            | No balance.
-            | No password.
-            | No PIN.
-            |
-            */
-
-                $qr_payload = json_encode([
-                    "type"     => "MBD_CURRENCY",
-                    "version"  => 1,
-                    "serial"   => $serial_no,
-                    "currency" => "INR"
-                ], JSON_UNESCAPED_SLASHES);
+                throw new Exception(
+                    "Unable to record transaction."
+                );
+            }
 
 
-                /*
+            $stmt->close();
+
+
+            /*
             |--------------------------------------------------------------------------
             | COMMIT
             |--------------------------------------------------------------------------
             */
 
-                $conn->commit();
+            $conn->commit();
 
 
-                /*
+            /*
             |--------------------------------------------------------------------------
             | UPDATE SESSION BALANCE
             |--------------------------------------------------------------------------
             */
 
-                $_SESSION['balance'] =
-                    $new_balance;
+            $_SESSION['balance'] =
+                $new_balance;
 
 
-                /*
+            /*
             |--------------------------------------------------------------------------
-            | GENERATED CURRENCY
+            | LOCAL CACHE UPDATE
             |--------------------------------------------------------------------------
             */
 
-                $generated_currency = [
-
-                    "serial_no" =>
-                    $serial_no,
-
-                    "amount" =>
-                    number_format(
-                        $amount,
-                        2
-                    ),
-
-                    "qr_payload" =>
-                    $qr_payload,
-
-                    "transaction_id" =>
-                    $transaction_id
-
-                ];
+            $userId =
+                hash(
+                    "sha256",
+                    $u_mob
+                );
 
 
-                // catch update
+            $file =
+                "cache/users/$userId/profile.json";
 
 
-                $userId =
-                    hash(
-                        "sha256",
-                        $u_mob
+            if (file_exists($file)) {
+
+                $data =
+                    json_decode(
+                        file_get_contents($file),
+                        true
                     );
 
 
-                $file =
-                    "cache/users/$userId/profile.json";
+                if (!is_array($data)) {
 
-
-                if (
-                    file_exists($file)
-                ) {
-
-
-                    $data =
-                        json_decode(
-                            file_get_contents(
-                                $file
-                            ),
-                            true
-                        );
-
-
-                    /*
-                                         * Store encrypted
-                                         * wallet balance
-                                         */
-
-                    $data['balance'] =
-                        $encrypted_new_balance;
-
-
-                    /*
-                                         * Server is synchronized
-                                         */
-
-                    $data['server_sync'] =
-                        true;
-
-
-                    /*
-                                         * Save transaction ID
-                                         */
-
-                    $data['last_transaction'] =
-                        $transaction_id;
-
-
-                    /*
-                                         * Save cache
-                                         */
-
-                    file_put_contents(
-                        $file,
-                        json_encode(
-                            $data,
-                            JSON_PRETTY_PRINT
-                        )
-                    );
+                    $data = [];
                 }
 
 
+                $data['balance'] =
+                    $encrypted_new_balance;
 
-                /*
+
+                $data['server_sync'] =
+                    true;
+
+
+                $data['last_transaction'] =
+                    $transaction_id;
+
+
+                file_put_contents(
+                    $file,
+                    json_encode(
+                        $data,
+                        JSON_PRETTY_PRINT
+                    )
+                );
+            }
+
+
+            /*
             |--------------------------------------------------------------------------
             | SUCCESS
             |--------------------------------------------------------------------------
             */
 
-                $message =
-                    "₹" .
-                    number_format(
-                        $amount,
-                        2
-                    ) .
-                    " currency generated successfully.";
+            $message =
+                "₹" .
+                number_format(
+                    $amount,
+                    2
+                ) .
+                " currency generated successfully.";
 
-                $message_type = "success";
-                $_SESSION['message_cur'] = $message;
-                $_SESSION['message_type'] = $message_type;
-                header("location:generate_qr_currency.php");
-            } catch (Throwable $e) {
 
-                /*
+            $message_type =
+                "success";
+
+
+            $generated_currency = [
+
+                "serial_no" =>
+                $c_serial_no,
+
+                "amount" =>
+                number_format(
+                    $amount,
+                    2
+                ),
+
+                "transaction_id" =>
+                $transaction_id
+
+            ];
+            $_SESSION['message_cur'] = $message;
+            $_SESSION['message_type'] = $message_type;
+            header("location:generate_qr_currency.php");
+        } catch (Throwable $e) {
+
+            /*
             |--------------------------------------------------------------------------
             | ROLLBACK
             |--------------------------------------------------------------------------
             */
 
-                $conn->rollback();
+            $conn->rollback();
 
-                $message =
-                    $e->getMessage();
 
-                $message_type =
-                    "error";
-            }
+            throw $e;
         }
     }
-} catch (\Throwable $th) {
-    $message = 'Please Connect to Internet';
-    $message_type = 'error';
+} catch (Throwable $e) {
+
+    $message =
+        $e->getMessage();
+
+    $message_type =
+        "error";
 }
 
-// FETCH RECENT CURRENCY
+
+/*
+|--------------------------------------------------------------------------
+| RECENT CURRENCY HISTORY
+|--------------------------------------------------------------------------
+*/
 
 $history = [];
 
+
 try {
+
     $stmt = $c_conn->prepare(
         "SELECT
-        serial_no,
-        amount,
-        status,
-        receiver_mobile,
-        generated_at,
-        scanned_at
-     FROM currency
-     WHERE sender_mobile = ?
-     ORDER BY generated_at DESC
-     LIMIT 10"
+            serial_no,
+            amount,
+            status,
+            receiver_mobile,
+            generated_at,
+            scanned_at
+         FROM currency
+         WHERE sender_mobile = ?
+         ORDER BY generated_at DESC
+         LIMIT 10"
     );
 
-    $stmt->bind_param("i", $u_mob);
 
-    $stmt->execute();
+    if ($stmt) {
 
-    $result = $stmt->get_result();
+        $stmt->bind_param(
+            "s",
+            $u_mob
+        );
 
-    while ($row = $result->fetch_assoc()) {
 
-        $history[] = $row;
+        $stmt->execute();
+
+
+        $result =
+            $stmt->get_result();
+
+
+        while (
+            $row =
+            $result->fetch_assoc()
+        ) {
+
+            $history[] =
+                $row;
+        }
+
+
+        $stmt->close();
     }
-    $stmt->close();
-} catch (Throwable $th) {
-    $message = "Please Connect to Internet.";
-    $message_type = "error";
+} catch (Throwable $e) {
+
+    /*
+    | Keep page working even if history
+    | cannot be loaded.
+    */
 }
 
 ?>
-
-
 
 <!DOCTYPE html>
 
@@ -737,64 +911,156 @@ try {
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0">
-    <title>MBDPAY | Generate QR Currency</title>
-    <link rel="icon" type="image/svg+xml"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' 
-viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext 
-x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' 
-fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
-    <!-- QR CODE LIBRARY -->
+    <title>
+        MBDPAY | Generate Currency
+    </title>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <link
+        rel="icon"
+        type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 
     <style>
-        .currency-page {
+        /* =========================================================
+   RESET
+========================================================= */
 
-            min-height: calc(100vh - 135px);
+        * {
 
-            padding: 15px 20px 70px;
+            margin: 0;
+
+            padding: 0;
+
+            box-sizing: border-box;
 
         }
 
 
-        /*
-|--------------------------------------------------------------------------
-| MAIN CONTAINER
-|--------------------------------------------------------------------------
-*/
+        body {
 
-        .currency-container {
+            font-family:
+                Arial,
+                sans-serif;
+
+            min-height: 100vh;
+
+            background:
+                radial-gradient(circle at top,
+                    #bbf7d0,
+                    #ecfdf5,
+                    #d1fae5);
+
+            color: #022c22;
+
+            overflow-x: hidden;
+
+        }
+
+
+        /* =========================================================
+   MAIN PAGE
+========================================================= */
+
+        .currency-page {
+
+            min-height:
+                calc(100vh - 135px);
+
+            padding:
+                25px 20px 70px;
+
+        }
+
+
+        /* =========================================================
+   MESSAGE
+========================================================= */
+
+        .message {
 
             max-width: 1050px;
 
-            margin: 0 auto;
+            margin:
+                0 auto 18px;
 
-            display: grid;
+            padding:
+                14px 18px;
 
-            grid-template-columns: 1fr 1.1fr;
+            border-radius: 15px;
 
-            gap: 25px;
+            font-weight: bold;
+
+            text-align: center;
 
         }
 
 
-        /*
-|--------------------------------------------------------------------------
-| CARD
-|--------------------------------------------------------------------------
-*/
+        .message.success {
+
+            background:
+                #dcfce7;
+
+            color:
+                #166534;
+
+        }
+
+
+        .message.error {
+
+            background:
+                #fee2e2;
+
+            color:
+                #991b1b;
+
+        }
+
+
+        /* =========================================================
+   MAIN GRID
+========================================================= */
+
+        .currency-container {
+
+            max-width:
+                1050px;
+
+            margin:
+                0 auto;
+
+            display:
+                grid;
+
+            grid-template-columns:
+                1fr 1.1fr;
+
+            gap:
+                25px;
+
+        }
+
+
+        /* =========================================================
+   CARD
+========================================================= */
 
         .currency-card {
 
-            background: rgba(255, 255, 255, .88);
+            background:
+                rgba(255, 255, 255, .90);
 
-            backdrop-filter: blur(18px);
+            backdrop-filter:
+                blur(18px);
 
-            border-radius: 30px;
+            border-radius:
+                30px;
 
-            padding: 30px;
+            padding:
+                30px;
 
             box-shadow:
                 0 20px 50px rgba(0, 0, 0, .15);
@@ -805,47 +1071,57 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
 
-        /*
-|--------------------------------------------------------------------------
-| TITLE
-|--------------------------------------------------------------------------
-*/
+        /* =========================================================
+   TITLE
+========================================================= */
 
         .currency-title {
 
-            display: flex;
+            display:
+                flex;
 
-            align-items: center;
+            align-items:
+                center;
 
-            gap: 15px;
+            gap:
+                15px;
 
-            margin-bottom: 25px;
+            margin-bottom:
+                25px;
 
         }
 
 
         .currency-icon {
 
-            width: 55px;
+            width:
+                55px;
 
-            height: 55px;
+            height:
+                55px;
 
-            border-radius: 17px;
+            border-radius:
+                17px;
 
-            display: flex;
+            display:
+                flex;
 
-            align-items: center;
+            align-items:
+                center;
 
-            justify-content: center;
+            justify-content:
+                center;
 
-            font-size: 30px;
+            font-size:
+                30px;
 
             background:
                 linear-gradient(135deg,
                     #facc15,
                     #f59e0b);
 
-            color: white;
+            color:
+                white;
 
             box-shadow:
                 0 8px 20px rgba(245, 158, 11, .35);
@@ -855,102 +1131,129 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         .currency-title h1 {
 
-            color: #022c22;
+            color:
+                #022c22;
 
-            font-size: 27px;
+            font-size:
+                27px;
 
         }
 
 
         .currency-title p {
 
-            margin-top: 5px;
+            margin-top:
+                5px;
 
-            color: #64748b;
+            color:
+                #64748b;
 
-            font-size: 14px;
+            font-size:
+                14px;
 
         }
 
 
-        /*
-|--------------------------------------------------------------------------
-| AMOUNT
-|--------------------------------------------------------------------------
-*/
+        /* =========================================================
+   AMOUNT
+========================================================= */
 
         .amount-label {
 
-            display: block;
+            display:
+                block;
 
-            font-weight: bold;
+            font-weight:
+                bold;
 
-            color: #334155;
+            color:
+                #334155;
 
-            margin-bottom: 10px;
+            margin-bottom:
+                10px;
 
         }
 
 
         .amount-wrapper {
 
-            position: relative;
+            position:
+                relative;
 
-            margin-bottom: 20px;
+            margin-bottom:
+                20px;
 
         }
 
 
         .amount-symbol {
 
-            position: absolute;
+            position:
+                absolute;
 
-            left: 18px;
+            left:
+                18px;
 
-            top: 50%;
+            top:
+                50%;
 
-            transform: translateY(-50%);
+            transform:
+                translateY(-50%);
 
-            font-size: 25px;
+            font-size:
+                25px;
 
-            font-weight: bold;
+            font-weight:
+                bold;
 
-            color: #059669;
+            color:
+                #059669;
 
         }
 
 
         .amount-input {
 
-            width: 100%;
+            width:
+                100%;
 
-            height: 65px;
+            height:
+                65px;
 
-            border: 2px solid #d1fae5;
+            border:
+                2px solid #d1fae5;
 
-            border-radius: 18px;
+            border-radius:
+                18px;
 
             padding:
                 0 20px 0 50px;
 
-            font-size: 25px;
+            font-size:
+                25px;
 
-            font-weight: bold;
+            font-weight:
+                bold;
 
-            color: #022c22;
+            color:
+                #022c22;
 
-            background: #f0fdf4;
+            background:
+                #f0fdf4;
 
-            outline: none;
+            outline:
+                none;
 
-            transition: .3s;
+            transition:
+                .3s;
 
         }
 
 
         .amount-input:focus {
 
-            border-color: #059669;
+            border-color:
+                #059669;
 
             box-shadow:
                 0 0 0 4px rgba(5, 150, 105, .12);
@@ -958,91 +1261,113 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
 
-        /*
-|--------------------------------------------------------------------------
-| QUICK AMOUNT
-|--------------------------------------------------------------------------
-*/
+        /* =========================================================
+   QUICK AMOUNT
+========================================================= */
 
         .quick-title {
 
-            font-size: 13px;
+            font-size:
+                13px;
 
-            color: #64748b;
+            color:
+                #64748b;
 
-            margin-bottom: 10px;
+            margin-bottom:
+                10px;
 
         }
 
 
         .quick-buttons {
 
-            display: flex;
+            display:
+                flex;
 
-            flex-wrap: wrap;
+            flex-wrap:
+                wrap;
 
-            gap: 9px;
+            gap:
+                9px;
 
-            margin-bottom: 25px;
+            margin-bottom:
+                25px;
 
         }
 
 
         .quick-buttons button {
 
-            border: none;
+            border:
+                none;
 
-            padding: 9px 15px;
+            padding:
+                9px 15px;
 
-            border-radius: 20px;
+            border-radius:
+                20px;
 
-            background: #dcfce7;
+            background:
+                #dcfce7;
 
-            color: #047857;
+            color:
+                #047857;
 
-            font-weight: bold;
+            font-weight:
+                bold;
 
-            cursor: pointer;
+            cursor:
+                pointer;
 
-            transition: .25s;
+            transition:
+                .25s;
 
         }
 
 
         .quick-buttons button:hover {
 
-            background: #059669;
+            background:
+                #059669;
 
-            color: white;
+            color:
+                white;
 
-            transform: translateY(-2px);
+            transform:
+                translateY(-2px);
 
         }
 
 
-        /*
-|--------------------------------------------------------------------------
-| GENERATE BUTTON
-|--------------------------------------------------------------------------
-*/
+        /* =========================================================
+   GENERATE BUTTON
+========================================================= */
 
         .generate-btn {
 
-            width: 100%;
+            width:
+                100%;
 
-            border: none;
+            border:
+                none;
 
-            border-radius: 18px;
+            border-radius:
+                18px;
 
-            padding: 17px;
+            padding:
+                17px;
 
-            font-size: 17px;
+            font-size:
+                17px;
 
-            font-weight: bold;
+            font-weight:
+                bold;
 
-            color: white;
+            color:
+                white;
 
-            cursor: pointer;
+            cursor:
+                pointer;
 
             background:
                 linear-gradient(135deg,
@@ -1052,14 +1377,16 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             box-shadow:
                 0 10px 25px rgba(5, 150, 105, .3);
 
-            transition: .3s;
+            transition:
+                .3s;
 
         }
 
 
         .generate-btn:hover {
 
-            transform: translateY(-3px);
+            transform:
+                translateY(-3px);
 
             box-shadow:
                 0 15px 30px rgba(5, 150, 105, .4);
@@ -1067,467 +1394,936 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
 
-        /*
-|--------------------------------------------------------------------------
-| INFO BOX
-|--------------------------------------------------------------------------
-*/
+        /* =========================================================
+   LEFT INFORMATION
+========================================================= */
 
         .info-box {
 
-            margin-top: 20px;
+            margin-top:
+                20px;
 
-            padding: 15px;
+            padding:
+                15px;
 
-            border-radius: 15px;
+            border-radius:
+                15px;
 
-            background: #ecfdf5;
+            background:
+                #ecfdf5;
 
-            color: #065f46;
+            color:
+                #065f46;
 
-            font-size: 13px;
+            font-size:
+                13px;
 
-            line-height: 1.6;
+            line-height:
+                1.6;
 
         }
 
 
         .info-box strong {
 
-            color: #022c22;
+            color:
+                #022c22;
 
         }
 
 
-        /*
-|--------------------------------------------------------------------------
-| MESSAGE
-|--------------------------------------------------------------------------
-*/
+        /* =========================================================
+   RIGHT INSTRUCTION CARD
+========================================================= */
 
-        .message {
+        .instruction-card {
 
-            max-width: 1050px;
-
-            margin: 0 auto 18px;
-
-            padding: 14px 18px;
-
-            border-radius: 15px;
-
-            font-weight: bold;
-
-        }
-
- .message_s {
-
-
-            text-align: center;
-
-            color: #047857;
-
-            margin-bottom: 15px;
-
-        }
-
-        .message.success {
-
-            background: #dcfce7;
-
-            color: #166534;
+            min-height:
+                520px;
 
         }
 
 
-        .message.error {
+        /* =========================================================
+   GENERATION GUIDE
+========================================================= */
 
-            background: #fee2e2;
+        .generation-guide {
 
-            color: #991b1b;
+            display:
+                flex;
 
-        }
+            flex-direction:
+                column;
 
-
-        /*
-|--------------------------------------------------------------------------
-| QR CARD
-|--------------------------------------------------------------------------
-*/
-
-        .qr-card {
-
-            text-align: center;
-
-            min-height: 520px;
-
-            display: flex;
-
-            flex-direction: column;
-
-            align-items: center;
-
-            justify-content: center;
+            gap:
+                12px;
 
         }
 
 
-        .qr-heading {
+        /* =========================================================
+   GUIDE STEP
+========================================================= */
 
-            color: #022c22;
+        .guide-step {
 
-            font-size: 20px;
+            display:
+                flex;
 
-            margin-bottom: 5px;
+            align-items:
+                flex-start;
 
-        }
+            gap:
+                14px;
 
+            padding:
+                13px;
 
-        .qr-subtitle {
-
-            color: #64748b;
-
-            font-size: 13px;
-
-            margin-bottom: 20px;
-
-        }
-
-
-        .qr-box {
-
-            width: 280px;
-
-            height: 280px;
-
-            background: white;
-
-            border-radius: 22px;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            padding: 15px;
-
-            box-shadow:
-                0 12px 35px rgba(0, 0, 0, .15);
+            background:
+                linear-gradient(135deg,
+                    #f0fdf4,
+                    #ffffff);
 
             border:
-                5px solid #dcfce7;
+                1px solid #d1fae5;
+
+            border-radius:
+                17px;
+
+            transition:
+                .25s;
 
         }
 
 
-        #qrcode {
+        .guide-step:hover {
 
-            display: flex;
+            transform:
+                translateX(4px);
 
-            align-items: center;
-
-            justify-content: center;
-
-        }
-
-
-        #qrcode img {
-
-            width: 240px !important;
-
-            height: 240px !important;
+            box-shadow:
+                0 8px 20px rgba(5, 150, 105, .10);
 
         }
 
 
-        /*
-|--------------------------------------------------------------------------
-| AMOUNT DISPLAY
-|--------------------------------------------------------------------------
-*/
+        /* =========================================================
+   STEP NUMBER
+========================================================= */
 
-        .qr-amount {
+        .step-number {
 
-            margin-top: 20px;
+            min-width:
+                38px;
 
-            font-size: 35px;
+            width:
+                38px;
 
-            font-weight: 900;
+            height:
+                38px;
 
-            color: #059669;
+            border-radius:
+                12px;
 
-        }
+            display:
+                flex;
 
+            align-items:
+                center;
 
-        .qr-serial {
+            justify-content:
+                center;
 
-            margin-top: 5px;
+            background:
+                linear-gradient(135deg,
+                    #022c22,
+                    #059669);
 
-            font-size: 11px;
+            color:
+                white;
 
-            color: #64748b;
+            font-weight:
+                900;
 
-            word-break: break-all;
+            font-size:
+                15px;
 
-            max-width: 320px;
-
-        }
-
-
-        /*
-|--------------------------------------------------------------------------
-| TIMER
-|--------------------------------------------------------------------------
-*/
-
-        .timer-box {
-
-            margin-top: 15px;
-
-            padding: 10px 18px;
-
-            border-radius: 25px;
-
-            background: #fef3c7;
-
-            color: #92400e;
-
-            font-weight: bold;
+            box-shadow:
+                0 5px 12px rgba(5, 150, 105, .20);
 
         }
 
 
-        .timer-number {
+        /* =========================================================
+   STEP CONTENT
+========================================================= */
 
-            font-size: 20px;
+        .step-content h3 {
 
-        }
+            color:
+                #022c22;
 
+            font-size:
+                15px;
 
-        /*
-|--------------------------------------------------------------------------
-| EXPIRED
-|--------------------------------------------------------------------------
-*/
-
-        .expired-box {
-
-            display: none;
-
-            padding: 50px 20px;
-
-            text-align: center;
+            margin-bottom:
+                5px;
 
         }
 
 
-        .expired-icon {
+        .step-content p {
 
-            font-size: 65px;
+            color:
+                #64748b;
 
-            margin-bottom: 15px;
+            font-size:
+                12px;
 
-        }
-
-
-        .expired-box h2 {
-
-            color: #991b1b;
+            line-height:
+                1.55;
 
         }
 
 
-        .expired-box p {
+        .step-content strong {
 
-            color: #64748b;
-
-            margin-top: 8px;
-
-        }
-
-
-        /*
-|--------------------------------------------------------------------------
-| EMPTY QR
-|--------------------------------------------------------------------------
-*/
-
-        .empty-qr {
-
-            color: #94a3b8;
-
-            text-align: center;
+            color:
+                #047857;
 
         }
 
 
-        .empty-qr-icon {
+        /* =========================================================
+   SECURITY BOX
+========================================================= */
 
-            font-size: 80px;
+        .security-box {
 
-            opacity: .4;
+            display:
+                flex;
 
-            margin-bottom: 15px;
+            align-items:
+                flex-start;
+
+            gap:
+                13px;
+
+            margin-top:
+                17px;
+
+            padding:
+                15px;
+
+            border-radius:
+                17px;
+
+            background:
+                linear-gradient(135deg,
+                    #ecfdf5,
+                    #d1fae5);
+
+            border:
+                1px solid #a7f3d0;
 
         }
 
 
-        .empty-qr h2 {
+        .security-icon {
 
-            color: #475569;
-
-            font-size: 20px;
-
-        }
-
-
-        .empty-qr p {
-
-            font-size: 13px;
-
-            margin-top: 7px;
+            font-size:
+                25px;
 
         }
 
 
-        /*
-|--------------------------------------------------------------------------
-| HISTORY
-|--------------------------------------------------------------------------
-*/
+        .security-box h3 {
+
+            color:
+                #065f46;
+
+            font-size:
+                14px;
+
+            margin-bottom:
+                5px;
+
+        }
+
+
+        .security-box p {
+
+            color:
+                #047857;
+
+            font-size:
+                12px;
+
+            line-height:
+                1.5;
+
+        }
+
+
+        /* =========================================================
+   IMPORTANT NOTICE
+========================================================= */
+
+        .instruction-note {
+
+            margin-top:
+                15px;
+
+            padding:
+                14px;
+
+            background:
+                #fef3c7;
+
+            border-left:
+                5px solid #f59e0b;
+
+            border-radius:
+                10px;
+
+            color:
+                #92400e;
+
+            font-size:
+                12px;
+
+            line-height:
+                1.5;
+
+        }
+
+
+        .instruction-note strong {
+
+            color:
+                #78350f;
+
+        }
+
+
+        /* =========================================================
+   HISTORY
+========================================================= */
 
         .history-card {
 
-            max-width: 1050px;
+            max-width:
+                1050px;
 
-            margin: 25px auto 0;
+            margin:
+                25px auto 0;
 
         }
 
 
         .history-card h2 {
 
-            color: #022c22;
+            color:
+                #022c22;
 
-            margin-bottom: 18px;
+            margin-bottom:
+                18px;
 
         }
 
 
         .history-table {
 
-            width: 100%;
+            width:
+                100%;
 
-            border-collapse: collapse;
+            border-collapse:
+                collapse;
 
         }
 
 
         .history-table th {
 
-            text-align: left;
+            text-align:
+                left;
 
-            padding: 12px;
+            padding:
+                12px;
 
-            background: #ecfdf5;
+            background:
+                #ecfdf5;
 
-            color: #065f46;
+            color:
+                #065f46;
 
-            font-size: 13px;
+            font-size:
+                13px;
 
         }
 
 
         .history-table td {
 
-            padding: 12px;
+            padding:
+                12px;
 
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom:
+                1px solid #e2e8f0;
 
-            font-size: 12px;
+            font-size:
+                12px;
 
-            color: #475569;
+            color:
+                #475569;
 
         }
 
 
         .serial-cell {
 
-            max-width: 170px;
+            max-width:
+                170px;
 
-            word-break: break-all;
+            word-break:
+                break-all;
 
         }
 
 
         .status-badge {
 
-            display: inline-block;
+            display:
+                inline-block;
 
-            padding: 5px 10px;
+            padding:
+                5px 10px;
 
-            border-radius: 20px;
+            border-radius:
+                20px;
 
-            font-weight: bold;
+            font-weight:
+                bold;
 
-            font-size: 11px;
-
-        }
-
-
-        .status-generated {
-
-            background: #dcfce7;
-
-            color: #166534;
+            font-size:
+                11px;
 
         }
 
 
-        .status-scanned {
+        .status-GENERATED {
 
-            background: #dbeafe;
+            background:
+                #dcfce7;
 
-            color: #1d4ed8;
-
-        }
-
-
-        .status-expired {
-
-            background: #fee2e2;
-
-            color: #991b1b;
+            color:
+                #166534;
 
         }
 
 
-        .status-cancelled {
+        .status-SCANNED {
 
-            background: #f1f5f9;
+            background:
+                #dbeafe;
 
-            color: #475569;
+            color:
+                #1d4ed8;
 
         }
 
 
-        /*
-|--------------------------------------------------------------------------
-| RESPONSIVE
-|--------------------------------------------------------------------------
-*/
+        .status-EXPIRED {
+
+            background:
+                #fee2e2;
+
+            color:
+                #991b1b;
+
+        }
+
+
+        .status-CANCELLED {
+
+            background:
+                #f1f5f9;
+
+            color:
+                #475569;
+
+        }
+
+
+        /* =========================================================
+   PIN OVERLAY
+========================================================= */
+
+        .pin-overlay {
+
+            position:
+                fixed;
+
+            inset:
+                0;
+
+            background:
+                rgba(2, 44, 34, .65);
+
+            backdrop-filter:
+                blur(8px);
+
+            display:
+                none;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            z-index:
+                9999;
+
+            padding:
+                20px;
+
+        }
+
+
+        .pin-overlay.active {
+
+            display:
+                flex;
+
+            animation:
+                fadeIn .2s ease;
+
+        }
+
+
+        @keyframes fadeIn {
+
+            from {
+
+                opacity:
+                    0;
+
+            }
+
+            to {
+
+                opacity:
+                    1;
+
+            }
+
+        }
+
+
+        /* =========================================================
+   PIN MODAL
+========================================================= */
+
+        .pin-modal {
+
+            width:
+                100%;
+
+            max-width:
+                420px;
+
+            background:
+                rgba(255, 255, 255, .98);
+
+            border-radius:
+                28px;
+
+            padding:
+                30px;
+
+            text-align:
+                center;
+
+            box-shadow:
+                0 30px 80px rgba(0, 0, 0, .30);
+
+            animation:
+                modalIn .25s ease;
+
+        }
+
+
+        @keyframes modalIn {
+
+            from {
+
+                opacity:
+                    0;
+
+                transform:
+                    translateY(25px) scale(.95);
+
+            }
+
+            to {
+
+                opacity:
+                    1;
+
+                transform:
+                    translateY(0) scale(1);
+
+            }
+
+        }
+
+
+        /* =========================================================
+   PIN ICON
+========================================================= */
+
+        .pin-icon {
+
+            width:
+                70px;
+
+            height:
+                70px;
+
+            margin:
+                0 auto 18px;
+
+            border-radius:
+                22px;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            font-size:
+                34px;
+
+            background:
+                linear-gradient(135deg,
+                    #022c22,
+                    #059669);
+
+            color:
+                white;
+
+            box-shadow:
+                0 12px 25px rgba(5, 150, 105, .3);
+
+        }
+
+
+        .pin-modal h2 {
+
+            color:
+                #022c22;
+
+            margin-bottom:
+                7px;
+
+        }
+
+
+        .pin-modal p {
+
+            color:
+                #64748b;
+
+            font-size:
+                14px;
+
+            line-height:
+                1.5;
+
+            margin-bottom:
+                20px;
+
+        }
+
+
+        .pin-amount {
+
+            display:
+                inline-block;
+
+            padding:
+                8px 15px;
+
+            border-radius:
+                20px;
+
+            background:
+                #ecfdf5;
+
+            color:
+                #047857;
+
+            font-weight:
+                bold;
+
+            margin-bottom:
+                18px;
+
+        }
+
+
+        /* =========================================================
+   PIN INPUT
+========================================================= */
+
+        .pin-wrapper {
+
+            position:
+                relative;
+
+            margin-bottom:
+                15px;
+
+        }
+
+
+        .pin-input {
+
+            width:
+                100%;
+
+            height:
+                60px;
+
+            border:
+                2px solid #d1fae5;
+
+            border-radius:
+                16px;
+
+            background:
+                #f0fdf4;
+
+            outline:
+                none;
+
+            text-align:
+                center;
+
+            font-size:
+                26px;
+
+            font-weight:
+                bold;
+
+            letter-spacing:
+                10px;
+
+            padding:
+                0 55px 0 20px;
+
+            color:
+                #022c22;
+
+            transition:
+                .2s;
+
+        }
+
+
+        .pin-input:focus {
+
+            border-color:
+                #059669;
+
+            box-shadow:
+                0 0 0 4px rgba(5, 150, 105, .12);
+
+        }
+
+
+        /* =========================================================
+   SHOW PIN
+========================================================= */
+
+        .show-pin {
+
+            position:
+                absolute;
+
+            right:
+                15px;
+
+            top:
+                50%;
+
+            transform:
+                translateY(-50%);
+
+            border:
+                none;
+
+            background:
+                transparent;
+
+            cursor:
+                pointer;
+
+            font-size:
+                20px;
+
+            opacity:
+                .65;
+
+        }
+
+
+        /* =========================================================
+   PIN ERROR
+========================================================= */
+
+        .pin-error {
+
+            display:
+                none;
+
+            background:
+                #fee2e2;
+
+            color:
+                #991b1b;
+
+            border-radius:
+                12px;
+
+            padding:
+                10px;
+
+            font-size:
+                13px;
+
+            margin-bottom:
+                15px;
+
+            font-weight:
+                bold;
+
+        }
+
+
+        /* =========================================================
+   PIN BUTTONS
+========================================================= */
+
+        .pin-actions {
+
+            display:
+                flex;
+
+            gap:
+                10px;
+
+        }
+
+
+        .pin-cancel {
+
+            flex:
+                1;
+
+            border:
+                none;
+
+            padding:
+                14px;
+
+            border-radius:
+                15px;
+
+            background:
+                #f1f5f9;
+
+            color:
+                #475569;
+
+            font-weight:
+                bold;
+
+            cursor:
+                pointer;
+
+        }
+
+
+        .pin-confirm {
+
+            flex:
+                2;
+
+            border:
+                none;
+
+            padding:
+                14px;
+
+            border-radius:
+                15px;
+
+            background:
+                linear-gradient(135deg,
+                    #022c22,
+                    #059669);
+
+            color:
+                white;
+
+            font-weight:
+                bold;
+
+            cursor:
+                pointer;
+
+            box-shadow:
+                0 8px 20px rgba(5, 150, 105, .25);
+
+        }
+
+
+        .pin-confirm:disabled {
+
+            opacity:
+                .6;
+
+            cursor:
+                not-allowed;
+
+        }
+
+
+        /* =========================================================
+   RESPONSIVE
+========================================================= */
 
         @media(max-width:850px) {
 
             .currency-container {
 
-                grid-template-columns: 1fr;
+                grid-template-columns:
+                    1fr;
 
             }
 
-            .qr-card {
 
-                min-height: 450px;
+            .instruction-card {
+
+                min-height:
+                    auto;
 
             }
 
@@ -1543,74 +2339,39 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             }
 
+
             .currency-card {
 
-                padding: 20px;
+                padding:
+                    20px;
 
-                border-radius: 22px;
-
-            }
-
-            .qr-box {
-
-                width: 250px;
-
-                height: 250px;
+                border-radius:
+                    22px;
 
             }
 
-            #qrcode img {
-
-                width: 210px !important;
-
-                height: 210px !important;
-
-            }
 
             .history-table {
 
-                display: block;
+                display:
+                    block;
 
-                overflow-x: auto;
+                overflow-x:
+                    auto;
 
-                white-space: nowrap;
+                white-space:
+                    nowrap;
 
             }
 
-        }
 
-        .bank-instructions {
-            margin-top: 20px;
-            text-align: left;
-            background: #f9fafb;
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid #d1d5db;
-        }
+            .pin-modal {
 
-        .bank-instructions h3 {
-            color: #047857;
-            margin-bottom: 15px;
-        }
+                padding:
+                    25px 20px;
 
-        .bank-instructions ul {
-            padding-left: 20px;
-            line-height: 1.8;
-        }
+            }
 
-        .bank-instructions li {
-            margin-bottom: 10px;
-            color: #374151;
-        }
-
-        .instruction-note {
-            margin-top: 20px;
-            padding: 15px;
-            background: #fef3c7;
-            border-left: 5px solid #f59e0b;
-            border-radius: 8px;
-            color: #92400e;
-            font-size: 15px;
         }
     </style>
 
@@ -1628,14 +2389,17 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         <?php if ($message !== "") { ?>
 
-            <div class="message <?php echo $message_type; ?>">
+            <div
+                class="message <?php echo htmlspecialchars($message_type); ?>">
 
-                <?php echo htmlspecialchars($message); ?>
+                <?php
+                echo htmlspecialchars($message);
+                ?>
 
             </div>
 
         <?php } ?>
-        
+
         <?php if ($mess_c !== "") { ?>
 
             <div class="message <?php echo $m_type; ?>">
@@ -1646,11 +2410,12 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         <?php } ?>
 
+
         <div class="currency-container">
 
 
             <!-- =========================================================
-     GENERATE FORM
+     LEFT CARD
 ========================================================= -->
 
             <section class="currency-card">
@@ -1659,21 +2424,39 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                 <div class="currency-title">
 
                     <div class="currency-icon">
+
                         ₹
+
                     </div>
+
 
                     <div>
 
-                        <h1>Generate Currency</h1>
+                        <h1>
+                            Generate Currency
+                        </h1>
 
-                        <p>Create a digital MBD Pay currency</p>
+                        <p>
+                            Create MBD Digital Currency
+                        </p>
 
                     </div>
 
                 </div>
 
 
-                <form method="POST" autocomplete="off">
+                <form
+                    method="POST"
+                    id="currencyForm"
+                    autocomplete="off">
+
+
+                    <!-- PIN IS INSERTED HERE BY JAVASCRIPT -->
+
+                    <input
+                        type="hidden"
+                        name="pin"
+                        id="hiddenPin">
 
 
                     <label class="amount-label">
@@ -1685,7 +2468,12 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                     <div class="amount-wrapper">
 
-                        <span class="amount-symbol">₹</span>
+                        <span class="amount-symbol">
+
+                            ₹
+
+                        </span>
+
 
                         <input
                             type="number"
@@ -1694,7 +2482,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                             class="amount-input"
                             placeholder="0.00"
                             min="1"
-                            max="100000"
+                            max="1000"
                             step="0.01"
                             required>
 
@@ -1710,50 +2498,75 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                     <div class="quick-buttons">
 
+
                         <button
                             type="button"
                             onclick="setAmount(10)">
+
                             ₹10
+
                         </button>
+
 
                         <button
                             type="button"
                             onclick="setAmount(20)">
+
                             ₹20
+
                         </button>
+
 
                         <button
                             type="button"
                             onclick="setAmount(50)">
+
                             ₹50
+
                         </button>
+
 
                         <button
                             type="button"
                             onclick="setAmount(100)">
+
                             ₹100
+
                         </button>
+
 
                         <button
                             type="button"
                             onclick="setAmount(500)">
+
                             ₹500
+
                         </button>
+
 
                         <button
                             type="button"
                             onclick="setAmount(1000)">
+
                             ₹1,000
+
                         </button>
+
 
                     </div>
 
 
-                    <button
-                        type="submit"
-                        class="generate-btn">
+                    <!--
+        | This button opens PIN modal.
+        | It does NOT directly submit.
+        -->
 
-                        📱 Generate QR Currency
+                    <button
+                        type="button"
+                        class="generate-btn"
+                        onclick="openPinModal()">
+
+                        🔐 Generate QR Currency
 
                     </button>
 
@@ -1763,18 +2576,30 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                 <div class="info-box">
 
-                    <strong>How it works</strong><br>
+                    <strong>
+                        Secure Currency Generation
+                    </strong>
 
-                    Enter an amount and generate a unique digital
-                    currency serial number. The receiver scans the QR
-                    to submit the currency serial number to the MBD Pay
-                    server.
+                    <br>
+
+                    Your wallet PIN is required before
+                    currency generation.
 
                     <br><br>
 
-                    <strong>Security:</strong>
-                    Never put your password, PIN or wallet balance
-                    inside the QR code.
+                    After successful PIN verification,
+                    MBD Pay checks your balance and
+                    generates a unique digital currency
+                    serial number.
+
+                    <br><br>
+
+                    <strong>
+                        Security:
+                    </strong>
+
+                    Your PIN and wallet balance are never
+                    placed inside the generated currency.
 
                 </div>
 
@@ -1783,70 +2608,298 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 
             <!-- =========================================================
-     QR DISPLAY
+     RIGHT INSTRUCTION CARD
 ========================================================= -->
 
-            <section class="currency-card">
+            <section class="currency-card instruction-card">
+
 
                 <div class="currency-title">
-                    <div class="currency-icon">₹</div>
+
+                    <div class="currency-icon">
+
+                        ₹
+
+                    </div>
+
+
                     <div>
-                        <h1>MBD Digital Currency</h1>
-                        <p>Usage Guidelines</p>
-                    </div>
-                </div>
 
-                <div class="bank-instructions">
+                        <h1>
+                            MBD Digital Currency
+                        </h1>
 
-                    <h3>About MBD Digital Currency</h3>
+                        <p>
+                            How currency generation works
+                        </p>
 
-                    <p>
-                        MBD Digital Currency is a secure payment token generated within the
-                        MBD Pay application. It is designed to make payments simple, fast,
-                        and secure between MBD Pay users.
-                    </p>
-
-                    <ul>
-                        <li>💳 Generated currency can only be used to make payments within the MBD Pay application.</li>
-
-                        <li>🚫 Generated currency cannot be withdrawn as cash or transferred directly to a bank account.</li>
-
-                        <li>🔒 Each generated currency contains a unique encrypted serial number to ensure secure transactions.</li>
-
-                        <li>📱 The recipient can use the generated currency by scanning its QR code or entering the serial number in the MBD Pay app.</li>
-
-                        <li>✅ Once the currency is successfully used, it becomes invalid and cannot be used again.</li>
-
-                        <li>⏳ Unused currency remains valid until it is used or expires according to system rules.</li>
-
-                        <li>🛡️ Do not share your currency QR code or serial number with unauthorized persons.</li>
-
-                        <li>📋 You can track all generated and used currencies from your transaction history.</li>
-
-                    </ul>
-
-                    <div class="instruction-note">
-                        <strong>Important:</strong><br>
-                        MBD Digital Currency is intended exclusively for secure digital payments within the MBD Pay ecosystem. It is <strong>not withdrawable</strong> and cannot be converted directly into cash or deposited into a bank account.
                     </div>
 
                 </div>
+
+
+                <div class="generation-guide">
+
+
+                    <!-- STEP 1 -->
+
+                    <div class="guide-step">
+
+                        <div class="step-number">
+
+                            1
+
+                        </div>
+
+
+                        <div class="step-content">
+
+                            <h3>
+                                Enter Amount
+                            </h3>
+
+
+                            <p>
+
+                                Enter the amount of MBD Digital
+                                Currency you want to generate.
+                                You can also select a quick amount.
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- STEP 2 -->
+
+                    <div class="guide-step">
+
+                        <div class="step-number">
+
+                            2
+
+                        </div>
+
+
+                        <div class="step-content">
+
+                            <h3>
+                                Start Generation
+                            </h3>
+
+
+                            <p>
+
+                                Click
+                                <strong>
+                                    Generate QR Currency
+                                </strong>
+                                to begin the secure generation
+                                process.
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- STEP 3 -->
+
+                    <div class="guide-step">
+
+                        <div class="step-number">
+
+                            3
+
+                        </div>
+
+
+                        <div class="step-content">
+
+                            <h3>
+                                Verify PIN
+                            </h3>
+
+
+                            <p>
+
+                                Enter your wallet PIN in the
+                                security window. The currency
+                                will only be generated after
+                                successful PIN verification.
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- STEP 4 -->
+
+                    <div class="guide-step">
+
+                        <div class="step-number">
+
+                            4
+
+                        </div>
+
+
+                        <div class="step-content">
+
+                            <h3>
+                                Balance Verification
+                            </h3>
+
+
+                            <p>
+
+                                MBD Pay checks your available
+                                wallet balance before reserving
+                                the requested amount.
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- STEP 5 -->
+
+                    <div class="guide-step">
+
+                        <div class="step-number">
+
+                            5
+
+                        </div>
+
+
+                        <div class="step-content">
+
+                            <h3>
+                                Currency Creation
+                            </h3>
+
+
+                            <p>
+
+                                Once everything is verified,
+                                the amount is deducted from
+                                your wallet and a unique
+                                currency serial number is created.
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- STEP 6 -->
+
+                    <div class="guide-step">
+
+                        <div class="step-number">
+
+                            6
+
+                        </div>
+
+
+                        <div class="step-content">
+
+                            <h3>
+                                Ready for Payment
+                            </h3>
+
+
+                            <p>
+
+                                The generated digital currency
+                                becomes available for use in
+                                the MBD Pay payment system.
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                </div>
+
+
+                <!-- SECURITY -->
+
+                <div class="security-box">
+
+
+                    <div class="security-icon">
+
+                        🛡️
+
+                    </div>
+
+
+                    <div>
+
+                        <h3>
+                            Security Protection
+                        </h3>
+
+
+                        <p>
+
+                            Your PIN, password and wallet
+                            balance are never stored inside
+                            the currency payload.
+
+                        </p>
+
+                    </div>
+
+
+                </div>
+
+
+                <!-- IMPORTANT NOTICE -->
+
+                <div class="instruction-note">
+
+                    <strong>
+                        Important:
+                    </strong>
+
+                    <br><br>
+
+                    Currency generation requires an active
+                    connection to the MBD Pay server and
+                    sufficient wallet balance.
+
+                </div>
+
 
             </section>
+
+
         </div>
 
 
         <!-- =========================================================
-     HISTORY
+     RECENT HISTORY
 ========================================================= -->
 
         <section class="currency-card history-card">
 
 
             <h2>
-
                 Recent Generated Currency
-
             </h2>
 
 
@@ -1855,19 +2908,30 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                 <table class="history-table">
 
+
                     <thead>
 
                         <tr>
 
-                            <th>Serial Number</th>
+                            <th>
+                                Serial Number
+                            </th>
 
-                            <th>Amount</th>
+                            <th>
+                                Amount
+                            </th>
 
-                            <th>Status</th>
+                            <th>
+                                Status
+                            </th>
 
-                            <th>Receiver</th>
+                            <th>
+                                Receiver
+                            </th>
 
-                            <th>Generated</th>
+                            <th>
+                                Generated
+                            </th>
 
                         </tr>
 
@@ -1882,53 +2946,14 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                             <tr>
 
+
                                 <td class="serial-cell">
-
-                                    <?php echo htmlspecialchars(
-                                        $row['serial_no']
-                                    ); ?>
-
-                                </td>
-
-
-                                <td>
-
-                                    ₹<?php echo number_format(
-                                            decryptData($row['amount']),
-                                            2
-                                        ); ?>
-
-                                </td>
-
-
-                                <td>
-
-                                    <span
-                                        class="status-badge status-<?php
-                                                                    echo htmlspecialchars(
-                                                                        $row['status']
-                                                                    );
-                                                                    ?>">
-
-                                        <?php
-                                        echo ucfirst(
-                                            $row['status']
-                                        );
-                                        ?>
-
-                                    </span>
-
-                                </td>
-
-                                <td>
 
                                     <?php
 
-                                    echo $row['receiver_mobile']
-                                        ? htmlspecialchars(
-                                            $row['receiver_mobile']
-                                        )
-                                        : "—";
+                                    echo htmlspecialchars(
+                                        $row['serial_no']
+                                    );
 
                                     ?>
 
@@ -1937,11 +2962,95 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                                 <td>
 
-                                    <?php echo htmlspecialchars(
-                                        $row['generated_at']
-                                    ); ?>
+                                    ₹<?php
+
+                                        $historyAmount =
+                                            decryptData(
+                                                $row['amount']
+                                            );
+
+
+                                        if ($historyAmount !== false) {
+
+                                            echo number_format(
+                                                (float) $historyAmount,
+                                                2
+                                            );
+                                        } else {
+
+                                            echo "—";
+                                        }
+
+                                        ?>
 
                                 </td>
+
+
+                                <td>
+
+
+                                    <span
+                                        class="status-badge status-<?php
+
+                                                                    echo htmlspecialchars(
+                                                                        strtoupper(
+                                                                            $row['status']
+                                                                        )
+                                                                    );
+
+                                                                    ?>">
+
+
+                                        <?php
+
+                                        echo ucfirst(
+                                            strtolower(
+                                                $row['status']
+                                            )
+                                        );
+
+                                        ?>
+
+
+                                    </span>
+
+
+                                </td>
+
+
+                                <td>
+
+                                    <?php
+
+                                    if (
+                                        !empty($row['receiver_mobile'])
+                                    ) {
+
+                                        echo htmlspecialchars(
+                                            $row['receiver_mobile']
+                                        );
+                                    } else {
+
+                                        echo "—";
+                                    }
+
+                                    ?>
+
+                                </td>
+
+
+                                <td>
+
+                                    <?php
+
+                                    echo htmlspecialchars(
+                                        $row['generated_at']
+                                    );
+
+                                    ?>
+
+                                </td>
+
 
                             </tr>
 
@@ -1951,17 +3060,19 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                     </tbody>
 
+
                 </table>
 
 
             <?php } else { ?>
 
 
-                <p style="
-            text-align:center;
-            color:#64748b;
-            padding:25px;
-        ">
+                <p
+                    style="
+        text-align:center;
+        color:#64748b;
+        padding:25px;
+    ">
 
                     No currency generated yet.
 
@@ -1980,6 +3091,118 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
     <?php require 'footer.php'; ?>
 
 
+    <!-- =========================================================
+     PIN MODAL
+========================================================= -->
+
+    <div
+        class="pin-overlay"
+        id="pinOverlay">
+
+
+        <div class="pin-modal">
+
+
+            <div class="pin-icon">
+
+                🔐
+
+            </div>
+
+
+            <h2>
+
+                Verify Your PIN
+
+            </h2>
+
+
+            <p>
+
+                Enter your wallet PIN to authorize
+                currency generation.
+
+            </p>
+
+
+            <div
+                class="pin-amount"
+                id="pinAmount">
+
+                ₹0.00
+
+            </div>
+
+
+            <div class="pin-wrapper">
+
+
+                <input
+                    type="password"
+                    id="pinInput"
+                    class="pin-input"
+                    inputmode="numeric"
+                    maxlength="6"
+                    autocomplete="off"
+                    placeholder="••••">
+
+
+                <button
+                    type="button"
+                    class="show-pin"
+                    id="showPinButton"
+                    onclick="togglePin()">
+
+                    👁
+
+                </button>
+
+
+            </div>
+
+
+            <div
+                class="pin-error"
+                id="pinError">
+
+                Please enter a valid PIN.
+
+            </div>
+
+
+            <div class="pin-actions">
+
+
+                <button
+                    type="button"
+                    class="pin-cancel"
+                    onclick="closePinModal()">
+
+                    Cancel
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="pin-confirm"
+                    id="confirmPinButton"
+                    onclick="confirmPin()">
+
+                    ✓ Verify & Generate
+
+                </button>
+
+
+            </div>
+
+
+        </div>
+
+
+    </div>
+
+
     <script>
         /*
 |--------------------------------------------------------------------------
@@ -1989,68 +3212,359 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         function setAmount(value) {
 
-            document.getElementById("amount").value = value;
+            document.getElementById(
+                "amount"
+            ).value = value;
 
         }
 
 
         /*
         |--------------------------------------------------------------------------
-        | QR GENERATION
+        | OPEN PIN MODAL
         |--------------------------------------------------------------------------
         */
 
-        <?php if (!empty($generated_currency)) { ?>
+        function openPinModal() {
 
-            const qrPayload =
-                <?php
-                echo json_encode(
-                    $generated_currency['qr_payload']
+            const amountInput =
+                document.getElementById(
+                    "amount"
                 );
-                ?>;
 
 
-            const qrElement =
-                document.getElementById("qrcode");
+            const amount =
+                parseFloat(
+                    amountInput.value
+                );
+
+
+            if (
+                isNaN(amount) ||
+                amount <= 0
+            ) {
+
+                alert(
+                    "Please enter a valid amount."
+                );
+
+                amountInput.focus();
+
+                return;
+
+            }
+
+
+            if (amount > 1000) {
+
+                alert(
+                    "Maximum currency amount is ₹1,000."
+                );
+
+                amountInput.focus();
+
+                return;
+
+            }
+
+
+            document.getElementById(
+                    "pinAmount"
+                ).textContent =
+                "₹" + amount.toFixed(2);
+
+
+            document.getElementById(
+                "pinInput"
+            ).value = "";
+
+
+            document.getElementById(
+                "hiddenPin"
+            ).value = "";
+
+
+            document.getElementById(
+                    "pinError"
+                ).style.display =
+                "none";
+
+
+            document.getElementById(
+                    "confirmPinButton"
+                ).disabled =
+                false;
+
+
+            document.getElementById(
+                    "confirmPinButton"
+                ).textContent =
+                "✓ Verify & Generate";
+
+
+            document.getElementById(
+                "pinOverlay"
+            ).classList.add(
+                "active"
+            );
+
+
+            setTimeout(
+                function() {
+
+                    document.getElementById(
+                        "pinInput"
+                    ).focus();
+
+                },
+                200
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CLOSE PIN MODAL
+        |--------------------------------------------------------------------------
+        */
+
+        function closePinModal() {
+
+            document.getElementById(
+                "pinOverlay"
+            ).classList.remove(
+                "active"
+            );
+
+
+            document.getElementById(
+                "pinInput"
+            ).value = "";
+
+
+            document.getElementById(
+                "hiddenPin"
+            ).value = "";
+
+
+            document.getElementById(
+                    "pinError"
+                ).style.display =
+                "none";
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SHOW / HIDE PIN
+        |--------------------------------------------------------------------------
+        */
+
+        function togglePin() {
+
+            const input =
+                document.getElementById(
+                    "pinInput"
+                );
+
+
+            const button =
+                document.getElementById(
+                    "showPinButton"
+                );
+
+
+            if (
+                input.type === "password"
+            ) {
+
+                input.type =
+                    "text";
+
+                button.textContent =
+                    "🙈";
+
+            } else {
+
+                input.type =
+                    "password";
+
+                button.textContent =
+                    "👁";
+
+            }
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PIN INPUT
+        |--------------------------------------------------------------------------
+        */
+
+        document
+            .getElementById("pinInput")
+            .addEventListener(
+                "input",
+                function() {
+
+                    this.value =
+                        this.value.replace(
+                            /[^0-9]/g,
+                            ""
+                        );
+
+                }
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ENTER KEY
+        |--------------------------------------------------------------------------
+        */
+
+        document
+            .getElementById("pinInput")
+            .addEventListener(
+                "keydown",
+                function(event) {
+
+                    if (
+                        event.key === "Enter"
+                    ) {
+
+                        event.preventDefault();
+
+                        confirmPin();
+
+                    }
+
+
+                    if (
+                        event.key === "Escape"
+                    ) {
+
+                        closePinModal();
+
+                    }
+
+                }
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CONFIRM PIN
+        |--------------------------------------------------------------------------
+        */
+
+        function confirmPin() {
+
+            const pinInput =
+                document.getElementById(
+                    "pinInput"
+                );
+
+
+            const pin =
+                pinInput.value.trim();
+
+
+            const errorBox =
+                document.getElementById(
+                    "pinError"
+                );
+
+
+            const confirmButton =
+                document.getElementById(
+                    "confirmPinButton"
+                );
 
 
             /*
-            |--------------------------------------------------------------------------
-            | CLEAR PREVIOUS QR
-            |--------------------------------------------------------------------------
+            | 4-6 digit PIN
             */
 
-            if (qrElement) {
+            if (
+                !/^\d{4,6}$/.test(pin)
+            ) {
 
-                qrElement.innerHTML = "";
+                errorBox.textContent =
+                    "Please enter a valid 4-6 digit PIN.";
+
+                errorBox.style.display =
+                    "block";
+
+                pinInput.focus();
+
+                return;
 
             }
 
 
             /*
-            |--------------------------------------------------------------------------
-            | GENERATE QR
-            |--------------------------------------------------------------------------
+            | Put PIN into hidden field.
             */
 
-            if (qrElement) {
-
-                new QRCode(qrElement, {
-
-                    text: qrPayload,
-
-                    width: 240,
-
-                    height: 240,
-
-                    correctLevel: QRCode.CorrectLevel.H
-
-                });
-
-            }
+            document.getElementById(
+                    "hiddenPin"
+                ).value =
+                pin;
 
 
-        <?php } ?>
+            /*
+            | Disable double submission.
+            */
+
+            confirmButton.disabled =
+                true;
+
+
+            confirmButton.textContent =
+                "Verifying PIN...";
+
+
+            /*
+            | Submit form.
+            |
+            | Server will verify PIN again
+            | using password_verify().
+            */
+
+            document.getElementById(
+                "currencyForm"
+            ).submit();
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CLICK OUTSIDE MODAL
+        |--------------------------------------------------------------------------
+        */
+
+        document
+            .getElementById("pinOverlay")
+            .addEventListener(
+                "click",
+                function(event) {
+
+                    if (
+                        event.target === this
+                    ) {
+
+                        closePinModal();
+
+                    }
+
+                }
+            );
     </script>
 
 
