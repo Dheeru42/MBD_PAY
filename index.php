@@ -3,6 +3,7 @@
 // data from server,add in server
 $pendingSync = 0;
 
+date_default_timezone_set('Asia/Kolkata');
 
 session_start();
 

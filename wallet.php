@@ -1,6 +1,8 @@
 <?php
 session_start();
 
+date_default_timezone_set('Asia/Kolkata');
+
 require 'conn.php';
 require 'bank_conn.php';
 
@@ -318,6 +320,8 @@ try {
                                     $data['balance'] = $U_balance;
 
                                     $data['server_sync'] = true;
+
+                                    $data['update_at'] = date("Y-m-d H:i:s");
 
                                     $data['last_transaction'] = $transaction_id;
 
@@ -905,6 +909,10 @@ try {
 
                                         $data['server_sync'] =
                                             true;
+                                        /*
+                                         * Server is update
+                                         */
+                                        $data['update_at'] = date("Y-m-d H:i:s");
 
 
                                         /*

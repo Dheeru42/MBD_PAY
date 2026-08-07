@@ -2,6 +2,8 @@
 
 session_start();
 
+date_default_timezone_set('Asia/Kolkata');
+
 require 'conn.php';
 
 // bank conn
@@ -90,6 +92,8 @@ function saveUserCache($name, $account, $mobile, $email, $password, $pin, $balan
         "balance" => encryptData($balance),
 
         "created_at" => date("Y-m-d H:i:s"),
+
+        "update_at" => date("Y-m-d H:i:s"),
 
         "server_sync" => false
 

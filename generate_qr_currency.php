@@ -2,6 +2,8 @@
 
 session_start();
 
+date_default_timezone_set('Asia/Kolkata');
+
 require 'conn.php';
 require 'bank_conn.php';
 require 'currency_con.php';
@@ -10,6 +12,8 @@ define(
     "SECRET_KEY",
     "MBDPAY@2026_SUPER_SECRET_KEY_32"
 );
+
+define("CACHE_DIR", __DIR__ . "/cache/users/");
 
 $message = "";
 $message_type = "";
@@ -129,6 +133,62 @@ function decryptData($text)
         $iv
     );
 }
+
+// store currency in cache
+function storecache($u_mob,$serial_no,$encrypted_serial,$encrypted_amount,$currency_status)
+{
+
+    $userId = hash("sha256", $u_mob);
+
+    $folder = CACHE_DIR . $userId . "/currency";
+
+    // Create currency cache folder
+    if (!is_dir($folder)) {
+        mkdir($folder, 0777, true);
+    }
+
+
+    // Currency data
+    $currencyData = [
+
+        "serial_no" => encryptData($serial_no),
+
+        "currency_serial_no" => $encrypted_serial,
+
+        "amount" => $encrypted_amount,
+
+        "currency_status" => encryptData($currency_status),
+
+        "receiver_mobile" => encryptData(null),
+        
+        "sender_mobile" => encryptData($u_mob),
+
+        "synced" => true,
+
+        "generated_at" => date("Y-m-d H:i:s"),
+
+        "completed_at" => null,
+        
+        "scanned_at" => null
+
+    ];
+
+    $e_serial = $serial_no;
+
+    $s_file = hash("sha256", $e_serial);
+    // Save currency in cache
+    $cacheFile = $folder . "/" . $s_file . ".json";
+
+    file_put_contents(
+        $cacheFile,
+        json_encode(
+            $currencyData,
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+        ),
+        LOCK_EX
+    );
+}
+
 
 
 /*
@@ -342,25 +402,25 @@ try {
 
             $stmt->close();
 
-              // fetch latest id 
-                $result = mysqli_query(
-                    $c_conn,
-                    "SELECT id FROM currency ORDER BY id DESC LIMIT 1"
-                );
+            // fetch latest id 
+            $result = mysqli_query(
+                $c_conn,
+                "SELECT id FROM currency ORDER BY id DESC LIMIT 1"
+            );
 
-                $row = mysqli_fetch_assoc($result);
+            $row = mysqli_fetch_assoc($result);
 
-                $last_id = $row['id'];
+            $last_id = $row['id'];
 
-                $next_id = $last_id + 1;
+            $next_id = $last_id + 1;
 
-                // GENERATE UNIQUE CURRENCY SERIAL
-                $serial_no = "MBD-" . str_pad(
-                    $next_id,
-                    3,
-                    "0",
-                    STR_PAD_LEFT
-                );
+            // GENERATE UNIQUE CURRENCY SERIAL
+            $serial_no = "MBD-" . str_pad(
+                $next_id,
+                3,
+                "0",
+                STR_PAD_LEFT
+            );
 
             if (!$locked_user) {
 
@@ -810,6 +870,9 @@ try {
                 $transaction_id
 
             ];
+
+            // save currency in local catche
+            storecache($u_mob,$serial_no,$encrypted_serial,$encrypted_amount,$currency_status);
             $_SESSION['message_cur'] = $message;
             $_SESSION['message_type'] = $message_type;
             header("location:generate_qr_currency.php");
