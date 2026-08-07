@@ -135,7 +135,7 @@ function decryptData($text)
 }
 
 // store currency in cache
-function storecache($u_mob,$serial_no,$encrypted_serial,$encrypted_amount,$currency_status)
+function storecache($u_mob, $serial_no, $encrypted_serial, $encrypted_amount, $currency_status)
 {
 
     $userId = hash("sha256", $u_mob);
@@ -160,7 +160,7 @@ function storecache($u_mob,$serial_no,$encrypted_serial,$encrypted_amount,$curre
         "currency_status" => encryptData($currency_status),
 
         "receiver_mobile" => encryptData(null),
-        
+
         "sender_mobile" => encryptData($u_mob),
 
         "synced" => true,
@@ -168,7 +168,7 @@ function storecache($u_mob,$serial_no,$encrypted_serial,$encrypted_amount,$curre
         "generated_at" => date("Y-m-d H:i:s"),
 
         "completed_at" => null,
-        
+
         "scanned_at" => null
 
     ];
@@ -872,7 +872,7 @@ try {
             ];
 
             // save currency in local catche
-            storecache($u_mob,$serial_no,$encrypted_serial,$encrypted_amount,$currency_status);
+            storecache($u_mob, $serial_no, $encrypted_serial, $encrypted_amount, $currency_status);
             $_SESSION['message_cur'] = $message;
             $_SESSION['message_type'] = $message_type;
             header("location:generate_qr_currency.php");

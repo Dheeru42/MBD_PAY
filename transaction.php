@@ -193,7 +193,7 @@ try {
             } elseif ($row['type'] == "Currency Generated") {
 
                 $total_debit += decryptData($row['amount']);
-            }elseif ($row['type'] == "Currency Received") {
+            } elseif ($row['type'] == "Currency Received") {
 
                 $total_debit += decryptData($row['amount']);
             }
@@ -526,12 +526,14 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             color: #0066cc;
 
         }
+
         .currency {
 
             background: #d7d3ce;
             color: #e26e09;
 
         }
+
         .withdrawl {
 
             background: #dcecff;
@@ -821,12 +823,10 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                                 } elseif ($row['type'] == "Currency Received") {
 
                                     $type = "withdrawl";
-                                    }
-                                elseif ($row['type'] == "Currency Generated") {
+                                } elseif ($row['type'] == "Currency Generated") {
 
                                     $type = "currency";
-                                    }
-                                else {
+                                } else {
 
                                     $type = "transfer";
                                 }

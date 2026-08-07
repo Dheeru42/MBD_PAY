@@ -417,20 +417,20 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                 </div>
 
                 <div class="profile-actions">
-<?php if ($serverConnected) { ?>
-    
-                    <a href="#">
-                        ✏ Edit Profile
-                    </a>
+                    <?php if ($serverConnected) { ?>
 
-                    <a href="#">
-                        🔒 Change Password
-                    </a>
+                        <a href="#">
+                            ✏ Edit Profile
+                        </a>
 
-                    <a href="transaction.php">
-                        💳 Transaction History
-                    </a>
-<?php } ?>
+                        <a href="#">
+                            🔒 Change Password
+                        </a>
+
+                        <a href="transaction.php">
+                            💳 Transaction History
+                        </a>
+                    <?php } ?>
                     <a href="logout.php">
                         🚪 Logout
                     </a>

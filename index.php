@@ -205,7 +205,7 @@ try {
 
         throw new Exception(
             "Transaction query preparation failed: "
-            . mysqli_error($conn)
+                . mysqli_error($conn)
         );
     }
 
@@ -221,7 +221,7 @@ try {
 
         throw new Exception(
             "Transaction query failed: "
-            . mysqli_stmt_error($stmt2)
+                . mysqli_stmt_error($stmt2)
         );
     }
 
@@ -278,8 +278,6 @@ try {
 
 
     mysqli_stmt_close($stmt2);
-
-
 } catch (\Throwable $th) {
 
     $total_credit = 0;
@@ -290,7 +288,6 @@ try {
 
     $message1 =
         "Unable to fetch today's transactions.";
-
 }
 
 session_abort();

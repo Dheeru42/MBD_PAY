@@ -1119,7 +1119,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         }
 
- .message_s {
+        .message_s {
 
 
             text-align: center;
@@ -1635,7 +1635,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             </div>
 
         <?php } ?>
-        
+
         <?php if ($mess_c !== "") { ?>
 
             <div class="message <?php echo $m_type; ?>">

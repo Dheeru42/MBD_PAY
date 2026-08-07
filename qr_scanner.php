@@ -1,8 +1,7 @@
 <?php
 session_start();
 
-if(!isset($_SESSION['user']))
-{
+if (!isset($_SESSION['user'])) {
     header("Location:login.php");
     exit;
 }
@@ -12,334 +11,330 @@ if(!isset($_SESSION['user']))
 
 <head>
 
-<title>MBD Pay | Scan QR</title>
+    <title>MBD Pay | Scan QR</title>
 
-<meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
 
-<script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
 
-<style>
+    <style>
+        body {
+            margin: 0;
+            background: #f4f4f4;
+            font-family: Arial, Helvetica, sans-serif;
+        }
 
-body{
-    margin:0;
-    background:#f4f4f4;
-    font-family:Arial,Helvetica,sans-serif;
-}
+        .container {
 
-.container{
+            width: 420px;
+            max-width: 95%;
+            margin: 30px auto;
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .15);
 
-    width:420px;
-    max-width:95%;
-    margin:30px auto;
-    background:white;
-    border-radius:15px;
-    padding:25px;
-    box-shadow:0 10px 30px rgba(0,0,0,.15);
+        }
 
-}
+        h2 {
 
-h2{
+            text-align: center;
+            color: #059669;
 
-    text-align:center;
-    color:#059669;
+        }
 
-}
+        #reader {
 
-#reader{
+            width: 100%;
+            margin-top: 20px;
 
-    width:100%;
-    margin-top:20px;
+        }
 
-}
+        .upload {
 
-.upload{
+            margin-top: 25px;
+            text-align: center;
 
-    margin-top:25px;
-    text-align:center;
+        }
 
-}
+        .upload input {
 
-.upload input{
+            width: 100%;
+            padding: 10px;
 
-    width:100%;
-    padding:10px;
+        }
 
-}
+        button {
 
-button{
+            margin-top: 20px;
+            width: 100%;
+            padding: 12px;
+            background: #059669;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
 
-    margin-top:20px;
-    width:100%;
-    padding:12px;
-    background:#059669;
-    color:white;
-    border:none;
-    border-radius:8px;
-    cursor:pointer;
-    font-size:16px;
+        }
 
-}
+        button:hover {
 
-button:hover{
+            background: #047857;
 
-    background:#047857;
+        }
 
-}
+        #result {
 
-#result{
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+            text-align: center;
+            font-weight: bold;
 
-    margin-top:20px;
-    padding:15px;
-    border-radius:10px;
-    display:none;
-    text-align:center;
-    font-weight:bold;
+        }
 
-}
+        .success {
 
-.success{
+            background: #dcfce7;
+            color: #166534;
 
-    background:#dcfce7;
-    color:#166534;
+        }
 
-}
+        .error {
 
-.error{
+            background: #fee2e2;
+            color: #991b1b;
 
-    background:#fee2e2;
-    color:#991b1b;
+        }
 
-}
+        .loading {
 
-.loading{
+            background: #dbeafe;
+            color: #1d4ed8;
 
-    background:#dbeafe;
-    color:#1d4ed8;
-
-}
-
-</style>
+        }
+    </style>
 
 </head>
 
 <body>
 
-<?php require "navbar.php"; ?>
+    <?php require "navbar.php"; ?>
 
-<div class="container">
+    <div class="container">
 
-<h2>📷 Scan Payment QR</h2>
+        <h2>📷 Scan Payment QR</h2>
 
-<div id="reader"></div>
+        <div id="reader"></div>
 
-<div class="upload">
+        <div class="upload">
 
-<h3>OR</h3>
+            <h3>OR</h3>
 
-<input
-type="file"
-id="qrFile"
-accept="image/*">
+            <input
+                type="file"
+                id="qrFile"
+                accept="image/*">
 
-</div>
+        </div>
 
-<button onclick="startScanner()">
+        <button onclick="startScanner()">
 
-Start Camera
+            Start Camera
 
-</button>
+        </button>
 
-<button onclick="restartScanner()">
+        <button onclick="restartScanner()">
 
-Scan Again
+            Scan Again
 
-</button>
+        </button>
 
-<div id="result"></div>
+        <div id="result"></div>
 
-</div>
+    </div>
 
-<?php require "footer.php"; ?>
+    <?php require "footer.php"; ?>
 
-<script>
+    <script>
+        let scanner = new Html5Qrcode("reader");
 
-let scanner=new Html5Qrcode("reader");
+        let cameraRunning = false;
 
-let cameraRunning=false;
+        function showMessage(msg, type) {
 
-function showMessage(msg,type){
+            let box = document.getElementById("result");
 
-    let box=document.getElementById("result");
+            box.style.display = "block";
 
-    box.style.display="block";
+            box.className = type;
 
-    box.className=type;
-
-    box.innerHTML=msg;
-
-}
-
-function startScanner(){
-
-    if(cameraRunning)
-        return;
-
-    Html5Qrcode.getCameras()
-
-    .then(function(devices){
-
-        if(devices.length==0){
-
-            showMessage("No Camera Found","error");
-
-            return;
+            box.innerHTML = msg;
 
         }
 
-        scanner.start(
+        function startScanner() {
 
-            {facingMode:"environment"},
+            if (cameraRunning)
+                return;
 
-            {
+            Html5Qrcode.getCameras()
 
-                fps:10,
+                .then(function(devices) {
 
-                qrbox:250
+                    if (devices.length == 0) {
 
-            },
+                        showMessage("No Camera Found", "error");
 
-            function(decodedText){
+                        return;
 
-                scanner.stop();
+                    }
 
-                cameraRunning=false;
+                    scanner.start(
 
-                sendQR(decodedText);
+                        {
+                            facingMode: "environment"
+                        },
 
-            },
+                        {
 
-            function(error){
+                            fps: 10,
 
-            }
+                            qrbox: 250
 
-        );
+                        },
 
-        cameraRunning=true;
+                        function(decodedText) {
 
-    })
+                            scanner.stop();
 
-    .catch(function(){
+                            cameraRunning = false;
 
-        showMessage("Unable to Open Camera","error");
+                            sendQR(decodedText);
 
-    });
+                        },
 
-}
+                        function(error) {
 
-function restartScanner(){
+                        }
 
-    document.getElementById("result").style.display="none";
+                    );
 
-    startScanner();
+                    cameraRunning = true;
 
-}
+                })
 
-document.getElementById("qrFile")
+                .catch(function() {
 
-.addEventListener("change",function(e){
+                    showMessage("Unable to Open Camera", "error");
 
-    const file=e.target.files[0];
-
-    if(!file)
-        return;
-
-    showMessage("Reading QR...","loading");
-
-    scanner.scanFile(file,true)
-
-    .then(function(decodedText){
-
-        sendQR(decodedText);
-
-    })
-
-    .catch(function(){
-
-        showMessage("Invalid QR Image","error");
-
-    });
-
-});
-
-function sendQR(qr){
-
-    showMessage("Processing Payment...","loading");
-
-    fetch("process_qr.php",{
-
-        method:"POST",
-
-        headers:{
-
-            "Content-Type":"application/x-www-form-urlencoded"
-
-        },
-
-        body:"qr="+encodeURIComponent(qr)
-
-    })
-
-    .then(function(response){
-
-        return response.json();
-
-    })
-
-    .then(function(data){
-
-        if(data.status){
-
-            showMessage(
-
-                "✅ "+data.message,
-
-                "success"
-
-            );
+                });
 
         }
 
-        else{
+        function restartScanner() {
 
-            showMessage(
+            document.getElementById("result").style.display = "none";
 
-                "❌ "+data.message,
-
-                "error"
-
-            );
+            startScanner();
 
         }
 
-    })
+        document.getElementById("qrFile")
 
-    .catch(function(){
+            .addEventListener("change", function(e) {
 
-        showMessage(
+                const file = e.target.files[0];
 
-            "Server Connection Failed",
+                if (!file)
+                    return;
 
-            "error"
+                showMessage("Reading QR...", "loading");
 
-        );
+                scanner.scanFile(file, true)
 
-    });
+                    .then(function(decodedText) {
 
-}
+                        sendQR(decodedText);
 
-startScanner();
+                    })
 
-</script>
+                    .catch(function() {
+
+                        showMessage("Invalid QR Image", "error");
+
+                    });
+
+            });
+
+        function sendQR(qr) {
+
+            showMessage("Processing Payment...", "loading");
+
+            fetch("process_qr.php", {
+
+                    method: "POST",
+
+                    headers: {
+
+                        "Content-Type": "application/x-www-form-urlencoded"
+
+                    },
+
+                    body: "qr=" + encodeURIComponent(qr)
+
+                })
+
+                .then(function(response) {
+
+                    return response.json();
+
+                })
+
+                .then(function(data) {
+
+                    if (data.status) {
+
+                        showMessage(
+
+                            "✅ " + data.message,
+
+                            "success"
+
+                        );
+
+                    } else {
+
+                        showMessage(
+
+                            "❌ " + data.message,
+
+                            "error"
+
+                        );
+
+                    }
+
+                })
+
+                .catch(function() {
+
+                    showMessage(
+
+                        "Server Connection Failed",
+
+                        "error"
+
+                    );
+
+                });
+
+        }
+
+        startScanner();
+    </script>
 
 </body>
 
