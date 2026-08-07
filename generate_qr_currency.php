@@ -9,6 +9,15 @@ require 'currency_con.php';
 
 define("SECRET_KEY", "MBDPAY@2026_SUPER_SECRET_KEY_32");
 
+$mess_c = "";
+$m_type = "";
+
+if (isset($_SESSION['message_cur'])) {
+    $mess_c = $_SESSION['message_cur'];
+    $m_type = $_SESSION['message_type'];
+    unset($_SESSION['message_cur']);
+    unset($_SESSION['message_type']);
+}
 
 if (isset($_SESSION['mobile'])) {
     $u_mob = $_SESSION['mobile'];
@@ -652,6 +661,9 @@ try {
                     " currency generated successfully.";
 
                 $message_type = "success";
+                $_SESSION['message_cur'] = $message;
+                $_SESSION['message_type'] = $message_type;
+                header("location:generate_qr_currency.php");
             } catch (Throwable $e) {
 
                 /*
@@ -709,7 +721,7 @@ try {
     $message = "Please Connect to Internet.";
     $message_type = "error";
 }
-session_abort();
+
 ?>
 
 
@@ -1107,6 +1119,16 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         }
 
+ .message_s {
+
+
+            text-align: center;
+
+            color: #047857;
+
+            margin-bottom: 15px;
+
+        }
 
         .message.success {
 
@@ -1609,6 +1631,16 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             <div class="message <?php echo $message_type; ?>">
 
                 <?php echo htmlspecialchars($message); ?>
+
+            </div>
+
+        <?php } ?>
+        
+        <?php if ($mess_c !== "") { ?>
+
+            <div class="message <?php echo $m_type; ?>">
+
+                <?php echo htmlspecialchars($mess_c); ?>
 
             </div>
 

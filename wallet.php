@@ -5,6 +5,19 @@ require 'conn.php';
 require 'bank_conn.php';
 
 
+$mess = "";
+$mess_f = "";
+
+if (isset($_SESSION['message_pay'])) {
+    $mess = $_SESSION['message_pay'];
+    unset($_SESSION['message_pay']);
+}
+
+if (isset($_SESSION['message_pay_f'])) {
+    $mess_f = $_SESSION['message_pay_f'];
+    unset($_SESSION['message_pay_f']);
+}
+
 // catch create logic
 
 define("CACHE_DIR", __DIR__ . "/cache/users/");
@@ -320,12 +333,18 @@ try {
 
 
                                 $message = "Money Added Successfully";
+                                $_SESSION['message_pay'] = $message;
+                                header("location:wallet.php");
                             } else {
                                 $message1 =  "Wallet credit failed.";
+                                $_SESSION['message_pay_f'] = $message1;
+                                header("location:wallet.php");
                             }
                         }
                     } else {
                         $message1 = "Insufficient balance.";
+                        $_SESSION['message_pay_f'] = $message1;
+                        header("location:wallet.php");
                     }
                 }
             }
@@ -918,6 +937,8 @@ try {
 
                                     $message =
                                         "Money Withdrawal Successfully";
+                                    $_SESSION['message_pay'] = $message;
+                                    header("location:wallet.php");
                                 } else {
 
 
@@ -929,6 +950,8 @@ try {
 
                                     $message1 =
                                         "Wallet debit failed.";
+                                    $_SESSION['message_pay_f'] = $message1;
+                                    header("location:wallet.php");
                                 }
                             } else {
 
@@ -941,6 +964,8 @@ try {
 
                                 $message1 =
                                     "Bank credit failed.";
+                                $_SESSION['message_pay_f'] = $message1;
+                                header("location:wallet.php");
                             }
                         } else {
 
@@ -953,6 +978,8 @@ try {
 
                             $message1 =
                                 "Bank account not found.";
+                            $_SESSION['message_pay_f'] = $message1;
+                            header("location:wallet.php");
                         }
                     } else {
 
@@ -965,6 +992,8 @@ try {
 
                         $message1 =
                             "Insufficient wallet balance.";
+                        $_SESSION['message_pay_f'] = $message1;
+                        header("location:wallet.php");
                     }
                 } else {
 
@@ -977,6 +1006,8 @@ try {
 
                     $message1 =
                         "Wallet account not found.";
+                    $_SESSION['message_pay_f'] = $message1;
+                    header("location:wallet.php");
                 }
             } else {
 
@@ -989,6 +1020,8 @@ try {
 
                 $message1 =
                     "Please connect to the Internet.";
+                $_SESSION['message_pay_f'] = $message1;
+                header("location:wallet.php");
             }
         }
     }
@@ -1004,9 +1037,6 @@ try {
         "Please connect to the Internet.";
 }
 
-
-
-session_abort();
 ?>
 
 <!DOCTYPE html>
@@ -1096,6 +1126,36 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         <div class='message'>
         $message
+            </div>
+
+                ";
+        }
+
+        ?>
+
+        <?php
+
+        if ($mess != "") {
+
+            echo "
+
+        <div class='message'>
+        $mess
+            </div>
+
+                ";
+        }
+
+        ?>
+
+        <?php
+
+        if ($mess_f != "") {
+
+            echo "
+
+        <div class='message1'>
+        $mess_f
             </div>
 
                 ";

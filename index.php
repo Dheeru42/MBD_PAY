@@ -144,6 +144,7 @@ try {
 
 
     $total_value = 0;
+    $generatedToday = 0;
 
     $currency_rows = [];
 
@@ -168,7 +169,6 @@ try {
     $total_value = 0;
 
     $generatedToday = $total_value;
-
     $currency_rows = [];
 }
 
