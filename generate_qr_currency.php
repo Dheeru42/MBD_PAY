@@ -3205,7 +3205,7 @@ try {
                     id="pinInput"
                     class="pin-input"
                     inputmode="numeric"
-                    maxlength="6"
+                    maxlength="4"
                     autocomplete="off"
                     placeholder="••••">
 

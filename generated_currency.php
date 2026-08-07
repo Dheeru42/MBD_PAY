@@ -12,36 +12,27 @@ require 'conn.php';
 require 'bank_conn.php';
 require 'currency_con.php';
 
-if (!isset($_SESSION['user'])) {
+// catch logic
 
-    header("location:login.php");
-    exit;
-}
-
-$u_account = $_SESSION['account'];
-
-if (!isset($_SESSION['user']) && isset($_COOKIE['remember_user'])) {
-    $_SESSION['user'] = $_COOKIE['remember_user'];
-}
-
-
-
-if (isset($_SESSION['user'])) {
-
-    $username = $_SESSION['user'];
-}
-
-if (isset($_SESSION['mobile'])) {
-    $u_mob = $_SESSION['mobile'];
-}
-
-if (!isset($_SESSION['account'])) {
-    header("location:login.php");
-    exit;
-}
-
-
+define("CACHE_DIR", __DIR__ . "/cache/users/");
 define("SECRET_KEY", "MBDPAY@2026_SUPER_SECRET_KEY_32");
+
+/* Encrypt Function */
+function encryptData($text)
+{
+    $key = hash("sha256", SECRET_KEY, true);
+    $iv  = random_bytes(16);
+
+    $cipher = openssl_encrypt(
+        $text,
+        "AES-256-CBC",
+        $key,
+        OPENSSL_RAW_DATA,
+        $iv
+    );
+
+    return base64_encode($iv . $cipher);
+}
 
 /* Decrypt Function */
 
@@ -65,6 +56,42 @@ function decryptData($text)
     );
 }
 
+
+if (!isset($_SESSION['user'])) {
+
+    header("location:login.php");
+    exit;
+}
+
+$u_account = $_SESSION['account'];
+
+if (!isset($_SESSION['user']) && isset($_COOKIE['remember_user'])) {
+    $_SESSION['user'] = $_COOKIE['remember_user'];
+}
+
+
+if (isset($_SESSION['user'])) {
+
+    $username = $_SESSION['user'];
+}
+
+if (isset($_SESSION['refresh'])) {
+
+    header("location:generated_currency.php");
+    unset($_SESSION['refresh']);
+}
+
+if (isset($_SESSION['mobile'])) {
+    $u_mob = $_SESSION['mobile'];
+}
+
+if (!isset($_SESSION['account'])) {
+    header("location:login.php");
+    exit;
+}
+
+
+
 /*
 |--------------------------------------------------------------------------
 | PIN VERIFICATION
@@ -74,91 +101,71 @@ function decryptData($text)
 $unlocked_currency = null;
 $pin_error = "";
 
-try {
-    if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
+try {
+
+    if (isset($_POST['online'])) {
         if (
             isset($_POST['action']) &&
-            $_POST['action'] === 'verify_pin'
+            $_POST['action'] === "verify_pin"
         ) {
 
-            $currency_id = intval($_POST['currency_id'] ?? 0);
+            $currency_id = (int)($_POST['currency_id'] ?? 0);
+            $entered_pin = trim($_POST['pin'] ?? "");
 
-            $entered_pin = $_POST['pin'] ?? "";
-
-
-            if ($currency_id <= 0 || $entered_pin === "") {
+            if ($currency_id <= 0 || $entered_pin == "") {
 
                 $pin_error = "Please enter your PIN.";
             } else {
 
-                /*
-            |--------------------------------------------------------------------------
-            | Get currency
-            |--------------------------------------------------------------------------
-            */
-
+                // Get selected currency
                 $stmt = mysqli_prepare(
                     $c_conn,
                     "SELECT
-                    id,
-                    serial_no,
-                    encrypted_serial,
-                    amount,
-                    sender_mobile,
-                    receiver_mobile,
-                    status,
-                    generated_at
-                 FROM currency
-                 WHERE sender_mobile = ?
-                 AND status = 'GENERATED'
-                 LIMIT 1"
+                        id,
+                        serial_no,
+                        encrypted_serial,
+                        amount,
+                        sender_mobile,
+                        receiver_mobile,
+                        status,
+                        generated_at
+                    FROM currency
+                    WHERE id=?
+                    AND sender_mobile=?
+                    AND status='GENERATED'
+                    LIMIT 1"
                 );
-
 
                 mysqli_stmt_bind_param(
                     $stmt,
-                    "i",
+                    "is",
+                    $currency_id,
                     $u_mob
                 );
 
-
                 mysqli_stmt_execute($stmt);
 
+                $currency_result = mysqli_stmt_get_result($stmt);
 
-                $currency_result =
-                    mysqli_stmt_get_result($stmt);
-
-
-                $currency =
-                    mysqli_fetch_assoc(
-                        $currency_result
-                    );
-
+                $currency = mysqli_fetch_assoc($currency_result);
 
                 mysqli_stmt_close($stmt);
 
-
                 if (!$currency) {
 
-                    $pin_error =
-                        "Currency is no longer available.";
+                    unset($_SESSION['unlocked_currency_id']);
+                    $pin_error = "Currency not found.";
                 } else {
 
-                    /*
-                |--------------------------------------------------------------------------
-                | Get sender PIN
-                |--------------------------------------------------------------------------
-                */
-
+                    // Get sender PIN
                     $stmt = mysqli_prepare(
                         $conn,
                         "SELECT pin
-                     FROM users
-                     WHERE mobile = ?
-                     LIMIT 1"
+                         FROM users
+                         WHERE mobile=?
+                         LIMIT 1"
                     );
-
 
                     mysqli_stmt_bind_param(
                         $stmt,
@@ -166,56 +173,49 @@ try {
                         $currency['sender_mobile']
                     );
 
-
                     mysqli_stmt_execute($stmt);
 
+                    $user_result = mysqli_stmt_get_result($stmt);
 
-                    $user_result =
-                        mysqli_stmt_get_result($stmt);
+                    $user = mysqli_fetch_assoc($user_result);
 
-
-                    $user =
-                        mysqli_fetch_assoc(
-                            $user_result
-                        );
-
-                    $u_pin = $user['pin'];
                     mysqli_stmt_close($stmt);
-
-
-                    /*
-                |--------------------------------------------------------------------------
-                | Verify PIN
-                |--------------------------------------------------------------------------
-                */
 
                     if (
                         $user &&
-                        password_verify(
-                            $entered_pin,
-                            $u_pin
-                        )
+                        password_verify($entered_pin, $user['pin'])
                     ) {
 
-                        /*
-                    |--------------------------------------------------------------------------
-                    | PIN CORRECT
-                    |--------------------------------------------------------------------------
-                    */
+                        // Unlock selected currency
+                        $unlocked_currency = $currency;
 
-                        $unlocked_currency =
-                            $currency;
+                        // Keep unlocked after refresh
+                        $_SESSION['unlocked_currency_id'] = $currency['id'];
+                        $_SESSION['refresh'] = true;
                     } else {
 
-                        $pin_error =
-                            "Incorrect PIN. Please try again.";
+                        unset($_SESSION['unlocked_currency_id']);
+
+                        $pin_error = "Incorrect PIN. Please try again.";
                     }
                 }
             }
         }
     }
-} catch (\Throwable $th) {
-    // 
+} catch (Throwable $th) {
+    // user cache path
+
+    $userId = hash("sha256", $u_mob);
+
+    $profile = CACHE_DIR . $userId . "/profile.json";
+
+    $cache = json_decode(
+        file_get_contents($profile),
+        true
+    );
+    if (isset($_POST['offline'])) {
+        $pin_error = "Hogaya";
+    }
 }
 
 /*FETCH GENERATED CURRENCIES*/
@@ -270,7 +270,38 @@ try {
 
     $total_currency = 0;
     $total_value = 0;
-    $currency_rows[] = '';
+    $currency_rows = [];
+
+    // User cache path
+    $userId = hash("sha256", $u_mob);
+
+    // User currency folder
+    $currencyDir = CACHE_DIR . $userId . "/currency/";
+
+    if (is_dir($currencyDir)) {
+
+        $files = glob($currencyDir . "*.json");
+
+        foreach ($files as $file) {
+
+            $currency = json_decode(file_get_contents($file), true);
+
+            if (!$currency) {
+                continue;
+            }
+
+            // File name is the encrypted serial number
+            $currency_rows[] = $currency;
+
+            $total_value +=
+                decryptData($currency['amount']);
+
+            $total_currency = count(glob($currencyDir . "*.json"));
+        }
+    }
+    usort($currency_rows, function ($a, $b) {
+        return strtotime($b['generated_at']) <=> strtotime($a['generated_at']);
+    });
 }
 
 ?>
@@ -287,13 +318,15 @@ try {
         content="width=device-width, initial-scale=1.0">
 
     <title>
-        MBDPAY | Generated Currency
+        MBD PAY | Generated Currency
     </title>
 
 
-    <link rel="icon"
-        type="image/svg+xml"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' 
+viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext 
+x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' 
+fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 
     <!--
@@ -490,6 +523,27 @@ try {
             font-size: 14px;
         }
 
+        .message {
+
+
+            text-align: center;
+
+            color: #047857;
+
+            margin-bottom: 15px;
+
+        }
+
+        .message1 {
+
+
+            text-align: center;
+
+            color: #e60404;
+
+            margin-bottom: 15px;
+
+        }
 
         /* =========================================================
    SUMMARY
@@ -624,6 +678,25 @@ try {
                 liveGlow 1.5s ease-in-out infinite;
         }
 
+        .offline-dot {
+
+            position: relative;
+
+            width: 9px;
+            height: 9px;
+
+            border-radius: 50%;
+
+            background: #e70303;
+
+            box-shadow:
+                0 0 6px rgba(187, 17, 54, 0.9),
+                0 0 14px rgba(227, 66, 66, 0.6);
+
+            animation:
+                liveGlow 1.5s ease-in-out infinite;
+        }
+
 
         .live-dot::before {
 
@@ -640,6 +713,29 @@ try {
             border-radius: 50%;
 
             border: 2px solid #22c55e;
+
+            transform:
+                translate(-50%, -50%);
+
+            animation:
+                liveRing 1.5s ease-out infinite;
+        }
+
+        .offline-dot::before {
+
+            content: "";
+
+            position: absolute;
+
+            top: 50%;
+            left: 50%;
+
+            width: 100%;
+            height: 100%;
+
+            border-radius: 50%;
+
+            border: 2px solid #b50909;
 
             transform:
                 translate(-50%, -50%);
@@ -671,8 +767,49 @@ try {
             }
         }
 
+        @keyframes offlineGlow {
+
+            0%,
+            100% {
+
+                transform: scale(1);
+
+                box-shadow:
+                    0 0 5px rgba(162, 10, 10, 0.8),
+                    0 0 12px rgba(173, 11, 11, 0.5);
+            }
+
+            50% {
+
+                transform: scale(1.25);
+
+                box-shadow:
+                    0 0 9px rgb(153, 7, 19),
+                    0 0 20px rgba(182, 8, 8, 0.75);
+            }
+        }
+
 
         @keyframes liveRing {
+
+            0% {
+
+                width: 100%;
+                height: 100%;
+
+                opacity: .9;
+            }
+
+            100% {
+
+                width: 300%;
+                height: 300%;
+
+                opacity: 0;
+            }
+        }
+
+        @keyframes offlineRing {
 
             0% {
 
@@ -834,6 +971,29 @@ try {
 
             color:
                 #047857;
+
+            font-size: 11px;
+
+            font-weight: 800;
+        }
+
+        .status-badgef {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding: 8px 13px;
+
+            border-radius: 20px;
+
+            background:
+                #ecfdf5;
+
+            color:
+                #e10606;
 
             font-size: 11px;
 
@@ -1665,28 +1825,20 @@ $message1
 
         </section>
 
+        <?php
 
-        <!-- =====================================================
-     SECTION HEADER
-====================================================== -->
+        if (!$serverConnected) {
 
-        <div class="section-header">
+            echo "
 
-            <div class="section-title">
-                Active Generated Currency
-            </div>
+<div class='message1'>
+These currencies are generated online but stored in cache memory(use for offline currency).
+</div>
 
+";
+        }
 
-            <div class="live-indicator">
-
-                <span class="live-dot"></span>
-
-                LIVE
-
-            </div>
-
-        </div>
-
+        ?>
 
         <!-- =====================================================
      CURRENCY CARDS
@@ -1717,325 +1869,330 @@ $message1
                             </div>
 
 
-                            <div class="status-badge">
+                            <?php if ($serverConnected) { ?>
+                                <div class="status-badge">
+                                    <span class="live-dot"></span>
 
-                                <span class="live-dot"></span>
+                                    GENERATED
+                                <?php } else { ?>
+                                    <div class="status-badgef">
+                                        <span class="offline-dot"></span>
 
-                                GENERATED
-
-                            </div>
-
-
-                        </div>
-
-
-                        <!-- AMOUNT -->
-
-                        <div class="amount-section">
-
-                            <div class="amount">
-
-                                <span class="rupee">
-                                    ₹
-                                </span>
-
-                                <?php
-                                echo number_format(
-                                    decryptData($currency['amount']),
-                                    2
-                                );
-                                ?>
-
-                            </div>
+                                        GENERATED
+                                    <?php } ?>
+                                    </div>
 
 
-                            <div class="amount-label">
-
-                                MBD Pay Digital Currency
-
-                            </div>
-
-                        </div>
+                                </div>
 
 
-                        <!-- SERIAL -->
+                                <!-- AMOUNT -->
 
-                        <div class="serial-box">
+                                <div class="amount-section">
 
-                            <span class="serial-label">
-                                Currency Serial Number
-                            </span>
+                                    <div class="amount">
 
-                            <span class="serial-value">
+                                        <span class="rupee">
+                                            ₹
+                                        </span>
 
-                                <?php
-                                echo htmlspecialchars(
-                                    $currency['serial_no']
-                                );
-                                ?>
+                                        <?php
+                                        echo number_format(
+                                            decryptData($currency['amount']),
+                                            2
+                                        );
+                                        ?>
 
-                            </span>
-
-                        </div>
+                                    </div>
 
 
-                        <!-- =================================================
+                                    <div class="amount-label">
+
+                                        MBD Pay Digital Currency
+
+                                    </div>
+
+                                </div>
+
+
+                                <!-- SERIAL -->
+
+                                <div class="serial-box">
+
+                                    <span class="serial-label">
+                                        Currency Serial Number
+                                    </span>
+
+                                    <span class="serial-value">
+
+                                        <?php if ($serverConnected) {
+                                            echo htmlspecialchars(
+                                                $currency['serial_no']
+                                            );
+                                        } else {
+                                            echo htmlspecialchars(
+                                                decryptData($currency['serial_no'])
+                                            );
+                                        }
+                                        ?>
+
+                                    </span>
+
+                                </div>
+
+
+                                <!-- =================================================
          QR AREA
     ================================================== -->
 
-                        <div class="qr-section">
+                                <div class="qr-section">
 
 
-                            <?php
+                                    <?php
 
-                            /*
+                                    /*
         |--------------------------------------------------------------------------
         | SHOW QR ONLY AFTER CORRECT PIN
         |--------------------------------------------------------------------------
         */
+                                    if (
+                                        $unlocked_currency &&
+                                        $unlocked_currency['id']
+                                        == $currency['id']
+                                    ):
 
-                            if (
-                                $unlocked_currency &&
-                                $unlocked_currency['id']
-                                == $currency['id']
-                            ):
-
-                            ?>
-
-
-                                <div class="qr-unlocked">
-
-                                    <div
-                                        class="qr-code"
-                                        id="qr-<?php
-                                                echo (int)$currency['id'];
-                                                ?>"></div>
+                                    ?>
 
 
-                                    <div class="qr-title">
+                                        <div class="qr-unlocked">
 
-                                        Scan to receive ₹<?php
-                                                            echo number_format(
-                                                                decryptData($currency['amount']),
-                                                                2
-                                                            );
-                                                            ?>
-
-                                    </div>
-
-                                </div>
-
-
-                                <script>
-                                    document.addEventListener(
-                                        "DOMContentLoaded",
-                                        function() {
-
-                                            new QRCode(
-                                                document.getElementById(
-                                                    "qr-<?php
+                                            <div
+                                                class="qr-code"
+                                                id="qr-<?php
                                                         echo (int)$currency['id'];
-                                                        ?>"
-                                                ), {
+                                                        ?>"></div>
 
-                                                    text: <?php
-                                                            echo json_encode(
-                                                                $currency['encrypted_serial']
-                                                            );
-                                                            ?>,
 
-                                                    width: 130,
+                                            <div class="qr-title">
 
-                                                    height: 130,
+                                                Scan to receive ₹<?php
+                                                                    echo number_format(
+                                                                        decryptData($currency['amount']),
+                                                                        2
+                                                                    );
+                                                                    ?>
 
-                                                    colorDark: "#022c22",
+                                            </div>
 
-                                                    colorLight: "#ffffff",
+                                        </div>
 
-                                                    correctLevel: QRCode.CorrectLevel.H
+
+                                        <script>
+                                            document.addEventListener(
+                                                "DOMContentLoaded",
+                                                function() {
+
+                                                    new QRCode(
+                                                        document.getElementById(
+                                                            "qr-<?php
+                                                                echo (int)$currency['id'];
+                                                                ?>"
+                                                        ), {
+
+                                                            text: <?php
+                                                                    echo json_encode(
+                                                                        $currency['encrypted_serial']
+                                                                    );
+                                                                    ?>,
+
+                                                            width: 130,
+
+                                                            height: 130,
+
+                                                            colorDark: "#022c22",
+
+                                                            colorLight: "#ffffff",
+
+                                                            correctLevel: QRCode.CorrectLevel.H
+
+                                                        }
+                                                    );
 
                                                 }
                                             );
-
-                                        }
-                                    );
-                                </script>
-
-
-                            <?php else: ?>
-
-
-                                <div class="qr-lock">
-
-
-                                    <div class="lock-icon">
-                                        🔒
-                                    </div>
-
-
-                                    <strong>
-                                        QR Code Locked
-                                    </strong>
-
-
-                                    <span>
-                                        Enter your PIN to display this currency QR
-                                    </span>
-
-
-                                    <button
-                                        type="button"
-                                        class="show-qr-btn"
-                                        onclick="openPinModal(
-                        <?php
-                                echo (int)$currency['id'];
-                        ?>
-                    )">
-                                        🔐 Show QR
-                                    </button>
-
-
-                                </div>
-
-
-                            <?php endif; ?>
-
-
-                        </div>
-
-
-                        <!-- =================================================
-         DETAILS
-    ================================================== -->
-
-                        <div class="details">
-
-
-                            <div class="detail-row">
-
-                                <span class="detail-label">
-                                    Sender
-                                </span>
-
-                                <span class="detail-value">
-
-                                    <?php
-                                    echo htmlspecialchars(
-                                        $currency['sender_mobile']
-                                    );
-                                    ?>
-
-                                </span>
-
-                            </div>
-
-
-                            <div class="detail-row">
-
-                                <span class="detail-label">
-                                    Receiver
-                                </span>
-
-                                <span class="detail-value">
-
-                                    <?php
-
-                                    if (
-                                        !empty($currency['receiver_mobile'])
-                                    ) {
-
-                                        echo htmlspecialchars(
-                                            $currency['receiver_mobile']
-                                        );
-                                    } else {
-
-                                        echo "Not scanned";
-                                    }
-
-                                    ?>
-
-                                </span>
-
-                            </div>
-
-
-                            <div class="detail-row">
-
-                                <span class="detail-label">
-                                    Generation
-                                </span>
-
-                                <span class="detail-value">
-
-
-                                    <?php if (
-                                        $currency['generated_online']
-                                    ): ?>
-
-
-                                        <span class="mode">
-                                            ● ONLINE
-                                        </span>
+                                        </script>
 
 
                                     <?php else: ?>
 
 
-                                        <span class="mode">
-                                            ● OFFLINE
-                                        </span>
+                                        <div class="qr-lock">
+
+
+                                            <div class="lock-icon">
+                                                🔒
+                                            </div>
+
+
+                                            <strong>
+                                                QR Code Locked
+                                            </strong>
+
+
+                                            <span>
+                                                Enter your PIN to display this currency QR
+                                            </span>
+
+
+                                            <button
+                                                type="button"
+                                                class="show-qr-btn"
+                                                onclick="openPinModal(
+        '<?php
+                                        if ($serverConnected) {
+                                            echo (int)$currency['id'];
+                                        } else {
+                                            echo htmlspecialchars(
+                                                decryptData($currency['serial_no']),
+                                                ENT_QUOTES,
+                                                'UTF-8'
+                                            );
+                                        }
+            ?>'
+    )">
+                                                🔐 Show QR
+                                            </button>
+
+
+                                        </div>
 
 
                                     <?php endif; ?>
 
 
-                                </span>
-
-                            </div>
+                                </div>
 
 
-                            <div class="detail-row">
+                                <!-- =================================================
+         DETAILS
+    ================================================== -->
 
-                                <span class="detail-label">
-                                    Synchronization
-                                </span>
-
-                                <span class="detail-value">
-
-                                    <?php
-                                    echo htmlspecialchars(
-                                        $currency['sync_status']
-                                    );
-                                    ?>
-
-                                </span>
-
-                            </div>
+                                <div class="details">
 
 
-                            <div class="detail-row">
+                                    <div class="detail-row">
 
-                                <span class="detail-label">
-                                    Generated
-                                </span>
+                                        <span class="detail-label">
+                                            Sender
+                                        </span>
 
-                                <span class="detail-value">
+                                        <span class="detail-value">
 
-                                    <?php
-                                    echo date(
-                                        'd M Y, h:i A',
-                                        strtotime(
-                                            $currency['generated_at']
-                                        )
-                                    );
-                                    ?>
+                                            <?php if ($serverConnected) {
+                                                echo htmlspecialchars(
+                                                    $currency['sender_mobile']
+                                                );
+                                            } else {
+                                                echo htmlspecialchars(
+                                                    decryptData($currency['sender_mobile'])
+                                                );
+                                            }
+                                            ?>
 
-                                </span>
+                                        </span>
 
-                            </div>
+                                    </div>
 
 
-                        </div>
+                                    <div class="detail-row">
+
+                                        <span class="detail-label">
+                                            Receiver
+                                        </span>
+
+                                        <span class="detail-value">
+
+                                            <?php
+
+                                            if ($serverConnected) {
+                                                if (
+                                                    !empty($currency['receiver_mobile'])
+                                                ) {
+
+                                                    echo htmlspecialchars(
+                                                        $currency['receiver_mobile']
+                                                    );
+                                                } else {
+
+                                                    echo "Not scanned";
+                                                }
+                                            } else {
+                                                if (
+                                                    !empty(decryptData($currency['receiver_mobile']))
+                                                ) {
+
+                                                    echo htmlspecialchars(
+                                                        decryptData($currency['receiver_mobile'])
+                                                    );
+                                                } else {
+
+                                                    echo "Not scanned";
+                                                }
+                                            }
+                                            ?>
+
+                                        </span>
+
+                                    </div>
+
+                                    <div class="detail-row">
+
+                                        <span class="detail-label">
+                                            Status
+                                        </span>
+
+                                        <span class="detail-value">
+
+                                            <?php
+                                            if ($serverConnected) {
+                                                echo htmlspecialchars(
+                                                    $currency['status']
+                                                );
+                                            } else {
+                                                echo htmlspecialchars(
+                                                    decryptData($currency['currency_status'])
+                                                );
+                                            }
+                                            ?>
+
+                                        </span>
+
+                                    </div>
+
+
+                                    <div class="detail-row">
+
+                                        <span class="detail-label">
+                                            Created Date
+                                        </span>
+
+                                        <span class="detail-value">
+
+                                            <?php
+                                            echo date(
+                                                'd M Y, h:i A',
+                                                strtotime(
+                                                    $currency['generated_at']
+                                                )
+                                            );
+                                            ?>
+
+                                        </span>
+
+                                    </div>
+
+
+                                </div>
 
 
                     </article>
@@ -2114,18 +2271,21 @@ $message1
                     name="action"
                     value="verify_pin">
 
+                <?php if ($serverConnected) { ?>
+                    <input
+                        type="hidden"
+                        name="currency_id"
+                        id="currencyId">
 
-                <input
-                    type="hidden"
-                    name="currency_id"
-                    id="currencyId">
-
+                <?php } else { ?>
+                    <input type="hidden" id="serialNo" name="serialNo">
+                <?php } ?>
 
                 <input
                     type="password"
                     name="pin"
                     class="pin-input"
-                    maxlength="6"
+                    maxlength="4"
                     inputmode="numeric"
                     pattern="[0-9]*"
                     placeholder="••••"
@@ -2143,14 +2303,22 @@ $message1
                         Cancel
                     </button>
 
+                    <?php if ($serverConnected) { ?>
+                        <button
+                            type="submit"
+                            name="online"
+                            class="pin-submit">
+                            Unlock QR
+                        </button>
 
-                    <button
-                        type="submit"
-                        class="pin-submit">
-                        Unlock QR
-                    </button>
-
-
+                    <?php } else { ?>
+                        <button
+                            type="submit"
+                            name="offline"
+                            class="pin-submit">
+                            Unlock QR
+                        </button>
+                    <?php } ?>
                 </div>
 
 
@@ -2189,89 +2357,169 @@ $message1
 | PIN MODAL
 |--------------------------------------------------------------------------
 */
+        <?php if ($serverConnected) { ?>
 
-        function openPinModal(currencyId) {
+            function openPinModal(currencyId) {
 
-            document.getElementById(
-                "currencyId"
-            ).value = currencyId;
-
-
-            document.getElementById(
-                "pinModal"
-            ).classList.add("active");
+                document.getElementById(
+                    "currencyId"
+                ).value = currencyId;
 
 
-            setTimeout(
-                function() {
+                document.getElementById(
+                    "pinModal"
+                ).classList.add("active");
 
-                    const input =
-                        document.querySelector(
-                            ".pin-input"
-                        );
+
+                setTimeout(
+                    function() {
+
+                        const input =
+                            document.querySelector(
+                                ".pin-input"
+                            );
+
+                        if (input) {
+
+                            input.focus();
+                        }
+
+                    },
+                    100
+                );
+            }
+
+
+            function closePinModal() {
+
+                document.getElementById(
+                    "pinModal"
+                ).classList.remove("active");
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CLOSE WHEN CLICKING OUTSIDE
+            |--------------------------------------------------------------------------
+            */
+
+            document
+                .getElementById("pinModal")
+                .addEventListener(
+                    "click",
+                    function(event) {
+
+                        if (
+                            event.target === this
+                        ) {
+
+                            closePinModal();
+                        }
+
+                    }
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | AUTO OPEN MODAL AFTER WRONG PIN
+            |--------------------------------------------------------------------------
+            */
+
+            <?php if ($pin_error !== ""): ?>
+
+                document.addEventListener(
+                    "DOMContentLoaded",
+                    function() {
+
+                        document
+                            .getElementById("pinModal")
+                            .classList.add("active");
+
+                    }
+                );
+
+            <?php endif; ?>
+
+
+            // for offline cache
+        <?php } else { ?>
+            /*
+|--------------------------------------------------------------------------
+| OPEN PIN MODAL
+|--------------------------------------------------------------------------
+*/
+
+            function openPinModal(serialNo) {
+
+                document.getElementById("serialNo").value = serialNo;
+
+                document
+                    .getElementById("pinModal")
+                    .classList.add("active");
+
+                setTimeout(function() {
+
+                    const input = document.querySelector(".pin-input");
 
                     if (input) {
-
                         input.focus();
                     }
 
-                },
-                100
-            );
-        }
+                }, 100);
+            }
 
 
-        function closePinModal() {
+            /*
+            |--------------------------------------------------------------------------
+            | CLOSE PIN MODAL
+            |--------------------------------------------------------------------------
+            */
 
-            document.getElementById(
-                "pinModal"
-            ).classList.remove("active");
-        }
+            function closePinModal() {
+
+                document
+                    .getElementById("pinModal")
+                    .classList.remove("active");
+            }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | CLOSE WHEN CLICKING OUTSIDE
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | CLOSE WHEN CLICKING OUTSIDE
+            |--------------------------------------------------------------------------
+            */
 
-        document
-            .getElementById("pinModal")
-            .addEventListener(
-                "click",
-                function(event) {
+            document
+                .getElementById("pinModal")
+                .addEventListener("click", function(event) {
 
-                    if (
-                        event.target === this
-                    ) {
-
+                    if (event.target === this) {
                         closePinModal();
                     }
 
-                }
-            );
+                });
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | AUTO OPEN MODAL AFTER WRONG PIN
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | AUTO OPEN MODAL AFTER WRONG PIN
+            |--------------------------------------------------------------------------
+            */
 
-        <?php if ($pin_error !== ""): ?>
+            <?php if ($pin_error !== ""): ?>
 
-            document.addEventListener(
-                "DOMContentLoaded",
-                function() {
+                document.addEventListener("DOMContentLoaded", function() {
 
                     document
                         .getElementById("pinModal")
                         .classList.add("active");
 
-                }
-            );
+                });
 
-        <?php endif; ?>
+            <?php endif; ?>
+        <?php } ?>
     </script>
 
 

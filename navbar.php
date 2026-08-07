@@ -326,6 +326,17 @@
 
         </li>
 
+        <li>
+
+            <a href="generated_currency.php">
+
+                📱 QR Currency
+
+            </a>
+
+        </li>
+
+
         <?php if ($serverConnected) { ?>
             <li>
 
@@ -337,17 +348,6 @@
 
             </li>
 
-
-
-            <li>
-
-                <a href="generated_currency.php">
-
-                    📱 QR Currency
-
-                </a>
-
-            </li>
 
             <li>
 
