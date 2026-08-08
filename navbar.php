@@ -342,7 +342,17 @@
 
                 <a href="transaction.php">
 
-                    🔄 Transaction
+                    📋 Transaction
+
+                </a>
+
+            </li>
+           
+            <li>
+
+                <a href="currency_status.php">
+
+                    💵 Currency Status
 
                 </a>
 
