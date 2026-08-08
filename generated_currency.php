@@ -203,19 +203,848 @@ try {
         }
     }
 } catch (Throwable $th) {
-    // user cache path
-
-    $userId = hash("sha256", $u_mob);
-
-    $profile = CACHE_DIR . $userId . "/profile.json";
-
-    $cache = json_decode(
-        file_get_contents($profile),
-        true
-    );
     if (isset($_POST['offline'])) {
-        $pin_error = "Hogaya";
+
+        /*
+    |--------------------------------------------------------------------------
+    | OFFLINE PIN VERIFICATION
+    |--------------------------------------------------------------------------
+    */
+
+        $serialNo = trim($_POST['serialNo'] ?? "");
+        $entered_pin = trim($_POST['pin'] ?? "");
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | CHECK INPUT
+    |--------------------------------------------------------------------------
+    */
+
+        if ($serialNo === "" || $entered_pin === "") {
+
+            $pin_error = "Please enter your PIN.";
+        } else {
+
+            /*
+        |--------------------------------------------------------------------------
+        | USER CACHE
+        |--------------------------------------------------------------------------
+        */
+
+            $userId = hash("sha256", $u_mob);
+
+            $profile =
+                CACHE_DIR .
+                $userId .
+                "/profile.json";
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | CHECK PROFILE
+        |--------------------------------------------------------------------------
+        */
+
+            if (!file_exists($profile)) {
+
+                $pin_error =
+                    "Offline profile not found.";
+            } else {
+
+                /*
+            |--------------------------------------------------------------------------
+            | READ PROFILE
+            |--------------------------------------------------------------------------
+            */
+
+                $cache = json_decode(
+                    file_get_contents($profile),
+                    true
+                );
+
+
+                /*
+            |--------------------------------------------------------------------------
+            | GET CACHED PIN
+            |--------------------------------------------------------------------------
+            */
+
+                $cachedPin = $cache['pin'] ?? "";
+
+
+                /*
+            |--------------------------------------------------------------------------
+            | VERIFY PIN
+            |--------------------------------------------------------------------------
+            */
+
+                if (
+                    empty($cachedPin) ||
+                    !password_verify(
+                        $entered_pin,
+                        $cachedPin
+                    )
+                ) {
+
+                    unset(
+                        $_SESSION['unlocked_currency_serial']
+                    );
+
+                    $pin_error =
+                        "Incorrect PIN. Please try again.";
+                } else {
+
+                    /*
+                |--------------------------------------------------------------------------
+                | PIN CORRECT
+                |--------------------------------------------------------------------------
+                */
+
+                    $currencyDir =
+                        CACHE_DIR .
+                        $userId .
+                        "/currency/";
+
+
+                    $foundCurrency = null;
+
+
+                    /*
+                |--------------------------------------------------------------------------
+                | FIND CURRENCY FROM CACHE
+                |--------------------------------------------------------------------------
+                */
+
+                    if (is_dir($currencyDir)) {
+
+                        $files = glob(
+                            $currencyDir . "*.json"
+                        );
+
+
+                        foreach ($files as $file) {
+
+                            $cachedCurrency =
+                                json_decode(
+                                    file_get_contents($file),
+                                    true
+                                );
+
+
+                            if (!$cachedCurrency) {
+                                continue;
+                            }
+
+
+                            /*
+                        |--------------------------------------------------------------------------
+                        | DECRYPT SERIAL NUMBER
+                        |--------------------------------------------------------------------------
+                        |
+                        | serial_no is encrypted in cache.
+                        |--------------------------------------------------------------------------
+                        */
+
+                            $cachedSerial = "";
+
+                            if (
+                                !empty($cachedCurrency['serial_no'])
+                            ) {
+
+                                $cachedSerial =
+                                    decryptData(
+                                        $cachedCurrency['serial_no']
+                                    );
+                            }
+
+
+                            /*
+                        |--------------------------------------------------------------------------
+                        | MATCH SERIAL
+                        |--------------------------------------------------------------------------
+                        */
+
+                            if (
+                                $cachedSerial ===
+                                $serialNo
+                            ) {
+
+                                /*
+                            |--------------------------------------------------------------------------
+                            | DECRYPT ALL CACHE FIELDS
+                            |--------------------------------------------------------------------------
+                            */
+
+                                $cachedCurrency['serial_no'] = decryptData(
+                                    $cachedCurrency['serial_no']
+                                );
+
+
+                                if (
+                                    isset(
+                                        $cachedCurrency['currency_serial_no']
+                                    )
+                                ) {
+
+                                    $cachedCurrency['currency_serial_no'] = decryptData(
+                                        $cachedCurrency['currency_serial_no']
+                                    );
+                                }
+
+
+                                if (
+                                    isset(
+                                        $cachedCurrency['amount']
+                                    )
+                                ) {
+
+                                    $cachedCurrency['amount'] = decryptData(
+                                        $cachedCurrency['amount']
+                                    );
+                                }
+
+
+                                if (
+                                    isset(
+                                        $cachedCurrency['currency_status']
+                                    )
+                                ) {
+
+                                    $cachedCurrency['currency_status'] = decryptData(
+                                        $cachedCurrency['currency_status']
+                                    );
+                                }
+
+
+                                if (
+                                    isset(
+                                        $cachedCurrency['receiver_mobile']
+                                    )
+                                ) {
+
+                                    $cachedCurrency['receiver_mobile'] = decryptData(
+                                        $cachedCurrency['receiver_mobile']
+                                    );
+                                }
+
+
+                                if (
+                                    isset(
+                                        $cachedCurrency['sender_mobile']
+                                    )
+                                ) {
+
+                                    $cachedCurrency['sender_mobile'] = decryptData(
+                                        $cachedCurrency['sender_mobile']
+                                    );
+                                }
+
+
+                                /*
+                            |--------------------------------------------------------------------------
+                            | KEEP ENCRYPTED SERIAL FOR QR
+                            |--------------------------------------------------------------------------
+                            |
+                            | QR must contain encrypted serial.
+                            |
+                            */
+
+                                if (
+                                    isset(
+                                        $cachedCurrency['encrypted_serial']
+                                    )
+                                ) {
+
+                                    /*
+                                | Already encrypted
+                                */
+                                    $qrSerial =
+                                        $cachedCurrency['encrypted_serial'];
+                                } else {
+
+                                    /*
+                                | If encrypted_serial is not separately
+                                | available, use encrypted serial_no
+                                | from original cache file.
+                                */
+
+                                    $originalCurrency =
+                                        json_decode(
+                                            file_get_contents($file),
+                                            true
+                                        );
+
+                                    $qrSerial =
+                                        $originalCurrency['serial_no'];
+                                }
+
+
+                                /*
+                            |--------------------------------------------------------------------------
+                            | STORE QR DATA
+                            |--------------------------------------------------------------------------
+                            */
+
+                                $cachedCurrency['encrypted_serial'] = $qrSerial;
+
+
+                                /*
+                            |--------------------------------------------------------------------------
+                            | CREATE OFFLINE ID
+                            |--------------------------------------------------------------------------
+                            */
+
+                                $cachedCurrency['id'] =
+                                    md5($cachedSerial);
+
+
+                                /*
+                            |--------------------------------------------------------------------------
+                            | FOUND
+                            |--------------------------------------------------------------------------
+                            */
+
+                                $foundCurrency =
+                                    $cachedCurrency;
+
+
+                                break;
+                            }
+                        }
+                    }
+
+
+                    /*
+                |--------------------------------------------------------------------------
+                | CURRENCY FOUND
+                |--------------------------------------------------------------------------
+                */
+
+                    if ($foundCurrency) {
+
+                        /*
+                    |--------------------------------------------------------------------------
+                    | UNLOCK SELECTED CURRENCY
+                    |--------------------------------------------------------------------------
+                    */
+
+                        $unlocked_currency =
+                            $foundCurrency;
+
+
+                        /*
+                    |--------------------------------------------------------------------------
+                    | REMEMBER UNLOCKED SERIAL
+                    |--------------------------------------------------------------------------
+                    */
+
+                        $_SESSION['unlocked_currency_serial'] = $serialNo;
+
+
+                        /*
+                    |--------------------------------------------------------------------------
+                    | NO ERROR
+                    |--------------------------------------------------------------------------
+                    */
+
+                        $pin_error = "";
+                    } else {
+
+                        $pin_error =
+                            "Offline currency not found.";
+                    }
+                }
+            }
+        }
     }
+}try {
+
+    /*
+    |--------------------------------------------------------------------------
+    | ONLINE PIN VERIFICATION
+    |--------------------------------------------------------------------------
+    */
+
+    if (isset($_POST['online'])) {
+
+        $currency_id =
+            (int)($_POST['currency_id'] ?? 0);
+
+        $entered_pin =
+            trim($_POST['pin'] ?? "");
+
+
+        if (
+            $currency_id <= 0 ||
+            $entered_pin === ""
+        ) {
+
+            $pin_error =
+                "Please enter your PIN.";
+
+        } else {
+
+            /*
+            |--------------------------------------------------------------------------
+            | GET CURRENCY FROM SERVER
+            |--------------------------------------------------------------------------
+            */
+
+            $stmt = mysqli_prepare(
+                $c_conn,
+                "SELECT
+                    id,
+                    serial_no,
+                    encrypted_serial,
+                    amount,
+                    sender_mobile,
+                    receiver_mobile,
+                    status,
+                    generated_at
+                 FROM currency
+                 WHERE id=?
+                 AND sender_mobile=?
+                 AND status='GENERATED'
+                 LIMIT 1"
+            );
+
+            mysqli_stmt_bind_param(
+                $stmt,
+                "is",
+                $currency_id,
+                $u_mob
+            );
+
+            mysqli_stmt_execute($stmt);
+
+            $result =
+                mysqli_stmt_get_result($stmt);
+
+            $online_currency =
+                mysqli_fetch_assoc($result);
+
+            mysqli_stmt_close($stmt);
+
+
+            if (!$online_currency) {
+
+                $pin_error =
+                    "Currency not found.";
+
+            } else {
+
+                /*
+                |--------------------------------------------------------------------------
+                | GET USER PIN FROM SERVER
+                |--------------------------------------------------------------------------
+                */
+
+                $stmt = mysqli_prepare(
+                    $conn,
+                    "SELECT pin
+                     FROM users
+                     WHERE mobile=?
+                     LIMIT 1"
+                );
+
+                mysqli_stmt_bind_param(
+                    $stmt,
+                    "s",
+                    $u_mob
+                );
+
+                mysqli_stmt_execute($stmt);
+
+                $result =
+                    mysqli_stmt_get_result($stmt);
+
+                $user =
+                    mysqli_fetch_assoc($result);
+
+                mysqli_stmt_close($stmt);
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | VERIFY ONLINE PIN
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    $user &&
+                    password_verify(
+                        $entered_pin,
+                        $user['pin']
+                    )
+                ) {
+
+                    /*
+                    | PIN CORRECT
+                    */
+
+                    $unlocked_currency =
+                        $online_currency;
+
+
+                    $_SESSION[
+                        'unlocked_currency_id'
+                    ] =
+                        $online_currency['id'];
+
+
+                    /*
+                    | Clear old offline unlock
+                    */
+
+                    unset(
+                        $_SESSION[
+                            'unlocked_currency_serial'
+                        ]
+                    );
+
+
+                    $pin_error = "";
+
+                    $_SESSION['refresh'] = true;
+
+                } else {
+
+                    /*
+                    | PIN WRONG
+                    */
+
+                    unset(
+                        $_SESSION[
+                            'unlocked_currency_id'
+                        ]
+                    );
+
+                    $pin_error =
+                        "Incorrect PIN. Please try again.";
+                }
+            }
+        }
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | OFFLINE PIN VERIFICATION
+    |--------------------------------------------------------------------------
+    |
+    | IMPORTANT:
+    | This is INSIDE try.
+    | It must NOT be inside catch.
+    |--------------------------------------------------------------------------
+    */
+
+    if (isset($_POST['offline'])) {
+
+        $serialNo =
+            trim($_POST['serialNo'] ?? "");
+
+        $entered_pin =
+            trim($_POST['pin'] ?? "");
+
+
+        if (
+            $serialNo === "" ||
+            $entered_pin === ""
+        ) {
+
+            $pin_error =
+                "Please enter your PIN.";
+
+        } else {
+
+            /*
+            |--------------------------------------------------------------------------
+            | USER CACHE DIRECTORY
+            |--------------------------------------------------------------------------
+            */
+
+            $userId =
+                hash(
+                    "sha256",
+                    $u_mob
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PROFILE CACHE
+            |--------------------------------------------------------------------------
+            */
+
+            $profile =
+                CACHE_DIR .
+                $userId .
+                "/profile.json";
+
+
+            if (!file_exists($profile)) {
+
+                $pin_error =
+                    "Offline profile not found.";
+
+            } else {
+
+                /*
+                |--------------------------------------------------------------------------
+                | READ PROFILE
+                |--------------------------------------------------------------------------
+                */
+
+                $profileData =
+                    json_decode(
+                        file_get_contents(
+                            $profile
+                        ),
+                        true
+                    );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | GET ENCRYPTED/HASHED PIN
+                |--------------------------------------------------------------------------
+                */
+
+                $cachedPin =
+                    $profileData['pin'] ?? "";
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | VERIFY OFFLINE PIN
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    empty($cachedPin) ||
+                    !password_verify(
+                        $entered_pin,
+                        $cachedPin
+                    )
+                ) {
+
+                    unset(
+                        $_SESSION[
+                            'unlocked_currency_serial'
+                        ]
+                    );
+
+                    $pin_error =
+                        "Incorrect PIN. Please try again.";
+
+                } else {
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PIN CORRECT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $currencyDir =
+                        CACHE_DIR .
+                        $userId .
+                        "/currency/";
+
+
+                    $foundCurrency = null;
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | READ CACHED CURRENCIES
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        is_dir(
+                            $currencyDir
+                        )
+                    ) {
+
+                        $files =
+                            glob(
+                                $currencyDir .
+                                "*.json"
+                            );
+
+
+                        foreach (
+                            $files
+                            as $file
+                        ) {
+
+                            $cachedCurrency =
+                                json_decode(
+                                    file_get_contents(
+                                        $file
+                                    ),
+                                    true
+                                );
+
+
+                            if (
+                                !$cachedCurrency
+                            ) {
+                                continue;
+                            }
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | SERIAL_NO IS ENCRYPTED
+                            |--------------------------------------------------------------------------
+                            */
+
+                            if (
+                                empty(
+                                    $cachedCurrency[
+                                        'serial_no'
+                                    ]
+                                )
+                            ) {
+                                continue;
+                            }
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | DECRYPT ONLY FOR COMPARISON
+                            |--------------------------------------------------------------------------
+                            */
+
+                            $cachedSerial =
+                                decryptData(
+                                    $cachedCurrency[
+                                        'serial_no'
+                                    ]
+                                );
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | FIND SELECTED CURRENCY
+                            |--------------------------------------------------------------------------
+                            */
+
+                            if (
+                                $cachedSerial ===
+                                $serialNo
+                            ) {
+
+                                /*
+                                |--------------------------------------------------------------------------
+                                | FOUND
+                                |--------------------------------------------------------------------------
+                                |
+                                | IMPORTANT:
+                                | Keep all original encrypted values.
+                                |
+                                | serial_no             -> encrypted
+                                | currency_serial_no    -> encrypted
+                                | amount                -> encrypted
+                                | currency_status       -> encrypted
+                                | receiver_mobile       -> encrypted
+                                | sender_mobile         -> encrypted
+                                |
+                                */
+
+                                $foundCurrency =
+                                    $cachedCurrency;
+
+                                break;
+                            }
+                        }
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | CHECK CURRENCY
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        $foundCurrency !== null
+                    ) {
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | CREATE LOCAL ID
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $foundCurrency['id'] =
+                            md5(
+                                $serialNo
+                            );
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | UNLOCK CURRENCY
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $unlocked_currency =
+                            $foundCurrency;
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | SAVE UNLOCKED SERIAL
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $_SESSION[
+                            'unlocked_currency_serial'
+                        ] =
+                            $serialNo;
+
+
+                        /*
+                        | Clear online unlock
+                        */
+
+                        unset(
+                            $_SESSION[
+                                'unlocked_currency_id'
+                            ]
+                        );
+
+
+                        $pin_error = "";
+
+                    } else {
+
+                        $pin_error =
+                            "Offline currency not found.";
+                    }
+                }
+            }
+        }
+    }
+
+}
+catch (Throwable $th) {
+
+    /*
+    |--------------------------------------------------------------------------
+    | SERVER/DATABASE ERROR
+    |--------------------------------------------------------------------------
+    |
+    | Do not put the offline PIN verification here.
+    |
+    */
+
+    $pin_error =
+        "Server connection unavailable.";
+
 }
 
 /*FETCH GENERATED CURRENCIES*/
@@ -1951,35 +2780,133 @@ These currencies are generated online but stored in cache memory(use for offline
                                     <?php
 
                                     /*
+|--------------------------------------------------------------------------
+| SHOW QR ONLY AFTER CORRECT PIN
+|--------------------------------------------------------------------------
+*/
+
+                                    $showQR = false;
+
+                                    if ($unlocked_currency) {
+
+                                        if ($serverConnected) {
+
+                                            /*
         |--------------------------------------------------------------------------
-        | SHOW QR ONLY AFTER CORRECT PIN
+        | ONLINE
         |--------------------------------------------------------------------------
         */
-                                    if (
-                                        $unlocked_currency &&
-                                        $unlocked_currency['id']
-                                        == $currency['id']
-                                    ):
+
+                                            $showQR =
+                                                isset($unlocked_currency['id']) &&
+                                                isset($currency['id']) &&
+                                                $unlocked_currency['id'] == $currency['id'];
+                                        } else {
+
+                                            /*
+        |--------------------------------------------------------------------------
+        | OFFLINE
+        |--------------------------------------------------------------------------
+        */
+
+                                            $currentSerial = "";
+
+                                            if (!empty($currency['serial_no'])) {
+
+                                                $currentSerial =
+                                                    decryptData(
+                                                        $currency['serial_no']
+                                                    );
+                                            }
+
+                                            $unlockedSerial =
+                                                $_SESSION['unlocked_currency_serial'] ?? "";
+
+                                            $showQR =
+                                                $currentSerial !== "" &&
+                                                $unlockedSerial !== "" &&
+                                                $currentSerial === $unlockedSerial;
+                                        }
+                                    }
+
+
+                                    if ($showQR):
+
+
+                                        /*
+    |--------------------------------------------------------------------------
+    | QR DATA
+    |--------------------------------------------------------------------------
+    */
+
+                                        if ($serverConnected) {
+
+                                            /*
+        | Online encrypted serial
+        */
+
+                                            $qrData =
+                                                $currency['encrypted_serial'];
+                                        } else {
+
+                                            /*
+        | Offline encrypted currency serial
+        |
+        | currency_serial_no is encrypted in cache.
+        */
+
+                                            $qrData =
+                                                $currency['currency_serial_no'];
+                                        }
 
                                     ?>
-
 
                                         <div class="qr-unlocked">
 
                                             <div
                                                 class="qr-code"
                                                 id="qr-<?php
-                                                        echo (int)$currency['id'];
-                                                        ?>"></div>
+                                                        echo htmlspecialchars(
+                                                            $currency['id'] ?? md5($currentSerial ?? ''),
+                                                            ENT_QUOTES,
+                                                            'UTF-8'
+                                                        );
+                                                        ?>">
+                                            </div>
 
 
                                             <div class="qr-title">
 
                                                 Scan to receive ₹<?php
-                                                                    echo number_format(
-                                                                        decryptData($currency['amount']),
-                                                                        2
-                                                                    );
+
+                                                                    /*
+                |--------------------------------------------------------------------------
+                | AMOUNT
+                |--------------------------------------------------------------------------
+                */
+
+                                                                    if ($serverConnected) {
+
+                                                                        echo number_format(
+                                                                            decryptData(
+                                                                                $currency['amount']
+                                                                            ),
+                                                                            2
+                                                                        );
+                                                                    } else {
+
+                                                                        /*
+                    | Amount is encrypted in cache
+                    */
+
+                                                                        echo number_format(
+                                                                            decryptData(
+                                                                                $currency['amount']
+                                                                            ),
+                                                                            2
+                                                                        );
+                                                                    }
+
                                                                     ?>
 
                                             </div>
@@ -1992,83 +2919,105 @@ These currencies are generated online but stored in cache memory(use for offline
                                                 "DOMContentLoaded",
                                                 function() {
 
-                                                    new QRCode(
+                                                    const qrElement =
                                                         document.getElementById(
                                                             "qr-<?php
-                                                                echo (int)$currency['id'];
+                                                                echo htmlspecialchars(
+                                                                    $currency['id'] ?? md5($currentSerial ?? ''),
+                                                                    ENT_QUOTES,
+                                                                    'UTF-8'
+                                                                );
                                                                 ?>"
-                                                        ), {
+                                                        );
 
-                                                            text: <?php
-                                                                    echo json_encode(
-                                                                        $currency['encrypted_serial']
-                                                                    );
-                                                                    ?>,
+                                                    if (qrElement) {
 
-                                                            width: 130,
+                                                        new QRCode(
+                                                            qrElement, {
 
-                                                            height: 130,
+                                                                /*
+                                                                |--------------------------------------------------------------------------
+                                                                | ENCRYPTED SERIAL
+                                                                |--------------------------------------------------------------------------
+                                                                */
 
-                                                            colorDark: "#022c22",
+                                                                text: <?php
+                                                                        echo json_encode(
+                                                                            $qrData
+                                                                        );
+                                                                        ?>,
 
-                                                            colorLight: "#ffffff",
+                                                                width: 130,
 
-                                                            correctLevel: QRCode.CorrectLevel.H
+                                                                height: 130,
 
-                                                        }
-                                                    );
+                                                                colorDark: "#022c22",
+
+                                                                colorLight: "#ffffff",
+
+                                                                correctLevel: QRCode.CorrectLevel.H
+
+                                                            }
+                                                        );
+                                                    }
 
                                                 }
                                             );
                                         </script>
 
-
                                     <?php else: ?>
 
+                                        <!-- QR LOCKED -->
 
                                         <div class="qr-lock">
-
 
                                             <div class="lock-icon">
                                                 🔒
                                             </div>
 
-
                                             <strong>
                                                 QR Code Locked
                                             </strong>
-
 
                                             <span>
                                                 Enter your PIN to display this currency QR
                                             </span>
 
-
                                             <button
                                                 type="button"
                                                 class="show-qr-btn"
                                                 onclick="openPinModal(
-        '<?php
+                '<?php
+
                                         if ($serverConnected) {
+
                                             echo (int)$currency['id'];
                                         } else {
+
+                                            /*
+                    | Button sends decrypted serial
+                    | to offline PIN verification.
+                    */
+
                                             echo htmlspecialchars(
-                                                decryptData($currency['serial_no']),
+                                                decryptData(
+                                                    $currency['serial_no']
+                                                ),
                                                 ENT_QUOTES,
                                                 'UTF-8'
                                             );
                                         }
-            ?>'
-    )">
-                                                🔐 Show QR
-                                            </button>
 
+                    ?>'
+            )">
+
+                                                🔐 Show QR
+
+                                            </button>
 
                                         </div>
 
-
                                     <?php endif; ?>
-
 
                                 </div>
 
