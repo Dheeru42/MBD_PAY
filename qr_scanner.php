@@ -9,6 +9,9 @@ try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $qrData = trim($_POST['qr_data'] ?? '');
+        $data = json_decode($qrData, true);
+        $encrypted_currency_serial_no = $data['encrypted_currency_serial_no'] ?? '';
+        $currency_serial_no = $data['currency_serial_no'] ?? '';
 
         if ($qrData !== '') {
             // Get selected currency
@@ -25,14 +28,16 @@ try {
                         generated_at
                     FROM currency
                     WHERE encrypted_serial=?
+                    AND serial_no=?
                     AND status='GENERATED'
                     LIMIT 1"
             );
 
             mysqli_stmt_bind_param(
                 $stmt,
-                "s",
-                $qrData
+                "ss",
+                $encrypted_currency_serial_no,
+                $currency_serial_no
             );
 
             mysqli_stmt_execute($stmt);
