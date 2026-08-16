@@ -729,7 +729,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             width: 100%;
 
-            max-width: 1250px;
+            max-width: 1450px;
 
             margin: auto;
 
@@ -816,8 +816,8 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         .title-icon {
 
-            width: 58px;
-            height: 58px;
+            width: 64px;
+            height: 64px;
 
             border-radius: 18px;
 
@@ -826,7 +826,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             align-items: center;
             justify-content: center;
 
-            font-size: 29px;
+            font-size: 31px;
 
             color: white;
 
@@ -1173,519 +1173,671 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             display: grid;
 
-            grid-template-columns:
-                repeat(auto-fit,
-                    minmax(350px, 1fr));
+            /* Exactly 3 currency cards per row on desktop */
+            grid-template-columns: repeat(3, minmax(0, 1fr));
 
             gap: 25px;
         }
 
 
-        /* =========================================================
+  /*     
    CURRENCY CARD
-========================================================= */
+
+  INDIAN-CURRENCY-INSPIRED DIGITAL NOTE CARD
+   
+*/
 
         .currency-card {
+            --note-main: #2f7d55;
+            --note-dark: #17553a;
+            --note-light: #dcefe3;
+            --note-paper: #f4f8ed;
 
             position: relative;
-
             overflow: hidden;
-
-            padding: 25px;
-
-            border-radius: 30px;
-
+            min-height: 500px;
+            padding: 0;
+            border-radius: 18px;
             background:
-                rgba(255, 255, 255, .88);
-
-            backdrop-filter:
-                blur(20px);
-
-            border:
-                1px solid rgba(255, 255, 255, .95);
-
+                radial-gradient(circle at 82% 20%, rgba(255,255,255,.78) 0 8%, transparent 9%),
+                radial-gradient(circle at 18% 78%, rgba(255,255,255,.45) 0 7%, transparent 8%),
+                linear-gradient(135deg, #d8eadc 0%, #f8f5df 48%, #cfe7d5 100%);
+            border: 1px solid rgba(23,85,58,.28);
             box-shadow:
-                0 20px 50px rgba(0, 0, 0, .09);
-
-            transition:
-                transform .3s ease,
-                box-shadow .3s ease;
-
-            animation:
-                cardAppear .6s ease both;
+                0 18px 42px rgba(23,85,58,.15),
+                inset 0 0 0 3px rgba(255,255,255,.42);
+            transition: transform .3s ease, box-shadow .3s ease;
+            animation: cardAppear .6s ease both;
         }
-
-
-        .currency-card:hover {
-
-            transform:
-                translateY(-8px);
-
-            box-shadow:
-                0 30px 65px rgba(0, 0, 0, .14);
-        }
-
-
-        @keyframes cardAppear {
-
-            from {
-
-                opacity: 0;
-
-                transform:
-                    translateY(25px) scale(.97);
-            }
-
-            to {
-
-                opacity: 1;
-
-                transform:
-                    translateY(0) scale(1);
-            }
-        }
-
 
         /* =========================================================
-   CARD TOP
-========================================================= */
+           DENOMINATION COLORS — INDIAN BANKNOTE INSPIRED
+           ========================================================= */
 
-        .card-top {
-
-            display: flex;
-
-            justify-content: space-between;
-
-            align-items: center;
-
-            margin-bottom: 23px;
+        .currency-card.note-10 {
+            --note-main: #8a6248;
+            --note-dark: #563c2d;
+            --note-light: #ead9cb;
+            --note-paper: #f5eee8;
+            background: linear-gradient(135deg, #ead9cb, #f8f1e8 48%, #d9c2b2);
         }
 
+        .currency-card.note-20 {
+            --note-main: #6d8b4e;
+            --note-dark: #3f5b2d;
+            --note-light: #dce9cc;
+            --note-paper: #f4f7e9;
+            background: linear-gradient(135deg, #dce9cc, #f7f4df 48%, #c9dbb6);
+        }
+
+        .currency-card.note-50 {
+            --note-main: #4f719b;
+            --note-dark: #294c75;
+            --note-light: #d6e1ef;
+            --note-paper: #eff4fa;
+            background: linear-gradient(135deg, #d6e1ef, #f4f1e7 48%, #c5d6e9);
+        }
+
+        .currency-card.note-100 {
+            --note-main: #7866a8;
+            --note-dark: #4d3d79;
+            --note-light: #e1dcef;
+            --note-paper: #f4f1fa;
+            background: linear-gradient(135deg, #e1dcef, #f7f0e7 48%, #d4cbe6);
+        }
+
+        .currency-card.note-200 {
+            --note-main: #c99b28;
+            --note-dark: #7d5c0c;
+            --note-light: #f2e5b8;
+            --note-paper: #fff8df;
+            background: linear-gradient(135deg, #f2e5b8, #fff7df 48%, #e8d18c);
+        }
+
+        .currency-card.note-500 {
+            --note-main: #69706a;
+            --note-dark: #3e4741;
+            --note-light: #dfe3df;
+            --note-paper: #f1f3ef;
+            background: linear-gradient(135deg, #dfe3df, #f5f3e8 48%, #cdd2cd);
+        }
+
+        /* Apply the selected denomination color throughout the note. */
+        .currency-card.note-10 .currency-logo,
+        .currency-card.note-20 .currency-logo,
+        .currency-card.note-50 .currency-logo,
+        .currency-card.note-100 .currency-logo,
+        .currency-card.note-200 .currency-logo,
+        .currency-card.note-500 .currency-logo,
+        .currency-card.note-2000 .currency-logo {
+            color: var(--note-dark);
+            border-color: var(--note-main);
+            background:
+                radial-gradient(circle, var(--note-paper) 0 43%, transparent 44%),
+                repeating-radial-gradient(circle, var(--note-main) 0 2px, transparent 3px 5px);
+        }
+
+        .currency-card.note-10 .card-top,
+        .currency-card.note-20 .card-top,
+        .currency-card.note-50 .card-top,
+        .currency-card.note-100 .card-top,
+        .currency-card.note-200 .card-top,
+        .currency-card.note-500 .card-top,
+        .currency-card.note-2000 .card-top {
+            background: linear-gradient(
+                90deg,
+                rgba(255,255,255,.48),
+                color-mix(in srgb, var(--note-light) 70%, transparent),
+                rgba(255,255,255,.48)
+            );
+            border-bottom-color: color-mix(in srgb, var(--note-main) 35%, transparent);
+        }
+
+        .currency-card.note-10 .card-top::before,
+        .currency-card.note-20 .card-top::before,
+        .currency-card.note-50 .card-top::before,
+        .currency-card.note-100 .card-top::before,
+        .currency-card.note-200 .card-top::before,
+        .currency-card.note-500 .card-top::before,
+        .currency-card.note-2000 .card-top::before {
+            color: var(--note-dark);
+        }
+
+        .currency-card.note-10 .card-top::after,
+        .currency-card.note-20 .card-top::after,
+        .currency-card.note-50 .card-top::after,
+        .currency-card.note-100 .card-top::after,
+        .currency-card.note-200 .card-top::after,
+        .currency-card.note-500 .card-top::after,
+        .currency-card.note-2000 .card-top::after {
+            color: color-mix(in srgb, var(--note-dark) 72%, transparent);
+        }
+
+        .currency-card.note-10 .amount,
+        .currency-card.note-20 .amount,
+        .currency-card.note-50 .amount,
+        .currency-card.note-100 .amount,
+        .currency-card.note-200 .amount,
+        .currency-card.note-500 .amount,
+        .currency-card.note-2000 .amount,
+        .currency-card.note-10 .serial-value,
+        .currency-card.note-20 .serial-value,
+        .currency-card.note-50 .serial-value,
+        .currency-card.note-100 .serial-value,
+        .currency-card.note-200 .serial-value,
+        .currency-card.note-500 .serial-value,
+        .currency-card.note-2000 .serial-value,
+        .currency-card.note-10 .qr-lock strong,
+        .currency-card.note-20 .qr-lock strong,
+        .currency-card.note-50 .qr-lock strong,
+        .currency-card.note-100 .qr-lock strong,
+        .currency-card.note-200 .qr-lock strong,
+        .currency-card.note-500 .qr-lock strong,
+        .currency-card.note-2000 .qr-lock strong {
+            color: var(--note-dark);
+        }
+
+        .currency-card.note-10 .amount .rupee,
+        .currency-card.note-20 .amount .rupee,
+        .currency-card.note-50 .amount .rupee,
+        .currency-card.note-100 .amount .rupee,
+        .currency-card.note-200 .amount .rupee,
+        .currency-card.note-500 .amount .rupee,
+        .currency-card.note-2000 .amount .rupee {
+            color: var(--note-main);
+        }
+
+        .currency-card.note-10 .serial-box,
+        .currency-card.note-20 .serial-box,
+        .currency-card.note-50 .serial-box,
+        .currency-card.note-100 .serial-box,
+        .currency-card.note-200 .serial-box,
+        .currency-card.note-500 .serial-box,
+        .currency-card.note-2000 .serial-box,
+        .currency-card.note-10 .qr-section,
+        .currency-card.note-20 .qr-section,
+        .currency-card.note-50 .qr-section,
+        .currency-card.note-100 .qr-section,
+        .currency-card.note-200 .qr-section,
+        .currency-card.note-500 .qr-section,
+        .currency-card.note-2000 .qr-section {
+            border-color: color-mix(in srgb, var(--note-main) 32%, transparent);
+        }
+
+        .currency-card.note-10 .note-denomination-number,
+        .currency-card.note-20 .note-denomination-number,
+        .currency-card.note-50 .note-denomination-number,
+        .currency-card.note-100 .note-denomination-number,
+        .currency-card.note-200 .note-denomination-number,
+        .currency-card.note-500 .note-denomination-number,
+        .currency-card.note-2000 .note-denomination-number {
+            color: var(--note-dark);
+            border-color: color-mix(in srgb, var(--note-main) 60%, transparent);
+            background: color-mix(in srgb, var(--note-paper) 75%, transparent);
+        }
+
+        .currency-card.note-10 .lock-icon,
+        .currency-card.note-20 .lock-icon,
+        .currency-card.note-50 .lock-icon,
+        .currency-card.note-100 .lock-icon,
+        .currency-card.note-200 .lock-icon,
+        .currency-card.note-500 .lock-icon,
+        .currency-card.note-2000 .lock-icon {
+            color: var(--note-dark);
+            background: var(--note-light);
+            border-color: color-mix(in srgb, var(--note-main) 35%, transparent);
+        }
+
+        .currency-card.note-10 .show-qr-btn,
+        .currency-card.note-20 .show-qr-btn,
+        .currency-card.note-50 .show-qr-btn,
+        .currency-card.note-100 .show-qr-btn,
+        .currency-card.note-200 .show-qr-btn,
+        .currency-card.note-500 .show-qr-btn,
+        .currency-card.note-2000 .show-qr-btn {
+            border-color: var(--note-dark);
+            background: linear-gradient(135deg, var(--note-main), var(--note-dark));
+        }
+
+        .currency-card.note-10::before,
+        .currency-card.note-20::before,
+        .currency-card.note-50::before,
+        .currency-card.note-100::before,
+        .currency-card.note-200::before,
+        .currency-card.note-500::before,
+        .currency-card.note-2000::before {
+            border-color: color-mix(in srgb, var(--note-dark) 28%, transparent);
+        }
+
+        .currency-card.note-10::after,
+        .currency-card.note-20::after,
+        .currency-card.note-50::after,
+        .currency-card.note-100::after,
+        .currency-card.note-200::after,
+        .currency-card.note-500::after,
+        .currency-card.note-2000::after {
+            color: color-mix(in srgb, var(--note-dark) 10%, transparent);
+        }
+
+        /* fine engraved-style pattern */
+        .currency-card::before {
+            content: "";
+            position: absolute;
+            inset: 8px;
+            border: 1px solid rgba(23,85,58,.28);
+            border-radius: 12px;
+            pointer-events: none;
+            background:
+                repeating-linear-gradient(
+                    0deg,
+                    transparent 0 5px,
+                    rgba(23,85,58,.035) 6px 7px
+                );
+        }
+
+        /* denomination watermark */
+        .currency-card::after {
+            content: attr(data-denomination);
+            position: absolute;
+            right: 18px;
+            bottom: 55px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 118px;
+            line-height: .8;
+            font-weight: 900;
+            color: rgba(23,85,58,.075);
+            transform: rotate(-7deg);
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .currency-card:hover {
+            transform: translateY(-7px);
+            box-shadow:
+                0 28px 58px rgba(23,85,58,.22),
+                inset 0 0 0 3px rgba(255,255,255,.5);
+        }
+
+        @keyframes cardAppear {
+            from {
+                opacity: 0;
+                transform: translateY(25px) scale(.97);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* NOTE HEADER */
+        .card-top {
+            position: relative;
+            z-index: 3;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            min-height: 96px;
+            margin: 0;
+            padding: 24px 28px 16px;
+            background:
+                linear-gradient(90deg, rgba(255,255,255,.42), rgba(184,220,197,.32), rgba(255,255,255,.42));
+            border-bottom: 1px solid rgba(23,85,58,.22);
+        }
 
         .currency-logo {
-
-            width: 55px;
-            height: 55px;
-
-            border-radius: 17px;
-
+            width: 58px;
+            height: 58px;
+            flex: 0 0 64px;
+            border-radius: 50%;
             display: flex;
-
             align-items: center;
             justify-content: center;
-
-            color: white;
-
-            font-size: 28px;
-
-            font-weight: bold;
-
+            color: #17553a;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 29px;
+            font-weight: 900;
             background:
-                linear-gradient(135deg,
-                    #059669,
-                    #10b981);
-
-            box-shadow:
-                0 10px 25px rgba(5, 150, 105, .25);
+                radial-gradient(circle, #f7f1d5 0 43%, transparent 44%),
+                repeating-radial-gradient(circle, #2f7d55 0 2px, transparent 3px 5px);
+            border: 2px solid #2f7d55;
+            box-shadow: 0 0 0 4px rgba(255,255,255,.45);
         }
 
-
-        .status-badge {
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 8px;
-
-            padding: 8px 13px;
-
-            border-radius: 20px;
-
-            background:
-                #ecfdf5;
-
-            color:
-                #047857;
-
-            font-size: 11px;
-
+        .card-top::before {
+            content: "MBD PAY • DIGITAL NOTE";
+            position: absolute;
+            left: 102px;
+            top: 25px;
+            color: #17553a;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 10px;
+            letter-spacing: 1.5px;
             font-weight: 800;
+        }
+
+        .card-top::after {
+            content: "SECURE • VERIFIED";
+            position: absolute;
+            left: 102px;
+            top: 43px;
+            color: rgba(23,85,58,.72);
+            font-size: 8px;
+            letter-spacing: 1px;
+            font-weight: 800;
+        }
+
+        .status-badge,
+        .status-badgef {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 10px;
+            border-radius: 4px;
+            background: rgba(247,241,213,.72);
+            color: #17553a;
+            border: 1px solid rgba(47,125,85,.3);
+            font-size: 9px;
+            letter-spacing: .8px;
+            font-weight: 900;
         }
 
         .status-badgef {
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 8px;
-
-            padding: 8px 13px;
-
-            border-radius: 20px;
-
-            background:
-                #ecfdf5;
-
-            color:
-                #e10606;
-
-            font-size: 11px;
-
-            font-weight: 800;
+            color: #8b2e27;
+            border-color: rgba(139,46,39,.25);
         }
 
-
-        /* =========================================================
-   AMOUNT
-========================================================= */
-
+        /* DENOMINATION */
         .amount-section {
-
-            margin-bottom: 22px;
+            position: relative;
+            z-index: 3;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            gap: 14px;
+            margin: 0;
+            padding: 22px 28px 14px;
         }
-
 
         .amount {
-
-            font-size: 42px;
-
-            font-weight: 850;
-
-            color: #022c22;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 50px;
+            line-height: 1;
+            font-weight: 900;
+            color: #17553a;
+            text-shadow: 0 1px 0 rgba(255,255,255,.8);
         }
-
 
         .amount .rupee {
-
-            color: #059669;
-
-            font-size: 29px;
-
-            vertical-align: 5px;
+            color: #2f7d55;
+            font-size: 27px;
+            vertical-align: 7px;
+            margin-right: 2px;
         }
-
 
         .amount-label {
-
-            color: #94a3b8;
-
-            font-size: 12px;
-
-            margin-top: 3px;
+            margin-top: 5px;
+            color: #496e58;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 10px;
+            letter-spacing: .7px;
+            font-weight: 700;
+            text-transform: uppercase;
         }
 
+        /* Decorative denomination number */
+        .note-denomination-number {
+            position: relative;
+            width: 78px;
+            height: 78px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #17553a;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 23px;
+            font-weight: 900;
+            border: 2px solid rgba(47,125,85,.55);
+            border-radius: 50%;
+            background: rgba(247,241,213,.56);
+            box-shadow: inset 0 0 0 5px rgba(255,255,255,.32);
+        }
 
-        /* =========================================================
-   SERIAL
-========================================================= */
+        .note-denomination-number::after {
+            content: "";
+            position: absolute;
+            inset: 7px;
+            border: 1px dashed rgba(47,125,85,.55);
+            border-radius: 50%;
+        }
 
+        /* SECURITY STRIP */
         .serial-box {
-
-            padding: 13px 15px;
-
-            margin-bottom: 20px;
-
-            border-radius: 15px;
-
+            position: relative;
+            z-index: 3;
+            margin: 0 28px 16px;
+            padding: 12px 15px 11px;
+            border-radius: 5px;
             background:
-                linear-gradient(135deg,
-                    #f0fdf4,
-                    #ecfdf5);
-
-            border:
-                1px dashed #86efac;
+                linear-gradient(
+                    90deg,
+                    rgba(220,239,227,.92),
+                    rgba(247,241,213,.88),
+                    rgba(220,239,227,.92)
+                );
+            border: 1px solid rgba(47,125,85,.34);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
         }
-
 
         .serial-label {
-
             display: block;
-
-            color: #64748b;
-
-            font-size: 10px;
-
+            color: #496e58;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 8px;
             text-transform: uppercase;
-
-            letter-spacing: 1px;
-
-            margin-bottom: 5px;
+            letter-spacing: 1.1px;
+            margin-bottom: 3px;
         }
 
-
         .serial-value {
-
-            font-family:
-                "Courier New",
-                monospace;
-
-            color: #047857;
-
-            font-size: 13px;
-
-            font-weight: bold;
-
+            font-family: "Courier New", monospace;
+            color: #17553a;
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: 1.1px;
             word-break: break-all;
         }
 
-
-        /* =========================================================
-   QR LOCKED AREA
-========================================================= */
-
+        /* QR AREA */
         .qr-section {
-
             position: relative;
-
+            z-index: 3;
             display: flex;
-
             flex-direction: column;
-
             align-items: center;
-
             justify-content: center;
-
-            min-height: 190px;
-
-            margin-bottom: 20px;
-
-            border-radius: 22px;
-
+            min-height: 175px;
+            margin: 0 24px 14px;
+            border-radius: 8px;
             background:
-                linear-gradient(135deg,
-                    #f8fafc,
-                    #ecfdf5);
-
-            border:
-                1px solid #d1fae5;
-
+                repeating-linear-gradient(
+                    135deg,
+                    rgba(255,255,255,.36) 0 4px,
+                    rgba(47,125,85,.035) 4px 8px
+                ),
+                rgba(247,241,213,.55);
+            border: 1px solid rgba(47,125,85,.27);
             overflow: hidden;
         }
 
-
-        /* QR hidden before PIN */
-
         .qr-lock {
-
             display: flex;
-
             flex-direction: column;
-
             align-items: center;
-
             text-align: center;
-
-            padding: 20px;
-        }
-
-
-        .lock-icon {
-
-            width: 55px;
-            height: 55px;
-
-            border-radius: 17px;
-
-            display: flex;
-
-            align-items: center;
-            justify-content: center;
-
-            background:
-                #dcfce7;
-
-            color:
-                #059669;
-
-            font-size: 25px;
-
-            margin-bottom: 12px;
-        }
-
-
-        .qr-lock strong {
-
-            color: #064e3b;
-
-            font-size: 14px;
-        }
-
-
-        .qr-lock span {
-
-            color: #94a3b8;
-
-            font-size: 11px;
-
-            margin-top: 5px;
-        }
-
-
-        /* =========================================================
-   SHOW QR BUTTON
-========================================================= */
-
-        .show-qr-btn {
-
-            margin-top: 15px;
-
-            border: none;
-
-            outline: none;
-
-            cursor: pointer;
-
-            padding: 11px 18px;
-
-            border-radius: 13px;
-
-            color: white;
-
-            font-size: 12px;
-
-            font-weight: 750;
-
-            background:
-                linear-gradient(135deg,
-                    #047857,
-                    #10b981);
-
-            box-shadow:
-                0 8px 18px rgba(5, 150, 105, .25);
-
-            transition:
-                transform .2s ease,
-                box-shadow .2s ease;
-        }
-
-
-        .show-qr-btn:hover {
-
-            transform:
-                translateY(-2px);
-
-            box-shadow:
-                0 12px 25px rgba(5, 150, 105, .35);
-        }
-
-
-        /* =========================================================
-   UNLOCKED QR
-========================================================= */
-
-        .qr-unlocked {
-
-            display: flex;
-
-            flex-direction: column;
-
-            align-items: center;
-
             padding: 15px;
         }
 
-
-        .qr-code {
-
-            width: 150px;
-            height: 150px;
-
+        .lock-icon {
+            width: 43px;
+            height: 43px;
+            border-radius: 50%;
             display: flex;
-
             align-items: center;
             justify-content: center;
-
-            padding: 8px;
-
-            background: white;
-
-            border-radius: 15px;
-
-            box-shadow:
-                0 10px 30px rgba(0, 0, 0, .12);
+            background: #e0eee4;
+            color: #17553a;
+            border: 1px solid rgba(47,125,85,.35);
+            font-size: 19px;
+            margin-bottom: 8px;
         }
 
+        .qr-lock strong {
+            color: #17553a;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 13px;
+        }
+
+        .qr-lock span {
+            color: #607b69;
+            font-size: 9px;
+            margin-top: 4px;
+        }
+
+        .show-qr-btn {
+            margin-top: 10px;
+            border: 1px solid #17553a;
+            outline: none;
+            cursor: pointer;
+            padding: 9px 17px;
+            border-radius: 5px;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .4px;
+            background: linear-gradient(135deg, #2f7d55, #17553a);
+            box-shadow: 0 5px 12px rgba(23,85,58,.2);
+            transition: transform .2s ease, box-shadow .2s ease;
+        }
+
+        .show-qr-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 9px 18px rgba(23,85,58,.28);
+        }
+
+        .qr-unlocked {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .qr-code {
+            width: 145px;
+            height: 145px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 7px;
+            background: #fff;
+            border: 4px solid #dcefe3;
+            border-radius: 4px;
+            box-shadow: 0 5px 18px rgba(23,85,58,.14);
+        }
 
         .qr-title {
-
-            margin-top: 10px;
-
-            color: #047857;
-
-            font-size: 11px;
-
-            font-weight: 750;
-        }
-
-
-        /* =========================================================
-   DETAILS
-========================================================= */
-
-        .details {
-
-            border-top:
-                1px solid #e2e8f0;
-
-            padding-top: 15px;
-        }
-
-
-        .detail-row {
-
-            display: flex;
-
-            justify-content: space-between;
-
-            align-items: center;
-
-            gap: 15px;
-
-            padding: 7px 0;
-        }
-
-
-        .detail-label {
-
-            color: #94a3b8;
-
-            font-size: 11px;
-        }
-
-
-        .detail-value {
-
-            color: #334155;
-
-            font-size: 12px;
-
-            font-weight: 650;
-
-            text-align: right;
-
-            word-break: break-all;
-        }
-
-
-        .mode {
-
-            display: inline-flex;
-
-            padding: 5px 9px;
-
-            border-radius: 9px;
-
-            background: #f0fdf4;
-
-            color: #15803d;
-
-            font-size: 10px;
-
+            margin-top: 7px;
+            color: #17553a;
+            font-size: 9px;
             font-weight: 800;
         }
 
+        /* NOTE FOOTER */
+        .details {
+            position: relative;
+            z-index: 3;
+            margin: 0 28px;
+            padding: 12px 0 17px;
+            border-top: 1px solid rgba(23,85,58,.22);
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            padding: 4px 0;
+        }
+
+        .detail-label {
+            color: #557363;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 9px;
+            font-weight: 700;
+        }
+
+        .detail-value {
+            color: #294d38;
+            font-size: 10px;
+            font-weight: 750;
+            text-align: right;
+            word-break: break-all;
+        }
+
+        .mode {
+            display: inline-flex;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(220,239,227,.75);
+            color: #17553a;
+            border: 1px solid rgba(47,125,85,.22);
+            font-size: 8px;
+            font-weight: 900;
+            letter-spacing: .5px;
+        }
+
+        /* NOTE-SIDE MICROTEXT */
+        .currency-card .details::after {
+            content: "MBD PAY • DIGITAL CURRENCY • NOT LEGAL TENDER";
+            display: block;
+            margin-top: 6px;
+            color: rgba(23,85,58,.52);
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 7px;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+
+        @media (max-width: 550px) {
+            .currency-card {
+                min-height: 460px;
+            }
+
+            .card-top {
+                padding-left: 18px;
+                padding-right: 18px;
+            }
+
+            .amount-section {
+                padding-left: 18px;
+                padding-right: 18px;
+            }
+
+            .serial-box,
+            .qr-section,
+            .details {
+                margin-left: 18px;
+                margin-right: 18px;
+            }
+
+            .amount {
+                font-size: 36px;
+            }
+
+            .currency-card::after {
+                font-size: 90px;
+            }
+        }
 
         /* =========================================================
    PIN MODAL
@@ -1705,7 +1857,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             justify-content: center;
 
-            padding: 20px;
+            padding: 0;
 
             background:
                 rgba(2, 44, 34, .55);
@@ -1982,6 +2134,18 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         /* =========================================================
    MOBILE
 ========================================================= */
+
+        /* =========================================================
+           TABLET — 2 CARDS PER ROW
+           ========================================================= */
+
+        @media (max-width: 1100px) {
+
+            .currency-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
 
         @media (max-width: 800px) {
 
@@ -2757,7 +2921,29 @@ These currencies are generated online but stored in cache memory(use for offline
                 ): ?>
 
 
-                    <article class="currency-card">
+                    <?php
+                        $displayAmount = (float) decryptData($currency['amount']);
+                        $displayDenomination = number_format($displayAmount, 0, '.', '');
+                    ?>
+                    <?php
+                        $denominationClass = 'note-default';
+
+                        if ($displayAmount == 10) {
+                            $denominationClass = 'note-10';
+                        } elseif ($displayAmount == 20) {
+                            $denominationClass = 'note-20';
+                        } elseif ($displayAmount == 50) {
+                            $denominationClass = 'note-50';
+                        } elseif ($displayAmount == 100) {
+                            $denominationClass = 'note-100';
+                        } elseif ($displayAmount == 200) {
+                            $denominationClass = 'note-200';
+                        } elseif ($displayAmount == 500) {
+                            $denominationClass = 'note-500';
+                        }
+                    ?>
+                    <article class="currency-card <?php echo $denominationClass; ?>"
+                        data-denomination="<?php echo htmlspecialchars($displayDenomination, ENT_QUOTES, 'UTF-8'); ?>">
 
 
                         <!-- CARD HEADER -->
@@ -2809,7 +2995,7 @@ These currencies are generated online but stored in cache memory(use for offline
 
                                     <div class="amount-label">
 
-                                        MBD Pay Digital Currency
+                                        MBD Digital Currency
 
                                     </div>
 

@@ -231,10 +231,10 @@ try {
         }
 
 
-        if ($amount > 1000) {
+        if ($amount > 500) {
 
             throw new Exception(
-                "Maximum currency amount is ₹1,000."
+                "Maximum currency amount is ₹500."
             );
         }
 
@@ -2547,6 +2547,7 @@ try {
                             min="1"
                             max="1000"
                             step="0.01"
+                            readonly
                             required>
 
                     </div>
@@ -2600,21 +2601,19 @@ try {
 
                         <button
                             type="button"
+                            onclick="setAmount(200)">
+
+                            ₹200
+
+                        </button>
+                        
+                        <button
+                            type="button"
                             onclick="setAmount(500)">
 
                             ₹500
 
                         </button>
-
-
-                        <button
-                            type="button"
-                            onclick="setAmount(1000)">
-
-                            ₹1,000
-
-                        </button>
-
 
                     </div>
 
