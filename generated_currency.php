@@ -2213,6 +2213,45 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
         /* =========================================================
+           QR MODAL — MATCHES THE CURRENCY CARD DENOMINATION
+           ========================================================= */
+        .qr-display-modal {
+            --qr-main: #2f7d55;
+            --qr-dark: #17553a;
+            --qr-light: #dcefe3;
+            --qr-paper: #f4f8ed;
+        }
+
+        .qr-display-modal.qr-note-10 {
+            --qr-main: #8a6248; --qr-dark: #563c2d;
+            --qr-light: #ead9cb; --qr-paper: #f5eee8;
+        }
+        .qr-display-modal.qr-note-20 {
+            --qr-main: #6d8b4e; --qr-dark: #3f5b2d;
+            --qr-light: #dce9cc; --qr-paper: #f4f7e9;
+        }
+        .qr-display-modal.qr-note-50 {
+            --qr-main: #4f719b; --qr-dark: #294c75;
+            --qr-light: #d6e1ef; --qr-paper: #eff4fa;
+        }
+        .qr-display-modal.qr-note-100 {
+            --qr-main: #7866a8; --qr-dark: #4d3d79;
+            --qr-light: #e1dcef; --qr-paper: #f4f1fa;
+        }
+        .qr-display-modal.qr-note-200 {
+            --qr-main: #c99b28; --qr-dark: #7d5c0c;
+            --qr-light: #f2e5b8; --qr-paper: #fff8df;
+        }
+        .qr-display-modal.qr-note-500 {
+            --qr-main: #69706a; --qr-dark: #3e4741;
+            --qr-light: #dfe3df; --qr-paper: #f1f3ef;
+        }
+        .qr-display-modal.qr-note-2000 {
+            --qr-main: #7b5a9e; --qr-dark: #4e3869;
+            --qr-light: #e6d9ef; --qr-paper: #f7f0fa;
+        }
+
+        /* =========================================================
    PREMIUM QR DISPLAY MODAL
 ========================================================= */
 
@@ -2227,13 +2266,10 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             padding: 18px;
 
-            background:
-                radial-gradient(circle at 50% 20%,
-                    rgba(16, 185, 129, .18),
-                    transparent 35%),
-                rgba(2, 44, 34, .78);
+            /* Neutral overlay: NEVER changes/tints the page background */
+            background: rgba(15, 23, 42, .72);
 
-            backdrop-filter: blur(18px);
+            backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(18px);
 
             animation: qrOverlayIn .25s ease;
@@ -2259,14 +2295,14 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             background:
                 linear-gradient(145deg,
-                    rgba(255, 255, 255, .98),
-                    rgba(240, 253, 244, .96));
+                    color-mix(in srgb, var(--qr-paper) 96%, white),
+                    var(--qr-paper));
 
             border: 1px solid rgba(255, 255, 255, .95);
 
             box-shadow:
                 0 35px 100px rgba(0, 0, 0, .38),
-                0 0 0 1px rgba(16, 185, 129, .08);
+                0 0 0 1px color-mix(in srgb, var(--qr-main) 10%, transparent);
 
             text-align: center;
 
@@ -2294,7 +2330,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             border-radius: 50%;
 
-            background: rgba(16, 185, 129, .12);
+            background: color-mix(in srgb, var(--qr-main) 15%, transparent);
 
             pointer-events: none;
         }
@@ -2312,7 +2348,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             border-radius: 50%;
 
-            background: rgba(52, 211, 153, .08);
+            background: color-mix(in srgb, var(--qr-main) 9%, transparent);
 
             pointer-events: none;
         }
@@ -2336,7 +2372,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             align-items: center;
             gap: 10px;
 
-            color: #064e3b;
+            color: var(--qr-dark);
 
             font-size: 13px;
             font-weight: 850;
@@ -2356,8 +2392,8 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             background:
                 linear-gradient(135deg,
-                    #047857,
-                    #10b981);
+                    var(--qr-dark),
+                    var(--qr-main));
 
             box-shadow:
                 0 7px 18px rgba(5, 150, 105, .25);
@@ -2374,11 +2410,11 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             border-radius: 20px;
 
-            background: #ecfdf5;
+            background: var(--qr-light);
 
-            color: #047857;
+            color: var(--qr-dark);
 
-            border: 1px solid #d1fae5;
+            border: 1px solid color-mix(in srgb, var(--qr-main) 25%, white);
 
             font-size: 10px;
             font-weight: 800;
@@ -2405,11 +2441,11 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             background:
                 linear-gradient(135deg,
                     #dcfce7,
-                    #d1fae5);
+                    color-mix(in srgb, var(--qr-main) 25%, white));
 
-            color: #059669;
+            color: var(--qr-main);
 
-            border: 1px solid #bbf7d0;
+            border: 1px solid color-mix(in srgb, var(--qr-main) 30%, white);
 
             font-size: 29px;
 
@@ -2428,7 +2464,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             margin: 0;
 
-            color: #022c22;
+            color: var(--qr-dark);
 
             font-size: 25px;
             font-weight: 850;
@@ -2473,7 +2509,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     #ffffff,
                     #f8fafc);
 
-            border: 1px solid #d1fae5;
+            border: 1px solid color-mix(in srgb, var(--qr-main) 25%, white);
 
             box-shadow:
                 0 18px 45px rgba(2, 44, 34, .12),
@@ -2491,7 +2527,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             width: 32px;
             height: 32px;
 
-            border-color: #10b981;
+            border-color: var(--qr-main);
             border-style: solid;
 
             pointer-events: none;
@@ -2559,10 +2595,10 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             background:
                 linear-gradient(135deg,
-                    #ecfdf5,
-                    #d1fae5);
+                    var(--qr-light),
+                    color-mix(in srgb, var(--qr-main) 25%, white));
 
-            border: 1px solid #bbf7d0;
+            border: 1px solid color-mix(in srgb, var(--qr-main) 30%, white);
         }
 
         .qr-display-amount-label {
@@ -2583,7 +2619,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         .qr-display-amount {
             margin: 0;
 
-            color: #047857;
+            color: var(--qr-dark);
 
             font-size: 23px;
             font-weight: 900;
@@ -2614,10 +2650,10 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             border-radius: 50%;
 
-            background: #10b981;
+            background: var(--qr-main);
 
             box-shadow:
-                0 0 0 4px rgba(16, 185, 129, .12);
+                0 0 0 4px color-mix(in srgb, var(--qr-main) 15%, transparent);
         }
 
 
@@ -2637,8 +2673,8 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             background:
                 linear-gradient(135deg,
-                    #047857,
-                    #10b981);
+                    var(--qr-dark),
+                    var(--qr-main));
 
             color: white;
 
@@ -2681,7 +2717,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
         .qr-modal-footer strong {
-            color: #059669;
+            color: var(--qr-main);
             font-weight: 850;
         }
 
@@ -3354,6 +3390,7 @@ These currencies are generated online but stored in cache memory(use for offline
     */
     $verifiedQrData = "";
     $verifiedQrAmount = "";
+    $qrDenominationClass = "qr-note-default";
 
     if ($unlocked_currency !== null) {
 
@@ -3368,12 +3405,22 @@ These currencies are generated online but stored in cache memory(use for offline
         if (!empty($unlocked_currency['amount'])) {
             $verifiedQrAmount = decryptData($unlocked_currency['amount']);
         }
+
+        switch ((int)$verifiedQrAmount) {
+            case 10:  $qrDenominationClass = "qr-note-10"; break;
+            case 20:  $qrDenominationClass = "qr-note-20"; break;
+            case 50:  $qrDenominationClass = "qr-note-50"; break;
+            case 100: $qrDenominationClass = "qr-note-100"; break;
+            case 200: $qrDenominationClass = "qr-note-200"; break;
+            case 500: $qrDenominationClass = "qr-note-500"; break;
+            case 2000: $qrDenominationClass = "qr-note-2000"; break;
+        }
     }
     ?>
 
     <?php if ($verifiedQrData !== ""): ?>
 
-        <div class="qr-display-modal active" id="qrDisplayModal">
+        <div class="qr-display-modal active <?php echo $qrDenominationClass; ?>" id="qrDisplayModal">
 
             <div class="qr-display-box">
 
@@ -3395,13 +3442,6 @@ These currencies are generated online but stored in cache memory(use for offline
                     </div>
 
                 </div>
-
-
-                <!-- ICON -->
-                <div class="qr-display-icon">
-                    ▦
-                </div>
-
 
                 <!-- TITLE -->
                 <h2>
