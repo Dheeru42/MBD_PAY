@@ -3399,7 +3399,7 @@ These currencies are generated online but stored in cache memory(use for offline
             $currency_serial_no = $unlocked_currency['serial_no'] ?? "";
         } else {
             $verifiedQrData = $unlocked_currency['currency_serial_no'] ?? "";
-            $currency_serial_no = $unlocked_currency['serial_no'] ?? "";
+            $currency_serial_no = decryptData($unlocked_currency['serial_no'] ?? "");
         }
 
         if (!empty($unlocked_currency['amount'])) {
