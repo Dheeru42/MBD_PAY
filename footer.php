@@ -13,7 +13,6 @@
 
         </div>
 
-
         <div class="footer-links">
 
             <a href="#">Privacy</a>

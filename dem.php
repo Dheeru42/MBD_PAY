@@ -75,6 +75,12 @@ if (isset($_SESSION['user'])) {
     $username = $_SESSION['user'];
 }
 
+if (isset($_SESSION['refresh'])) {
+
+    header("location:generated_currency.php");
+    unset($_SESSION['refresh']);
+}
+
 if (isset($_SESSION['mobile'])) {
     $u_mob = $_SESSION['mobile'];
 }
@@ -94,6 +100,7 @@ if (!isset($_SESSION['account'])) {
 
 $unlocked_currency = null;
 $pin_error = "";
+
 
 try {
 
@@ -119,6 +126,7 @@ try {
 
             $pin_error =
                 "Please enter your PIN.";
+
         } else {
 
             /*
@@ -167,6 +175,7 @@ try {
 
                 $pin_error =
                     "Currency not found.";
+
             } else {
 
                 /*
@@ -222,7 +231,9 @@ try {
                         $online_currency;
 
 
-                    $_SESSION['unlocked_currency_id'] =
+                    $_SESSION[
+                        'unlocked_currency_id'
+                    ] =
                         $online_currency['id'];
 
 
@@ -231,11 +242,16 @@ try {
                     */
 
                     unset(
-                        $_SESSION['unlocked_currency_serial']
+                        $_SESSION[
+                            'unlocked_currency_serial'
+                        ]
                     );
 
 
                     $pin_error = "";
+
+                    $_SESSION['refresh'] = true;
+
                 } else {
 
                     /*
@@ -243,7 +259,9 @@ try {
                     */
 
                     unset(
-                        $_SESSION['unlocked_currency_id']
+                        $_SESSION[
+                            'unlocked_currency_id'
+                        ]
                     );
 
                     $pin_error =
@@ -281,6 +299,7 @@ try {
 
             $pin_error =
                 "Please enter your PIN.";
+
         } else {
 
             /*
@@ -312,6 +331,7 @@ try {
 
                 $pin_error =
                     "Offline profile not found.";
+
             } else {
 
                 /*
@@ -354,11 +374,14 @@ try {
                 ) {
 
                     unset(
-                        $_SESSION['unlocked_currency_serial']
+                        $_SESSION[
+                            'unlocked_currency_serial'
+                        ]
                     );
 
                     $pin_error =
                         "Incorrect PIN. Please try again.";
+
                 } else {
 
                     /*
@@ -391,7 +414,7 @@ try {
                         $files =
                             glob(
                                 $currencyDir .
-                                    "*.json"
+                                "*.json"
                             );
 
 
@@ -423,7 +446,11 @@ try {
                             */
 
                             if (
-                                empty($cachedCurrency['serial_no'])
+                                empty(
+                                    $cachedCurrency[
+                                        'serial_no'
+                                    ]
+                                )
                             ) {
                                 continue;
                             }
@@ -437,7 +464,9 @@ try {
 
                             $cachedSerial =
                                 decryptData(
-                                    $cachedCurrency['serial_no']
+                                    $cachedCurrency[
+                                        'serial_no'
+                                    ]
                                 );
 
 
@@ -516,7 +545,9 @@ try {
                         |--------------------------------------------------------------------------
                         */
 
-                        $_SESSION['unlocked_currency_serial'] =
+                        $_SESSION[
+                            'unlocked_currency_serial'
+                        ] =
                             $serialNo;
 
 
@@ -525,11 +556,14 @@ try {
                         */
 
                         unset(
-                            $_SESSION['unlocked_currency_id']
+                            $_SESSION[
+                                'unlocked_currency_id'
+                            ]
                         );
 
 
                         $pin_error = "";
+
                     } else {
 
                         $pin_error =
@@ -539,7 +573,9 @@ try {
             }
         }
     }
-} catch (Throwable $th) {
+
+}
+catch (Throwable $th) {
 
     /*
     |--------------------------------------------------------------------------
@@ -552,6 +588,7 @@ try {
 
     $pin_error =
         "Server connection unavailable.";
+
 }
 
 /*FETCH GENERATED CURRENCIES*/
@@ -2047,571 +2084,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                 font-size: 37px;
             }
         }
-
-        /* =========================================================
-   PREMIUM QR DISPLAY MODAL
-========================================================= */
-
-        .qr-display-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 99999;
-
-            display: none;
-            align-items: center;
-            justify-content: center;
-
-            padding: 18px;
-
-            background:
-                radial-gradient(circle at 50% 20%,
-                    rgba(16, 185, 129, .18),
-                    transparent 35%),
-                rgba(2, 44, 34, .78);
-
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-
-            animation: qrOverlayIn .25s ease;
-        }
-
-        .qr-display-modal.active {
-            display: flex !important;
-        }
-
-        /* Main modal */
-
-        .qr-display-box {
-            position: relative;
-
-            width: min(440px, 100%);
-            max-height: calc(100vh - 36px);
-
-            overflow-y: auto;
-
-            padding: 24px;
-
-            border-radius: 32px;
-
-            background:
-                linear-gradient(145deg,
-                    rgba(255, 255, 255, .98),
-                    rgba(240, 253, 244, .96));
-
-            border: 1px solid rgba(255, 255, 255, .95);
-
-            box-shadow:
-                0 35px 100px rgba(0, 0, 0, .38),
-                0 0 0 1px rgba(16, 185, 129, .08);
-
-            text-align: center;
-
-            animation: qrModalIn .35s cubic-bezier(.22, 1, .36, 1);
-
-            scrollbar-width: none;
-        }
-
-        .qr-display-box::-webkit-scrollbar {
-            display: none;
-        }
-
-        /* Decorative glow */
-
-        .qr-display-box::before {
-            content: "";
-
-            position: absolute;
-
-            width: 180px;
-            height: 180px;
-
-            top: -100px;
-            right: -80px;
-
-            border-radius: 50%;
-
-            background: rgba(16, 185, 129, .12);
-
-            pointer-events: none;
-        }
-
-        .qr-display-box::after {
-            content: "";
-
-            position: absolute;
-
-            width: 140px;
-            height: 140px;
-
-            bottom: -80px;
-            left: -70px;
-
-            border-radius: 50%;
-
-            background: rgba(52, 211, 153, .08);
-
-            pointer-events: none;
-        }
-
-
-        /* Header */
-
-        .qr-modal-header {
-            position: relative;
-            z-index: 2;
-
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-
-            margin-bottom: 18px;
-        }
-
-        .qr-brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-
-            color: #064e3b;
-
-            font-size: 13px;
-            font-weight: 850;
-        }
-
-        .qr-brand-icon {
-            width: 36px;
-            height: 36px;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            border-radius: 12px;
-
-            color: white;
-
-            background:
-                linear-gradient(135deg,
-                    #047857,
-                    #10b981);
-
-            box-shadow:
-                0 7px 18px rgba(5, 150, 105, .25);
-
-            font-size: 18px;
-        }
-
-        .qr-secure-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-
-            padding: 7px 10px;
-
-            border-radius: 20px;
-
-            background: #ecfdf5;
-
-            color: #047857;
-
-            border: 1px solid #d1fae5;
-
-            font-size: 10px;
-            font-weight: 800;
-        }
-
-
-        /* QR Icon */
-
-        .qr-display-icon {
-            position: relative;
-            z-index: 2;
-
-            width: 66px;
-            height: 66px;
-
-            margin: 5px auto 13px;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            border-radius: 21px;
-
-            background:
-                linear-gradient(135deg,
-                    #dcfce7,
-                    #d1fae5);
-
-            color: #059669;
-
-            border: 1px solid #bbf7d0;
-
-            font-size: 29px;
-
-            box-shadow:
-                0 12px 28px rgba(5, 150, 105, .13);
-
-            animation: qrIconFloat 3s ease-in-out infinite;
-        }
-
-
-        /* Heading */
-
-        .qr-display-box h2 {
-            position: relative;
-            z-index: 2;
-
-            margin: 0;
-
-            color: #022c22;
-
-            font-size: 25px;
-            font-weight: 850;
-
-            letter-spacing: -.5px;
-        }
-
-        .qr-display-subtitle {
-            position: relative;
-            z-index: 2;
-
-            margin: 7px 0 18px;
-
-            color: #64748b;
-
-            font-size: 12px;
-            line-height: 1.6;
-        }
-
-
-        /* QR Area */
-
-        .qr-code-frame {
-            position: relative;
-            z-index: 2;
-
-            width: 272px;
-            height: 272px;
-
-            margin: 0 auto 18px;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            padding: 15px;
-
-            border-radius: 27px;
-
-            background:
-                linear-gradient(145deg,
-                    #ffffff,
-                    #f8fafc);
-
-            border: 1px solid #d1fae5;
-
-            box-shadow:
-                0 18px 45px rgba(2, 44, 34, .12),
-                0 0 0 7px rgba(16, 185, 129, .045);
-        }
-
-        /* QR corner decorations */
-
-        .qr-code-frame::before,
-        .qr-code-frame::after {
-            content: "";
-
-            position: absolute;
-
-            width: 32px;
-            height: 32px;
-
-            border-color: #10b981;
-            border-style: solid;
-
-            pointer-events: none;
-        }
-
-        .qr-code-frame::before {
-            top: 9px;
-            left: 9px;
-
-            border-width: 3px 0 0 3px;
-
-            border-radius: 10px 0 0 0;
-        }
-
-        .qr-code-frame::after {
-            right: 9px;
-            bottom: 9px;
-
-            border-width: 0 3px 3px 0;
-
-            border-radius: 0 0 10px 0;
-        }
-
-        #qrDisplayCode {
-            width: 238px;
-            height: 238px;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            padding: 9px;
-
-            background: white;
-
-            border-radius: 16px;
-
-            box-shadow:
-                0 7px 20px rgba(0, 0, 0, .08);
-        }
-
-        #qrDisplayCode img,
-        #qrDisplayCode canvas {
-            display: block;
-
-            max-width: 100%;
-            max-height: 100%;
-        }
-
-
-        /* Amount */
-
-        .qr-display-amount-box {
-            position: relative;
-            z-index: 2;
-
-            margin: 0 auto 18px;
-
-            padding: 12px 18px;
-
-            width: fit-content;
-            min-width: 170px;
-
-            border-radius: 16px;
-
-            background:
-                linear-gradient(135deg,
-                    #ecfdf5,
-                    #d1fae5);
-
-            border: 1px solid #bbf7d0;
-        }
-
-        .qr-display-amount-label {
-            display: block;
-
-            margin-bottom: 2px;
-
-            color: #64748b;
-
-            font-size: 9px;
-
-            text-transform: uppercase;
-            letter-spacing: 1px;
-
-            font-weight: 750;
-        }
-
-        .qr-display-amount {
-            margin: 0;
-
-            color: #047857;
-
-            font-size: 23px;
-            font-weight: 900;
-        }
-
-
-        /* Instruction */
-
-        .qr-scan-hint {
-            position: relative;
-            z-index: 2;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 7px;
-
-            margin-bottom: 17px;
-
-            color: #64748b;
-
-            font-size: 11px;
-        }
-
-        .qr-scan-hint span:first-child {
-            width: 7px;
-            height: 7px;
-
-            border-radius: 50%;
-
-            background: #10b981;
-
-            box-shadow:
-                0 0 0 4px rgba(16, 185, 129, .12);
-        }
-
-
-        /* Close button */
-
-        .qr-close-btn {
-            position: relative;
-            z-index: 2;
-
-            width: 100%;
-
-            border: 0;
-
-            border-radius: 15px;
-
-            padding: 13px 16px;
-
-            background:
-                linear-gradient(135deg,
-                    #047857,
-                    #10b981);
-
-            color: white;
-
-            font-size: 13px;
-            font-weight: 800;
-
-            cursor: pointer;
-
-            box-shadow:
-                0 10px 25px rgba(5, 150, 105, .25);
-
-            transition:
-                transform .2s ease,
-                box-shadow .2s ease;
-        }
-
-        .qr-close-btn:hover {
-            transform: translateY(-2px);
-
-            box-shadow:
-                0 15px 32px rgba(5, 150, 105, .34);
-        }
-
-        .qr-close-btn:active {
-            transform: translateY(0);
-        }
-
-
-        /* Footer */
-
-        .qr-modal-footer {
-            position: relative;
-            z-index: 2;
-
-            margin-top: 15px;
-
-            color: #94a3b8;
-
-            font-size: 10px;
-        }
-
-        .qr-modal-footer strong {
-            color: #059669;
-            font-weight: 850;
-        }
-
-
-        /* Animations */
-
-        @keyframes qrOverlayIn {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
-        }
-
-        @keyframes qrModalIn {
-            from {
-                opacity: 0;
-                transform: translateY(25px) scale(.94);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-
-        @keyframes qrIconFloat {
-
-            0%,
-            100% {
-                transform: translateY(0);
-            }
-
-            50% {
-                transform: translateY(-4px);
-            }
-        }
-
-
-        /* Mobile */
-
-        @media (max-width: 480px) {
-
-            .qr-display-modal {
-                padding: 12px;
-            }
-
-            .qr-display-box {
-                padding: 19px;
-
-                border-radius: 27px;
-            }
-
-            .qr-modal-header {
-                margin-bottom: 14px;
-            }
-
-            .qr-display-icon {
-                width: 58px;
-                height: 58px;
-
-                border-radius: 18px;
-
-                font-size: 25px;
-            }
-
-            .qr-display-box h2 {
-                font-size: 22px;
-            }
-
-            .qr-code-frame {
-                width: 245px;
-                height: 245px;
-
-                padding: 12px;
-
-                border-radius: 23px;
-            }
-
-            #qrDisplayCode {
-                width: 218px;
-                height: 218px;
-            }
-
-            .qr-display-amount {
-                font-size: 21px;
-            }
-        }
-
-        body.modal-open {
-            overflow: hidden;
-        }
     </style>
 
 </head>
@@ -2848,39 +2320,251 @@ These currencies are generated online but stored in cache memory(use for offline
 
                                 <div class="qr-section">
 
-                                    <div class="qr-lock">
-                                        <div class="lock-icon">🔒</div>
 
-                                        <strong>QR Code Locked</strong>
+                                    <?php
 
-                                        <span>
-                                            Enter your PIN to display this currency QR
-                                        </span>
+                                    /*
+|--------------------------------------------------------------------------
+| SHOW QR ONLY AFTER CORRECT PIN
+|--------------------------------------------------------------------------
+*/
 
-                                        <button
-                                            type="button"
-                                            class="show-qr-btn"
-                                            data-pin-mode="<?php echo $serverConnected ? 'online' : 'offline'; ?>"
-                                            data-pin-value="<?php
-                                                            if ($serverConnected) {
+                                    $showQR = false;
+
+                                    if ($unlocked_currency) {
+
+                                        if ($serverConnected) {
+
+                                            /*
+        |--------------------------------------------------------------------------
+        | ONLINE
+        |--------------------------------------------------------------------------
+        */
+
+                                            $showQR =
+                                                isset($unlocked_currency['id']) &&
+                                                isset($currency['id']) &&
+                                                $unlocked_currency['id'] == $currency['id'];
+                                        } else {
+
+                                            /*
+        |--------------------------------------------------------------------------
+        | OFFLINE
+        |--------------------------------------------------------------------------
+        */
+
+                                            $currentSerial = "";
+
+                                            if (!empty($currency['serial_no'])) {
+
+                                                $currentSerial =
+                                                    decryptData(
+                                                        $currency['serial_no']
+                                                    );
+                                            }
+
+                                            $unlockedSerial =
+                                                $_SESSION['unlocked_currency_serial'] ?? "";
+
+                                            $showQR =
+                                                $currentSerial !== "" &&
+                                                $unlockedSerial !== "" &&
+                                                $currentSerial === $unlockedSerial;
+                                        }
+                                    }
+
+
+                                    if ($showQR):
+
+
+                                        /*
+    |--------------------------------------------------------------------------
+    | QR DATA
+    |--------------------------------------------------------------------------
+    */
+
+                                        if ($serverConnected) {
+
+                                            /*
+        | Online encrypted serial
+        */
+
+                                            $qrData =
+                                                $currency['encrypted_serial'];
+                                        } else {
+
+                                            /*
+        | Offline encrypted currency serial
+        |
+        | currency_serial_no is encrypted in cache.
+        */
+
+                                            $qrData =
+                                                $currency['currency_serial_no'];
+                                        }
+
+                                    ?>
+
+                                        <div class="qr-unlocked">
+
+                                            <div
+                                                class="qr-code"
+                                                id="qr-<?php
+                                                        echo htmlspecialchars(
+                                                            $currency['id'] ?? md5($currentSerial ?? ''),
+                                                            ENT_QUOTES,
+                                                            'UTF-8'
+                                                        );
+                                                        ?>">
+                                            </div>
+
+
+                                            <div class="qr-title">
+
+                                                Scan to receive ₹<?php
+
+                                                                    /*
+                |--------------------------------------------------------------------------
+                | AMOUNT
+                |--------------------------------------------------------------------------
+                */
+
+                                                                    if ($serverConnected) {
+
+                                                                        echo number_format(
+                                                                            decryptData(
+                                                                                $currency['amount']
+                                                                            ),
+                                                                            2
+                                                                        );
+                                                                    } else {
+
+                                                                        /*
+                    | Amount is encrypted in cache
+                    */
+
+                                                                        echo number_format(
+                                                                            decryptData(
+                                                                                $currency['amount']
+                                                                            ),
+                                                                            2
+                                                                        );
+                                                                    }
+
+                                                                    ?>
+
+                                            </div>
+
+                                        </div>
+
+
+                                        <script>
+                                            document.addEventListener(
+                                                "DOMContentLoaded",
+                                                function() {
+
+                                                    const qrElement =
+                                                        document.getElementById(
+                                                            "qr-<?php
                                                                 echo htmlspecialchars(
-                                                                    (string)$currency['id'],
+                                                                    $currency['id'] ?? md5($currentSerial ?? ''),
                                                                     ENT_QUOTES,
                                                                     'UTF-8'
                                                                 );
-                                                            } else {
-                                                                echo htmlspecialchars(
-                                                                    (string)decryptData($currency['serial_no']),
-                                                                    ENT_QUOTES,
-                                                                    'UTF-8'
-                                                                );
+                                                                ?>"
+                                                        );
+
+                                                    if (qrElement) {
+
+                                                        new QRCode(
+                                                            qrElement, {
+
+                                                                /*
+                                                                |--------------------------------------------------------------------------
+                                                                | ENCRYPTED SERIAL
+                                                                |--------------------------------------------------------------------------
+                                                                */
+
+                                                                text: <?php
+                                                                        echo json_encode(
+                                                                            $qrData
+                                                                        );
+                                                                        ?>,
+
+                                                                width: 130,
+
+                                                                height: 130,
+
+                                                                colorDark: "#022c22",
+
+                                                                colorLight: "#ffffff",
+
+                                                                correctLevel: QRCode.CorrectLevel.H
+
                                                             }
-                                                            ?>">
-                                            🔐 Show QR
-                                        </button>
-                                    </div>
+                                                        );
+                                                    }
+
+                                                }
+                                            );
+                                        </script>
+
+                                    <?php else: ?>
+
+                                        <!-- QR LOCKED -->
+
+                                        <div class="qr-lock">
+
+                                            <div class="lock-icon">
+                                                🔒
+                                            </div>
+
+                                            <strong>
+                                                QR Code Locked
+                                            </strong>
+
+                                            <span>
+                                                Enter your PIN to display this currency QR
+                                            </span>
+
+                                            <button
+                                                type="button"
+                                                class="show-qr-btn"
+                                                onclick="openPinModal(
+                '<?php
+
+                                        if ($serverConnected) {
+
+                                            echo (int)$currency['id'];
+                                        } else {
+
+                                            /*
+                    | Button sends decrypted serial
+                    | to offline PIN verification.
+                    */
+
+                                            echo htmlspecialchars(
+                                                decryptData(
+                                                    $currency['serial_no']
+                                                ),
+                                                ENT_QUOTES,
+                                                'UTF-8'
+                                            );
+                                        }
+
+                    ?>'
+            )">
+
+                                                🔐 Show QR
+
+                                            </button>
+
+                                        </div>
+
+                                    <?php endif; ?>
 
                                 </div>
+
 
                                 <!-- =================================================
          DETAILS
@@ -3080,17 +2764,15 @@ These currencies are generated online but stored in cache memory(use for offline
                     name="action"
                     value="verify_pin">
 
-                <input
-                    type="hidden"
-                    name="currency_id"
-                    id="currencyId"
-                    value="">
+                <?php if ($serverConnected) { ?>
+                    <input
+                        type="hidden"
+                        name="currency_id"
+                        id="currencyId">
 
-                <input
-                    type="hidden"
-                    name="serialNo"
-                    id="serialNo"
-                    value="">
+                <?php } else { ?>
+                    <input type="hidden" id="serialNo" name="serialNo">
+                <?php } ?>
 
                 <input
                     type="password"
@@ -3159,320 +2841,180 @@ These currencies are generated online but stored in cache memory(use for offline
     </div>
 
 
-
-    <?php
-    /*
-    |--------------------------------------------------------------------------
-    | QR MODAL DATA
-    |--------------------------------------------------------------------------
-    */
-    $verifiedQrData = "";
-    $verifiedQrAmount = "";
-
-    if ($unlocked_currency !== null) {
-
-        if ($serverConnected) {
-            $verifiedQrData = $unlocked_currency['encrypted_serial'] ?? "";
-        } else {
-            $verifiedQrData = $unlocked_currency['currency_serial_no'] ?? "";
-        }
-
-        if (!empty($unlocked_currency['amount'])) {
-            $verifiedQrAmount = decryptData($unlocked_currency['amount']);
-        }
-    }
-    ?>
-
-    <?php if ($verifiedQrData !== ""): ?>
-
-        <div class="qr-display-modal active" id="qrDisplayModal">
-
-            <div class="qr-display-box">
-
-                <!-- HEADER -->
-                <div class="qr-modal-header">
-
-                    <div class="qr-brand">
-
-                        <div class="qr-brand-icon">
-                            ₹
-                        </div>
-
-                        MBD PAY
-
-                    </div>
-
-                    <div class="qr-secure-badge">
-                        🔒 SECURE
-                    </div>
-
-                </div>
-
-
-                <!-- ICON -->
-                <div class="qr-display-icon">
-                    ▦
-                </div>
-
-
-                <!-- TITLE -->
-                <h2>
-                    Receive Money
-                </h2>
-
-                <div class="qr-display-subtitle">
-                    Scan this QR code using your payment app
-                    to receive the digital currency.
-                </div>
-
-
-                <!-- QR -->
-                <div class="qr-code-frame">
-
-                    <div id="qrDisplayCode"></div>
-
-                </div>
-
-
-                <!-- AMOUNT -->
-                <?php if ($verifiedQrAmount !== ""): ?>
-
-                    <div class="qr-display-amount-box">
-
-                        <span class="qr-display-amount-label">
-                            Amount
-                        </span>
-
-                        <div class="qr-display-amount">
-                            ₹<?php echo number_format(
-                                    (float)$verifiedQrAmount,
-                                    2
-                                ); ?>
-                        </div>
-
-                    </div>
-
-                <?php endif; ?>
-
-                <!-- CLOSE -->
-                <button
-                    type="button"
-                    class="qr-close-btn"
-                    onclick="closeQrModal()">
-
-                    Close
-
-                </button>
-
-            </div>
-
-        </div>
-
-    <?php endif; ?>
-
-
     <?php require 'footer.php'; ?>
 
 
     <script>
         /*
-        |--------------------------------------------------------------------------
-        | PIN MODAL - ONLINE + OFFLINE
-        |--------------------------------------------------------------------------
-        */
+|--------------------------------------------------------------------------
+| PIN MODAL
+|--------------------------------------------------------------------------
+*/
+        <?php if ($serverConnected) { ?>
 
-        function openPinModal(button) {
+            function openPinModal(currencyId) {
 
-            const modal = document.getElementById("pinModal");
-            const currencyId = document.getElementById("currencyId");
-            const serialNo = document.getElementById("serialNo");
-            const pinInput = document.querySelector("#pinModal .pin-input");
+                document.getElementById(
+                    "currencyId"
+                ).value = currencyId;
 
-            if (!modal) {
-                console.error("MBD Pay: #pinModal was not found.");
-                return;
+
+                document.getElementById(
+                    "pinModal"
+                ).classList.add("active");
+
+
+                setTimeout(
+                    function() {
+
+                        const input =
+                            document.querySelector(
+                                ".pin-input"
+                            );
+
+                        if (input) {
+
+                            input.focus();
+                        }
+
+                    },
+                    100
+                );
             }
 
-            if (!button) {
-                console.error("MBD Pay: Show QR button was not supplied.");
-                return;
+
+            function closePinModal() {
+
+                document.getElementById(
+                    "pinModal"
+                ).classList.remove("active");
             }
 
-            const mode = button.getAttribute("data-pin-mode");
-            const value = button.getAttribute("data-pin-value") || "";
-
-            if (currencyId) {
-                currencyId.value = "";
-            }
-
-            if (serialNo) {
-                serialNo.value = "";
-            }
-
-            if (mode === "online") {
-
-                if (!currencyId) {
-                    console.error("MBD Pay: #currencyId was not found.");
-                    return;
-                }
-
-                currencyId.value = value;
-
-            } else {
-
-                if (!serialNo) {
-                    console.error("MBD Pay: #serialNo was not found.");
-                    return;
-                }
-
-                serialNo.value = value;
-            }
-
-            if (pinInput) {
-                pinInput.value = "";
-            }
-
-            modal.classList.add("active");
-            document.body.classList.add("modal-open");
-
-            setTimeout(function() {
-                if (pinInput) {
-                    pinInput.focus();
-                }
-            }, 100);
-        }
-
-
-        function closePinModal() {
-
-            const modal = document.getElementById("pinModal");
-
-            if (modal) {
-                modal.classList.remove("active");
-            }
-
-            document.body.classList.remove("modal-open");
-        }
-
-
-        document.addEventListener("DOMContentLoaded", function() {
 
             /*
-            | Attach click handlers WITHOUT inline JavaScript.
-            | This fixes offline serial values containing quotes/special
-            | characters and guarantees the same flow online/offline.
+            |--------------------------------------------------------------------------
+            | CLOSE WHEN CLICKING OUTSIDE
+            |--------------------------------------------------------------------------
             */
-            document.querySelectorAll(".show-qr-btn").forEach(function(button) {
 
-                button.addEventListener("click", function(event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    openPinModal(this);
-                });
+            document
+                .getElementById("pinModal")
+                .addEventListener(
+                    "click",
+                    function(event) {
 
-            });
+                        if (
+                            event.target === this
+                        ) {
+
+                            closePinModal();
+                        }
+
+                    }
+                );
 
 
-            const pinModal = document.getElementById("pinModal");
+            /*
+            |--------------------------------------------------------------------------
+            | AUTO OPEN MODAL AFTER WRONG PIN
+            |--------------------------------------------------------------------------
+            */
 
-            if (pinModal) {
+            <?php if ($pin_error !== ""): ?>
 
-                pinModal.addEventListener("click", function(event) {
+                document.addEventListener(
+                    "DOMContentLoaded",
+                    function() {
 
-                    if (event.target === pinModal) {
+                        document
+                            .getElementById("pinModal")
+                            .classList.add("active");
+
+                    }
+                );
+
+            <?php endif; ?>
+
+
+            // for offline cache
+        <?php } else { ?>
+            /*
+|--------------------------------------------------------------------------
+| OPEN PIN MODAL
+|--------------------------------------------------------------------------
+*/
+
+            function openPinModal(serialNo) {
+
+                document.getElementById("serialNo").value = serialNo;
+
+                document
+                    .getElementById("pinModal")
+                    .classList.add("active");
+
+                setTimeout(function() {
+
+                    const input = document.querySelector(".pin-input");
+
+                    if (input) {
+                        input.focus();
+                    }
+
+                }, 100);
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CLOSE PIN MODAL
+            |--------------------------------------------------------------------------
+            */
+
+            function closePinModal() {
+
+                document
+                    .getElementById("pinModal")
+                    .classList.remove("active");
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CLOSE WHEN CLICKING OUTSIDE
+            |--------------------------------------------------------------------------
+            */
+
+            document
+                .getElementById("pinModal")
+                .addEventListener("click", function(event) {
+
+                    if (event.target === this) {
                         closePinModal();
                     }
 
                 });
 
-            }
-
 
             /*
-            | Re-open after an incorrect PIN.
+            |--------------------------------------------------------------------------
+            | AUTO OPEN MODAL AFTER WRONG PIN
+            |--------------------------------------------------------------------------
             */
+
             <?php if ($pin_error !== ""): ?>
-                if (pinModal) {
-                    pinModal.classList.add("active");
-                    document.body.classList.add("modal-open");
 
-                    const input = pinModal.querySelector(".pin-input");
+                document.addEventListener("DOMContentLoaded", function() {
 
-                    if (input) {
-                        setTimeout(function() {
-                            input.focus();
-                        }, 100);
-                    }
-                }
-            <?php endif; ?>
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | QR DISPLAY MODAL
-            |--------------------------------------------------------------------------
-            | It exists only after the PIN has been successfully verified.
-            */
-            const qrModal = document.getElementById("qrDisplayModal");
-
-            if (qrModal) {
-
-                const qrTarget = document.getElementById("qrDisplayCode");
-
-                if (qrTarget && typeof QRCode !== "undefined") {
-
-                    new QRCode(qrTarget, {
-                        text: <?php echo json_encode($verifiedQrData ?? ""); ?>,
-                        width: 210,
-                        height: 210,
-                        colorDark: "#022c22",
-                        colorLight: "#ffffff",
-                        correctLevel: QRCode.CorrectLevel.H
-                    });
-
-                } else if (qrTarget) {
-                    console.error("MBD Pay: QRCode library was not loaded.");
-                }
-
-                qrModal.addEventListener("click", function(event) {
-
-                    if (event.target === qrModal) {
-                        closeQrModal();
-                    }
+                    document
+                        .getElementById("pinModal")
+                        .classList.add("active");
 
                 });
 
-            }
-
-        });
-
-
-        function closeQrModal() {
-
-            const modal = document.getElementById("qrDisplayModal");
-
-            if (modal) {
-                modal.classList.remove("active");
-            }
-        }
-
-
-        document.addEventListener("keydown", function(event) {
-
-            if (event.key === "Escape") {
-
-                const pinModal = document.getElementById("pinModal");
-
-                if (pinModal && pinModal.classList.contains("active")) {
-                    closePinModal();
-                    return;
-                }
-
-                closeQrModal();
-            }
-
-        });
+            <?php endif; ?>
+        <?php } ?>
     </script>
+
 
 </body>
 
