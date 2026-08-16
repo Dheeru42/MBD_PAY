@@ -46,16 +46,20 @@ try {
 
             $currency = mysqli_fetch_assoc($currency_result);
 
+            if($currency_result){
             // to show currency is scanned
+            echo $currency['serial_no'];
+
             echo $currency['status'] . "->";
 
             $currency['status'] = 'SCANNED';
 
             echo $currency['status'];
         }
+        }
     }
 } catch (Throwable $e) {
-    // echo 'hogaya';
+    echo 'hogaya';
 }
 require 'navbar.php';
 ?>
