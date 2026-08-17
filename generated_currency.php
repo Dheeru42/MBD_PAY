@@ -1180,7 +1180,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
 
-  /*     
+        /*     
    CURRENCY CARD
 
   INDIAN-CURRENCY-INSPIRED DIGITAL NOTE CARD
@@ -1199,13 +1199,13 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             padding: 0;
             border-radius: 18px;
             background:
-                radial-gradient(circle at 82% 20%, rgba(255,255,255,.78) 0 8%, transparent 9%),
-                radial-gradient(circle at 18% 78%, rgba(255,255,255,.45) 0 7%, transparent 8%),
+                radial-gradient(circle at 82% 20%, rgba(255, 255, 255, .78) 0 8%, transparent 9%),
+                radial-gradient(circle at 18% 78%, rgba(255, 255, 255, .45) 0 7%, transparent 8%),
                 linear-gradient(135deg, #d8eadc 0%, #f8f5df 48%, #cfe7d5 100%);
-            border: 1px solid rgba(23,85,58,.28);
+            border: 1px solid rgba(23, 85, 58, .28);
             box-shadow:
-                0 18px 42px rgba(23,85,58,.15),
-                inset 0 0 0 3px rgba(255,255,255,.42);
+                0 18px 42px rgba(23, 85, 58, .15),
+                inset 0 0 0 3px rgba(255, 255, 255, .42);
             transition: transform .3s ease, box-shadow .3s ease;
             animation: cardAppear .6s ease both;
         }
@@ -1284,12 +1284,10 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         .currency-card.note-200 .card-top,
         .currency-card.note-500 .card-top,
         .currency-card.note-2000 .card-top {
-            background: linear-gradient(
-                90deg,
-                rgba(255,255,255,.48),
-                color-mix(in srgb, var(--note-light) 70%, transparent),
-                rgba(255,255,255,.48)
-            );
+            background: linear-gradient(90deg,
+                    rgba(255, 255, 255, .48),
+                    color-mix(in srgb, var(--note-light) 70%, transparent),
+                    rgba(255, 255, 255, .48));
             border-bottom-color: color-mix(in srgb, var(--note-main) 35%, transparent);
         }
 
@@ -1424,15 +1422,13 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             content: "";
             position: absolute;
             inset: 8px;
-            border: 1px solid rgba(23,85,58,.28);
+            border: 1px solid rgba(23, 85, 58, .28);
             border-radius: 12px;
             pointer-events: none;
             background:
-                repeating-linear-gradient(
-                    0deg,
+                repeating-linear-gradient(0deg,
                     transparent 0 5px,
-                    rgba(23,85,58,.035) 6px 7px
-                );
+                    rgba(23, 85, 58, .035) 6px 7px);
         }
 
         /* denomination watermark */
@@ -1445,7 +1441,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             font-size: 118px;
             line-height: .8;
             font-weight: 900;
-            color: rgba(23,85,58,.075);
+            color: rgba(23, 85, 58, .075);
             transform: rotate(-7deg);
             pointer-events: none;
             user-select: none;
@@ -1454,8 +1450,8 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         .currency-card:hover {
             transform: translateY(-7px);
             box-shadow:
-                0 28px 58px rgba(23,85,58,.22),
-                inset 0 0 0 3px rgba(255,255,255,.5);
+                0 28px 58px rgba(23, 85, 58, .22),
+                inset 0 0 0 3px rgba(255, 255, 255, .5);
         }
 
         @keyframes cardAppear {
@@ -1463,6 +1459,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                 opacity: 0;
                 transform: translateY(25px) scale(.97);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0) scale(1);
@@ -1481,8 +1478,8 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             margin: 0;
             padding: 24px 28px 16px;
             background:
-                linear-gradient(90deg, rgba(255,255,255,.42), rgba(184,220,197,.32), rgba(255,255,255,.42));
-            border-bottom: 1px solid rgba(23,85,58,.22);
+                linear-gradient(90deg, rgba(255, 255, 255, .42), rgba(184, 220, 197, .32), rgba(255, 255, 255, .42));
+            border-bottom: 1px solid rgba(23, 85, 58, .22);
         }
 
         .currency-logo {
@@ -1501,7 +1498,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                 radial-gradient(circle, #f7f1d5 0 43%, transparent 44%),
                 repeating-radial-gradient(circle, #2f7d55 0 2px, transparent 3px 5px);
             border: 2px solid #2f7d55;
-            box-shadow: 0 0 0 4px rgba(255,255,255,.45);
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, .45);
         }
 
         .card-top::before {
@@ -1521,7 +1518,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             position: absolute;
             left: 102px;
             top: 43px;
-            color: rgba(23,85,58,.72);
+            color: rgba(23, 85, 58, .72);
             font-size: 8px;
             letter-spacing: 1px;
             font-weight: 800;
@@ -1534,9 +1531,9 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             gap: 7px;
             padding: 7px 10px;
             border-radius: 4px;
-            background: rgba(247,241,213,.72);
+            background: rgba(247, 241, 213, .72);
             color: #17553a;
-            border: 1px solid rgba(47,125,85,.3);
+            border: 1px solid rgba(47, 125, 85, .3);
             font-size: 9px;
             letter-spacing: .8px;
             font-weight: 900;
@@ -1544,7 +1541,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         .status-badgef {
             color: #8b2e27;
-            border-color: rgba(139,46,39,.25);
+            border-color: rgba(139, 46, 39, .25);
         }
 
         /* DENOMINATION */
@@ -1565,7 +1562,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             line-height: 1;
             font-weight: 900;
             color: #17553a;
-            text-shadow: 0 1px 0 rgba(255,255,255,.8);
+            text-shadow: 0 1px 0 rgba(255, 255, 255, .8);
         }
 
         .amount .rupee {
@@ -1597,17 +1594,17 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             font-family: Georgia, "Times New Roman", serif;
             font-size: 23px;
             font-weight: 900;
-            border: 2px solid rgba(47,125,85,.55);
+            border: 2px solid rgba(47, 125, 85, .55);
             border-radius: 50%;
-            background: rgba(247,241,213,.56);
-            box-shadow: inset 0 0 0 5px rgba(255,255,255,.32);
+            background: rgba(247, 241, 213, .56);
+            box-shadow: inset 0 0 0 5px rgba(255, 255, 255, .32);
         }
 
         .note-denomination-number::after {
             content: "";
             position: absolute;
             inset: 7px;
-            border: 1px dashed rgba(47,125,85,.55);
+            border: 1px dashed rgba(47, 125, 85, .55);
             border-radius: 50%;
         }
 
@@ -1619,14 +1616,12 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             padding: 12px 15px 11px;
             border-radius: 5px;
             background:
-                linear-gradient(
-                    90deg,
-                    rgba(220,239,227,.92),
-                    rgba(247,241,213,.88),
-                    rgba(220,239,227,.92)
-                );
-            border: 1px solid rgba(47,125,85,.34);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+                linear-gradient(90deg,
+                    rgba(220, 239, 227, .92),
+                    rgba(247, 241, 213, .88),
+                    rgba(220, 239, 227, .92));
+            border: 1px solid rgba(47, 125, 85, .34);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8);
         }
 
         .serial-label {
@@ -1660,13 +1655,11 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             margin: 0 24px 14px;
             border-radius: 8px;
             background:
-                repeating-linear-gradient(
-                    135deg,
-                    rgba(255,255,255,.36) 0 4px,
-                    rgba(47,125,85,.035) 4px 8px
-                ),
-                rgba(247,241,213,.55);
-            border: 1px solid rgba(47,125,85,.27);
+                repeating-linear-gradient(135deg,
+                    rgba(255, 255, 255, .36) 0 4px,
+                    rgba(47, 125, 85, .035) 4px 8px),
+                rgba(247, 241, 213, .55);
+            border: 1px solid rgba(47, 125, 85, .27);
             overflow: hidden;
         }
 
@@ -1687,7 +1680,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             justify-content: center;
             background: #e0eee4;
             color: #17553a;
-            border: 1px solid rgba(47,125,85,.35);
+            border: 1px solid rgba(47, 125, 85, .35);
             font-size: 19px;
             margin-bottom: 8px;
         }
@@ -1716,13 +1709,13 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             font-weight: 900;
             letter-spacing: .4px;
             background: linear-gradient(135deg, #2f7d55, #17553a);
-            box-shadow: 0 5px 12px rgba(23,85,58,.2);
+            box-shadow: 0 5px 12px rgba(23, 85, 58, .2);
             transition: transform .2s ease, box-shadow .2s ease;
         }
 
         .show-qr-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 9px 18px rgba(23,85,58,.28);
+            box-shadow: 0 9px 18px rgba(23, 85, 58, .28);
         }
 
         .qr-unlocked {
@@ -1742,7 +1735,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             background: #fff;
             border: 4px solid #dcefe3;
             border-radius: 4px;
-            box-shadow: 0 5px 18px rgba(23,85,58,.14);
+            box-shadow: 0 5px 18px rgba(23, 85, 58, .14);
         }
 
         .qr-title {
@@ -1758,7 +1751,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             z-index: 3;
             margin: 0 28px;
             padding: 12px 0 17px;
-            border-top: 1px solid rgba(23,85,58,.22);
+            border-top: 1px solid rgba(23, 85, 58, .22);
         }
 
         .detail-row {
@@ -1788,9 +1781,9 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             display: inline-flex;
             padding: 4px 8px;
             border-radius: 4px;
-            background: rgba(220,239,227,.75);
+            background: rgba(220, 239, 227, .75);
             color: #17553a;
-            border: 1px solid rgba(47,125,85,.22);
+            border: 1px solid rgba(47, 125, 85, .22);
             font-size: 8px;
             font-weight: 900;
             letter-spacing: .5px;
@@ -1801,7 +1794,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             content: "MBD PAY • DIGITAL CURRENCY • NOT LEGAL TENDER";
             display: block;
             margin-top: 6px;
-            color: rgba(23,85,58,.52);
+            color: rgba(23, 85, 58, .52);
             font-family: Georgia, "Times New Roman", serif;
             font-size: 7px;
             letter-spacing: 1px;
@@ -2223,32 +2216,52 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
         .qr-display-modal.qr-note-10 {
-            --qr-main: #8a6248; --qr-dark: #563c2d;
-            --qr-light: #ead9cb; --qr-paper: #f5eee8;
+            --qr-main: #8a6248;
+            --qr-dark: #563c2d;
+            --qr-light: #ead9cb;
+            --qr-paper: #f5eee8;
         }
+
         .qr-display-modal.qr-note-20 {
-            --qr-main: #6d8b4e; --qr-dark: #3f5b2d;
-            --qr-light: #dce9cc; --qr-paper: #f4f7e9;
+            --qr-main: #6d8b4e;
+            --qr-dark: #3f5b2d;
+            --qr-light: #dce9cc;
+            --qr-paper: #f4f7e9;
         }
+
         .qr-display-modal.qr-note-50 {
-            --qr-main: #4f719b; --qr-dark: #294c75;
-            --qr-light: #d6e1ef; --qr-paper: #eff4fa;
+            --qr-main: #4f719b;
+            --qr-dark: #294c75;
+            --qr-light: #d6e1ef;
+            --qr-paper: #eff4fa;
         }
+
         .qr-display-modal.qr-note-100 {
-            --qr-main: #7866a8; --qr-dark: #4d3d79;
-            --qr-light: #e1dcef; --qr-paper: #f4f1fa;
+            --qr-main: #7866a8;
+            --qr-dark: #4d3d79;
+            --qr-light: #e1dcef;
+            --qr-paper: #f4f1fa;
         }
+
         .qr-display-modal.qr-note-200 {
-            --qr-main: #c99b28; --qr-dark: #7d5c0c;
-            --qr-light: #f2e5b8; --qr-paper: #fff8df;
+            --qr-main: #c99b28;
+            --qr-dark: #7d5c0c;
+            --qr-light: #f2e5b8;
+            --qr-paper: #fff8df;
         }
+
         .qr-display-modal.qr-note-500 {
-            --qr-main: #69706a; --qr-dark: #3e4741;
-            --qr-light: #dfe3df; --qr-paper: #f1f3ef;
+            --qr-main: #69706a;
+            --qr-dark: #3e4741;
+            --qr-light: #dfe3df;
+            --qr-paper: #f1f3ef;
         }
+
         .qr-display-modal.qr-note-2000 {
-            --qr-main: #7b5a9e; --qr-dark: #4e3869;
-            --qr-light: #e6d9ef; --qr-paper: #f7f0fa;
+            --qr-main: #7b5a9e;
+            --qr-dark: #4e3869;
+            --qr-light: #e6d9ef;
+            --qr-paper: #f7f0fa;
         }
 
         /* =========================================================
@@ -2933,7 +2946,7 @@ $message1
             echo "
 
 <div class='message1'>
-These currencies are generated online but stored in cache memory(use for offline currency).
+Please ensure your currencies are synchronized. Currencies generated online are securely cached on your device for offline use.
 </div>
 
 ";
@@ -2958,25 +2971,25 @@ These currencies are generated online but stored in cache memory(use for offline
 
 
                     <?php
-                        $displayAmount = (float) decryptData($currency['amount']);
-                        $displayDenomination = number_format($displayAmount, 0, '.', '');
+                    $displayAmount = (float) decryptData($currency['amount']);
+                    $displayDenomination = number_format($displayAmount, 0, '.', '');
                     ?>
                     <?php
-                        $denominationClass = 'note-default';
+                    $denominationClass = 'note-default';
 
-                        if ($displayAmount == 10) {
-                            $denominationClass = 'note-10';
-                        } elseif ($displayAmount == 20) {
-                            $denominationClass = 'note-20';
-                        } elseif ($displayAmount == 50) {
-                            $denominationClass = 'note-50';
-                        } elseif ($displayAmount == 100) {
-                            $denominationClass = 'note-100';
-                        } elseif ($displayAmount == 200) {
-                            $denominationClass = 'note-200';
-                        } elseif ($displayAmount == 500) {
-                            $denominationClass = 'note-500';
-                        }
+                    if ($displayAmount == 10) {
+                        $denominationClass = 'note-10';
+                    } elseif ($displayAmount == 20) {
+                        $denominationClass = 'note-20';
+                    } elseif ($displayAmount == 50) {
+                        $denominationClass = 'note-50';
+                    } elseif ($displayAmount == 100) {
+                        $denominationClass = 'note-100';
+                    } elseif ($displayAmount == 200) {
+                        $denominationClass = 'note-200';
+                    } elseif ($displayAmount == 500) {
+                        $denominationClass = 'note-500';
+                    }
                     ?>
                     <article class="currency-card <?php echo $denominationClass; ?>"
                         data-denomination="<?php echo htmlspecialchars($displayDenomination, ENT_QUOTES, 'UTF-8'); ?>">
@@ -3407,13 +3420,27 @@ These currencies are generated online but stored in cache memory(use for offline
         }
 
         switch ((int)$verifiedQrAmount) {
-            case 10:  $qrDenominationClass = "qr-note-10"; break;
-            case 20:  $qrDenominationClass = "qr-note-20"; break;
-            case 50:  $qrDenominationClass = "qr-note-50"; break;
-            case 100: $qrDenominationClass = "qr-note-100"; break;
-            case 200: $qrDenominationClass = "qr-note-200"; break;
-            case 500: $qrDenominationClass = "qr-note-500"; break;
-            case 2000: $qrDenominationClass = "qr-note-2000"; break;
+            case 10:
+                $qrDenominationClass = "qr-note-10";
+                break;
+            case 20:
+                $qrDenominationClass = "qr-note-20";
+                break;
+            case 50:
+                $qrDenominationClass = "qr-note-50";
+                break;
+            case 100:
+                $qrDenominationClass = "qr-note-100";
+                break;
+            case 200:
+                $qrDenominationClass = "qr-note-200";
+                break;
+            case 500:
+                $qrDenominationClass = "qr-note-500";
+                break;
+            case 2000:
+                $qrDenominationClass = "qr-note-2000";
+                break;
         }
     }
     ?>

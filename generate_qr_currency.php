@@ -169,6 +169,8 @@ function storecache($u_mob, $serial_no, $encrypted_serial, $encrypted_amount, $c
 
         "completed_at" => null,
 
+        "update_at" => date("Y-m-d H:i:s"),
+
         "scanned_at" => null
 
     ];
