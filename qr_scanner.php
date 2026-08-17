@@ -111,7 +111,7 @@ try {
 
         $currency = mysqli_fetch_assoc($currency_result);
         // sender mobile
-        $sen_mob = $currency['sender_mobile'];
+        $sen_mob = $currency['sender_mobile'] ?? '';
 
         if (!$currency) {
 
@@ -171,7 +171,9 @@ try {
         }
     }
 } catch (Throwable $e) {
-    // 
+    echo '<script>
+          alert("⚠️ Warning: Something Wrong Occur.");
+          </script>';
 }
 require 'navbar.php';
 ?>
