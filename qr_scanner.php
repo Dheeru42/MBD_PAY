@@ -3,63 +3,175 @@ session_start();
 require 'conn.php';
 require 'currency_con.php';
 
+if (!isset($_SESSION['user'])) {
+    header("location:login.php");
+    exit;
+}
+
+
+if (!isset($_SESSION['user']) && isset($_COOKIE['remember_user'])) {
+    $_SESSION['user'] = $_COOKIE['remember_user'];
+}
+
+if (isset($_SESSION['mobile'])) {
+    $user_mob = $_SESSION['mobile'];
+}
+
+if (!isset($_SESSION['account'])) {
+    header("location:index.php");
+    exit;
+}
+
+$u_account = $_SESSION['account'];
+
+if (!isset($_SESSION['mobile'])) {
+    header("location:index.php");
+    exit;
+}
+
+if (!isset($_SESSION['mode'])) {
+    header("location:index.php");
+    exit;
+}
+
 $qrData = '';
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $qrData = trim($_POST['qr_data'] ?? '');
-        $data = json_decode($qrData, true);
-        $encrypted_currency_serial_no = $data['encrypted_currency_serial_no'] ?? '';
-        $currency_serial_no = $data['currency_serial_no'] ?? '';
 
-        if ($qrData !== '') {
-            // Get selected currency
-            $stmt = mysqli_prepare(
-                $c_conn,
-                "SELECT
-                        id,
-                        serial_no,
-                        encrypted_serial,
-                        amount,
-                        sender_mobile,
-                        receiver_mobile,
-                        status,
-                        generated_at
-                    FROM currency
-                    WHERE encrypted_serial=?
-                    AND serial_no=?
-                    AND status='GENERATED'
-                    LIMIT 1"
-            );
-
-            mysqli_stmt_bind_param(
-                $stmt,
-                "ss",
-                $encrypted_currency_serial_no,
-                $currency_serial_no
-            );
-
-            mysqli_stmt_execute($stmt);
-
-            $currency_result = mysqli_stmt_get_result($stmt);
-
-            $currency = mysqli_fetch_assoc($currency_result);
-
-            if($currency_result){
-            // to show currency is scanned
-            echo $currency['serial_no'];
-
-            echo $currency['status'] . "->";
-
-            $currency['status'] = 'SCANNED';
-
-            echo $currency['status'];
+        if ($qrData === '') {
+            throw new Exception('QR data is empty.');
         }
+
+        $data = json_decode($qrData, true);
+
+        if (!is_array($data)) {
+            throw new Exception('Invalid QR data. QR must contain valid JSON.');
+        }
+
+        $encrypted_currency_serial_no =
+            trim((string)($data['encrypted_currency_serial_no'] ?? ''));
+
+        $currency_serial_no =
+            trim((string)($data['currency_serial_no'] ?? ''));
+
+        if (
+            $encrypted_currency_serial_no === '' ||
+            $currency_serial_no === ''
+        ) {
+            throw new Exception(
+                'QR data does not contain currency serial information.'
+            );
+        }
+
+        $stmt = mysqli_prepare(
+            $c_conn,
+            "SELECT
+                id,
+                serial_no,
+                encrypted_serial,
+                amount,
+                sender_mobile,
+                receiver_mobile,
+                status,
+                generated_at
+             FROM currency
+             WHERE encrypted_serial = ?
+             AND serial_no = ?
+             AND status = 'GENERATED'
+             LIMIT 1"
+        );
+
+        if (!$stmt) {
+            throw new Exception(
+                'Database prepare failed: ' . mysqli_error($c_conn)
+            );
+        }
+
+        mysqli_stmt_bind_param(
+            $stmt,
+            "ss",
+            $encrypted_currency_serial_no,
+            $currency_serial_no
+        );
+
+        if (!mysqli_stmt_execute($stmt)) {
+            throw new Exception(
+                'Database query failed: ' . mysqli_stmt_error($stmt)
+            );
+        }
+
+        $currency_result = mysqli_stmt_get_result($stmt);
+
+        if (!$currency_result) {
+            throw new Exception('Unable to read currency record.');
+        }
+
+        $currency = mysqli_fetch_assoc($currency_result);
+        // sender mobile
+        $sen_mob = $currency['sender_mobile'];
+
+        if (!$currency) {
+
+            echo '<script>
+                alert("Currency not found, invalid, or already scanned.");
+            </script>';
+        } else {
+            if ($user_mob != $sen_mob) {
+                $updateStmt = mysqli_prepare(
+                    $c_conn,
+                    "UPDATE currency
+                 SET status = 'SCANNED',receiver_mobile = ?
+                 WHERE id = ?
+                 AND status = 'GENERATED'
+                 LIMIT 1"
+                );
+
+                if (!$updateStmt) {
+                    throw new Exception(
+                        'Status update prepare failed: ' . mysqli_error($c_conn)
+                    );
+                }
+
+                $currency_id = (int)$currency['id'];
+
+                mysqli_stmt_bind_param(
+                    $updateStmt,
+                    "si",
+                    $user_mob,
+                    $currency_id
+                );
+
+                if (!mysqli_stmt_execute($updateStmt)) {
+                    throw new Exception(
+                        'Currency status update failed: ' .
+                            mysqli_stmt_error($updateStmt)
+                    );
+                }
+
+                $serialForAlert =
+                    htmlspecialchars(
+                        $currency['serial_no'],
+                        ENT_QUOTES,
+                        'UTF-8'
+                    );
+
+                echo '<script>
+                alert("QR scanned successfully. Currency Serial No: ' .
+                    $serialForAlert .
+                    '");
+            </script>';
+            } else {
+                echo '<script>
+                      alert("⚠️ Warning: You cannot scan your own currency.");
+                      </script>';
+            }
         }
     }
 } catch (Throwable $e) {
-    echo 'hogaya';
+    // 
 }
 require 'navbar.php';
 ?>
@@ -82,6 +194,7 @@ require 'navbar.php';
 
     <!-- QR Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
     <style>
         * {
@@ -800,10 +913,7 @@ require 'navbar.php';
             processingQR = true;
 
 
-            console.log(
-                "QR DATA:",
-                decodedText
-            );
+            // QR payload is intentionally not logged or displayed.
 
 
             /*
@@ -1049,83 +1159,231 @@ require 'navbar.php';
         |--------------------------------------------------------------------------
         */
 
+        /*
+        |--------------------------------------------------------------------------
+        | READ UPLOADED QR IMAGE
+        |--------------------------------------------------------------------------
+        | html5-qrcode is tried first. If the image is difficult to decode
+        | because of resolution, scaling, rotation, or compression, jsQR is
+        | used as a fallback. The decoded value is never written to the page.
+        */
+
+        function submitDecodedUpload(decodedText) {
+            if (!decodedText || processingQR) {
+                return;
+            }
+
+            processingQR = true;
+
+            const statusElement = document.getElementById("scanStatus");
+            if (statusElement) {
+                statusElement.innerText = "🟢 QR detected. Processing...";
+            }
+
+            // Do not display/log the QR payload.
+            sendQRToPHP(decodedText);
+        }
+
+        function decodeUploadedImageWithJsQR(file) {
+            return new Promise(function(resolve, reject) {
+                if (typeof jsQR !== "function") {
+                    reject(new Error("QR fallback library not loaded."));
+                    return;
+                }
+
+                const image = new Image();
+                const objectUrl = URL.createObjectURL(file);
+
+                image.onload = function() {
+                    try {
+                        const maxSize = 2400;
+                        let width = image.naturalWidth;
+                        let height = image.naturalHeight;
+
+                        // Keep enough resolution for small QR modules.
+                        if (Math.max(width, height) > maxSize) {
+                            const scale = maxSize / Math.max(width, height);
+                            width = Math.round(width * scale);
+                            height = Math.round(height * scale);
+                        }
+
+                        const canvas = document.createElement("canvas");
+                        canvas.width = width;
+                        canvas.height = height;
+
+                        const ctx = canvas.getContext("2d", {
+                            willReadFrequently: true
+                        });
+
+                        ctx.drawImage(image, 0, 0, width, height);
+
+                        let imageData = ctx.getImageData(
+                            0,
+                            0,
+                            width,
+                            height
+                        );
+
+                        // First attempt: normal image.
+                        let result = jsQR(
+                            imageData.data,
+                            imageData.width,
+                            imageData.height, {
+                                inversionAttempts: "attemptBoth"
+                            }
+                        );
+
+                        // Second attempt: grayscale/contrast.
+                        if (!result) {
+                            const data = imageData.data;
+
+                            for (let i = 0; i < data.length; i += 4) {
+                                const gray = Math.round(
+                                    0.299 * data[i] +
+                                    0.587 * data[i + 1] +
+                                    0.114 * data[i + 2]
+                                );
+
+                                data[i] = gray;
+                                data[i + 1] = gray;
+                                data[i + 2] = gray;
+                            }
+
+                            result = jsQR(
+                                data,
+                                imageData.width,
+                                imageData.height, {
+                                    inversionAttempts: "attemptBoth"
+                                }
+                            );
+                        }
+
+                        // Third attempt: rotate 90 degrees.
+                        if (!result) {
+                            const rotated = document.createElement("canvas");
+                            rotated.width = height;
+                            rotated.height = width;
+
+                            const rctx = rotated.getContext("2d", {
+                                willReadFrequently: true
+                            });
+
+                            rctx.translate(height, 0);
+                            rctx.rotate(Math.PI / 2);
+                            rctx.drawImage(image, 0, 0, width, height);
+
+                            const rotatedData = rctx.getImageData(
+                                0,
+                                0,
+                                height,
+                                width
+                            );
+
+                            result = jsQR(
+                                rotatedData.data,
+                                rotatedData.width,
+                                rotatedData.height, {
+                                    inversionAttempts: "attemptBoth"
+                                }
+                            );
+                        }
+
+                        URL.revokeObjectURL(objectUrl);
+
+                        if (result && result.data) {
+                            resolve(result.data);
+                        } else {
+                            reject(new Error("QR code could not be decoded."));
+                        }
+                    } catch (error) {
+                        URL.revokeObjectURL(objectUrl);
+                        reject(error);
+                    }
+                };
+
+                image.onerror = function() {
+                    URL.revokeObjectURL(objectUrl);
+                    reject(new Error("Unable to read image."));
+                };
+
+                image.src = objectUrl;
+            });
+        }
+
         document.getElementById(
             "qrImageInput"
         ).addEventListener(
-
             "change",
+            async function(event) {
 
-            function(event) {
-
-                const file =
-                    event.target.files[0];
-
+                const file = event.target.files[0];
 
                 if (!file) {
                     return;
                 }
 
+                const statusElement =
+                    document.getElementById("scanStatus");
+
+                if (statusElement) {
+                    statusElement.innerText =
+                        "🔎 Reading QR image...";
+                }
+
+                processingQR = false;
 
                 const imageScanner =
                     new Html5Qrcode("reader");
 
+                try {
+                    /*
+                    |--------------------------------------------------------------------------
+                    | METHOD 1: html5-qrcode
+                    |--------------------------------------------------------------------------
+                    */
+                    const decodedText =
+                        await imageScanner.scanFile(file, true);
 
-                imageScanner.scanFile(
+                    imageScanner.clear();
 
-                        file,
+                    submitDecodedUpload(decodedText);
 
-                        true
+                } catch (firstError) {
 
-                    )
-
+                    try {
+                        imageScanner.clear();
+                    } catch (e) {
+                        // Ignore cleanup errors.
+                    }
 
                     /*
                     |--------------------------------------------------------------------------
-                    | QR IMAGE FOUND
+                    | METHOD 2: jsQR FALLBACK
                     |--------------------------------------------------------------------------
                     */
+                    try {
+                        const decodedText =
+                            await decodeUploadedImageWithJsQR(file);
 
-                    .then(function(decodedText) {
+                        submitDecodedUpload(decodedText);
 
-                        console.log(
-                            "UPLOADED IMAGE QR:",
-                            decodedText
+                    } catch (secondError) {
+
+                        if (statusElement) {
+                            statusElement.innerText =
+                                "❌ QR code could not be read. Please upload a clear QR image.";
+                        }
+
+                        console.error(
+                            "QR image decoding failed."
                         );
+                    }
+                }
 
-
-                        qrFound(decodedText);
-
-
-                        imageScanner.clear();
-
-                    })
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | QR IMAGE ERROR
-                    |--------------------------------------------------------------------------
-                    */
-
-                    .catch(function(error) {
-
-                        imageScanner.clear();
-
-
-                        document.getElementById(
-                                "scanStatus"
-                            ).innerText =
-                            "❌ No QR code found in this image.";
-
-
-                        console.error(error);
-
-                    });
-
+                // Allow selecting the same image again.
+                event.target.value = "";
             }
-
         );
-
 
         /*
         |--------------------------------------------------------------------------
