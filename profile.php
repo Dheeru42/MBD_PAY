@@ -38,6 +38,7 @@ try {
     $email = $user['email'];
     $account = $user['account_no'];
     $mobile = $user['mobile'];
+    $wallet_id = $user['wallet_id'];
     $balance = decryptData($user['balance']);
 
     $initial = strtoupper(substr($name, 0, 1));
@@ -57,6 +58,7 @@ try {
     $_SESSION['email'] = decryptData($cache['email']);
     $_SESSION['account'] = decryptData($cache['account']);
     $_SESSION['mobile'] = decryptData($cache['mobile']);
+    $_SESSION['wallet_id'] = decryptData($cache['wallet_id']);
     $balance = decryptData($cache['balance']);
 }
 ?>
@@ -448,6 +450,19 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     <h3>Personal Information</h3>
 
                     <div class="profile-info">
+                        <div class="profile-label">Wallet ID</div>
+                        <div class="profile-value">
+                            <?php
+                            if ($serverConnected) {
+                                echo htmlspecialchars($wallet_id);
+                            } else {
+                                echo htmlspecialchars($_SESSION['wallet_id']);
+                            }
+                            ?>
+                        </div>
+                    </div>
+
+                    <div class="profile-info">
                         <div class="profile-label">Full Name</div>
                         <div class="profile-value">
                             <?php
@@ -465,10 +480,11 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                         <div class="profile-label">Mobile Number</div>
                         <div class="profile-value">
                             <?php if ($serverConnected) {
-
-                                echo htmlspecialchars($mobile);
+                                $masked_mobile = substr($mobile, 0, 3) . '****' . substr($mobile, -3);
+                                echo htmlspecialchars($masked_mobile);
                             } else {
-                                echo htmlspecialchars($_SESSION['mobile']);
+                                $masked_mobile = substr($_SESSION['mobile'], 0, 3) . '****' . substr($_SESSION['mobile'], -3);
+                                echo htmlspecialchars($masked_mobile);
                             } ?>
                         </div>
                     </div>
@@ -477,10 +493,11 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                         <div class="profile-label">Email Address</div>
                         <div class="profile-value">
                             <?php if ($serverConnected) {
-
-                                echo htmlspecialchars($email);
+                                $masked_email = substr($email, 0, 5) . '***' . substr($email, -5);
+                                echo htmlspecialchars($masked_email);
                             } else {
-                                echo htmlspecialchars($_SESSION['email']);
+                                $masked_email = substr($_SESSION['email'], 0, 5) . '***' . substr($_SESSION['email'], -5);
+                                echo htmlspecialchars($masked_email);
                             } ?>
                         </div>
                     </div>
@@ -496,10 +513,11 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                         <div class="profile-label">Linked Account Number</div>
                         <div class="profile-value">
                             <?php if ($serverConnected) {
-
-                                echo htmlspecialchars($account);
+                                $masked_account = substr($account, 0, 3) . '****' . substr($account, -3);
+                                echo htmlspecialchars($masked_account);
                             } else {
-                                echo htmlspecialchars($_SESSION['account']);
+                                $masked_account = substr($_SESSION['account'], 0, 3) . '****' . substr($_SESSION['account'], -3);
+                                echo htmlspecialchars($masked_account);
                             } ?>
                         </div>
                     </div>

@@ -60,7 +60,7 @@ function decryptData($text)
 
 
 /* Save User Data */
-function saveUserCache($name, $account, $mobile, $email, $password, $pin, $balance = 0)
+function saveUserCache($name, $wallet_id, $account, $mobile, $email, $password, $pin, $balance = 0)
 {
     $userId = hash("sha256", $mobile);
 
@@ -76,6 +76,8 @@ function saveUserCache($name, $account, $mobile, $email, $password, $pin, $balan
     $data = [
 
         "identifier" => $userId,
+
+        "wallet_id" => encryptData($wallet_id),
 
         "name" => encryptData($name),
 
@@ -108,7 +110,6 @@ function saveUserCache($name, $account, $mobile, $email, $password, $pin, $balan
 }
 
 
-
 // SIGNUP
 
 try {
@@ -130,7 +131,9 @@ try {
                         AND name='$name'
                         AND mobile='$mobile'";
             $b_result = mysqli_query($bank_conn, $bankSql);
+
             if (mysqli_num_rows($b_result) > 0) {
+
                 // Check if already registered in MBD Pay
                 $checkSql = "SELECT id FROM users
                              WHERE account_no='$acc1'";
@@ -141,22 +144,38 @@ try {
                     // Store user in MBD Pay Server
                     $acc = $_POST['account'];
 
+                    // fetch id from bank server
+                    $bankUser = mysqli_fetch_assoc($b_result);
+
+                    $bank_user_id = $bankUser['id'];
+
                     // intial MBD PAY Balance
                     $s_balance = 0;
                     $e_s_balance = encryptData($s_balance);
 
+                    // create unique wallet id for user by entry make
+
+                    $year = date("y");
+
+                    $wallet_id = "MBD" . $year . str_pad(
+                        $bank_user_id,
+                        2,
+                        "0",
+                        STR_PAD_LEFT
+                    );
+
                     $insertSql = "INSERT INTO users
-                    (name,account_no,mobile,email,password,pin,balance)
+                    (wallet_id,name,account_no,mobile,email,password,pin,balance)
                     VALUES
-                    ('$name',$acc,'$mobile','$email','$password','$pin','$e_s_balance')";
+                    ('$wallet_id','$name',$acc,'$mobile','$email','$password','$pin','$e_s_balance')";
                     if (mysqli_query($conn, $insertSql)) {
 
-                        $message = "Account Verified.";
+                        $message = "Account Created.Now Log In";
 
                         // create catch file
-                        saveUserCache($name, $acc, $mobile, $email, $password, $pin, 0);
+                        saveUserCache($name, $wallet_id, $acc, $mobile, $email, $password, $pin, 0);
                     } else {
-                        $message1 = "Account Not Verified.";
+                        $message1 = "Account Not Created.";
                     }
                 }
             } else {
@@ -168,7 +187,7 @@ try {
     }
 } catch (\Throwable $th) {
 
-    $message1 = "Please connect to the Internet.";
+    $message1 = "Some Thing Wrong.";
 }
 
 
@@ -243,6 +262,8 @@ try {
 
                             $user['name'],
 
+                            $user['wallet_id'],
+
                             $user['account_no'],
 
                             $user['mobile'],
@@ -263,6 +284,8 @@ try {
                     $_SESSION['user'] = $user['name'];
 
                     $_SESSION['mobile'] = $user['mobile'];
+
+                    $_SESSION['wallet_id'] = $user['wallet_id'];
 
                     $_SESSION['balance'] = decryptData($user['balance']);
 
@@ -310,6 +333,10 @@ try {
                     $_SESSION['mobile']
                         =
                         decryptData($cache['mobile']);
+                    
+                        $_SESSION['wallet_id']
+                        =
+                        decryptData($cache['wallet_id']);
 
 
 

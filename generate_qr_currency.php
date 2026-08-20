@@ -43,6 +43,14 @@ $user_id = (int) $_SESSION['user'];
 
 $u_account = $_SESSION['account'];
 
+if (!isset($_SESSION['wallet_id'])) {
+
+    header("location:login.php");
+    exit;
+}
+
+$u_wallet_id = $_SESSION['wallet_id'];
+
 $mess_c = "";
 $m_type = "";
 
@@ -283,7 +291,8 @@ try {
                 id,
                 name,
                 balance,
-                pin
+                pin,
+                wallet_id
              FROM users
              WHERE account_no = ?
              LIMIT 1"
@@ -369,7 +378,8 @@ try {
                     id,
                     name,
                     balance,
-                    pin
+                    pin,
+                    wallet_id
                  FROM users
                  WHERE account_no = ?
                  LIMIT 1

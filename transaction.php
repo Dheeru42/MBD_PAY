@@ -81,6 +81,14 @@ if (!isset($_SESSION['mode'])) {
     exit;
 }
 
+if (!isset($_SESSION['wallet_id'])) {
+
+    header("location:login.php");
+    exit;
+}
+
+$u_wallet_id = $_SESSION['wallet_id'];
+
 $transactions = [];
 $message = "";
 $message1 = "";
@@ -97,7 +105,7 @@ try {
     // Fetch Account Details
 
     $accountSql =
-        "SELECT balance,name 
+        "SELECT balance,name,wallet_id 
      FROM users 
      WHERE mobile=?";
 
@@ -129,6 +137,8 @@ try {
         $current_balance = decryptData($account['balance']);
 
         $account_holder = $account['name'];
+
+        $wallet_id = $account['wallet_id'];
 
 
 
@@ -528,10 +538,10 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
         .currency {
-
-            background: #d7d3ce;
-            color: #e26e09;
-
+            background: linear-gradient(135deg, #36967c, #059669);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 24px rgba(5, 150, 105, 0.25);
         }
 
         .withdrawl {
@@ -708,6 +718,10 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     <?php echo $account_holder; ?>
                 </h2>
 
+                <p>
+                    Wallet ID : <?php echo $wallet_id; ?>
+                </p>
+                
                 <p>
                     Mobile Number : <?php echo $u_mobile; ?>
                 </p>

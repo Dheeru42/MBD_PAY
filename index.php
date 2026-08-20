@@ -47,6 +47,14 @@ if (!isset($_SESSION['user'])) {
     exit;
 }
 
+if (!isset($_SESSION['wallet_id'])) {
+
+    header("location:login.php");
+    exit;
+}
+
+$u_wallet_id = $_SESSION['wallet_id'];
+
 $u_account = $_SESSION['account'];
 $u_mob = $_SESSION['mobile'];
 

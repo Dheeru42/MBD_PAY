@@ -21,6 +21,24 @@ if (!isset($_SESSION['account'])) {
     exit;
 }
 
+$u_account = $_SESSION['account'];
+
+if (!isset($_SESSION['mobile'])) {
+    header("location:index.php");
+    exit;
+}
+
+$u_mobile = $_SESSION['mobile'];
+
+
+if (!isset($_SESSION['wallet_id'])) {
+
+    header("location:login.php");
+    exit;
+}
+
+$u_wallet_id = $_SESSION['wallet_id'];
+
 /*
 |--------------------------------------------------------------------------
 | ENCRYPT / DECRYPT
@@ -79,6 +97,7 @@ try {
                 status,
                 generated_at
             FROM currency
+            WHERE sender_mobile = $u_mobile
             ORDER BY generated_at DESC";
 
     $result = mysqli_query($c_conn, $sql);
@@ -824,6 +843,7 @@ function statusIcon($status)
                                 <th>Receiver</th>
                                 <th>Status</th>
                                 <th>Generated At</th>
+                                <th>Scanned At</th>
                             </tr>
                         </thead>
 
@@ -885,7 +905,13 @@ function statusIcon($status)
                                     </td>
 
                                     <td class="mobile">
-                                        <?php echo e($receiver); ?>
+                                         <?php if (!empty($receiver)) {
+                                            echo e($receiver); 
+                                        }
+                                        else{
+                                            echo '—';
+                                        }
+                                            ?>
                                     </td>
 
                                     <td>
@@ -902,6 +928,21 @@ function statusIcon($status)
                                                 date(
                                                     'd M Y, h:i A',
                                                     strtotime($currency['generated_at'])
+                                                )
+                                            );
+                                        } else {
+                                            echo '—';
+                                        }
+                                        ?>
+                                    </td>
+                                    
+                                    <td class="date">
+                                        <?php
+                                        if (!empty($currency['scanned_at'])) {
+                                            echo e(
+                                                date(
+                                                    'd M Y, h:i A',
+                                                    strtotime($currency['scanned_at'])
                                                 )
                                             );
                                         } else {

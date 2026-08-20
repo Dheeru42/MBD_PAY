@@ -3134,11 +3134,12 @@ Please ensure your currencies are synchronized. Currencies generated online are 
 
                                             <?php if ($serverConnected) {
                                                 echo htmlspecialchars(
-                                                    $currency['sender_mobile']
+                                                    substr($currency['sender_mobile'], 0, 3) . '****' . substr($currency['sender_mobile'], -3)
                                                 );
                                             } else {
+                                                $sender_mob = decryptData($currency['sender_mobile']);
                                                 echo htmlspecialchars(
-                                                    decryptData($currency['sender_mobile'])
+                                                    substr($sender_mob, 0, 3) . '****' . substr($sender_mob, -3)
                                                 );
                                             }
                                             ?>
@@ -3176,6 +3177,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
                                                 ) {
 
                                                     echo htmlspecialchars(
+                                                        
                                                         decryptData($currency['receiver_mobile'])
                                                     );
                                                 } else {
