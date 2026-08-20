@@ -130,7 +130,7 @@ try {
                 alert("Currency not found, invalid, or already scanned.");
             </script>';
         } else {
-            $c_conn->begin_transaction();
+            // $c_conn->begin_transaction();
             if ($user_mob != $sen_mob) {
                 $updateStmt = mysqli_prepare(
                     $c_conn,
@@ -188,8 +188,6 @@ try {
           </script>';
 }
 
-// add navbar to page
-require 'navbar.php';
 ?>
 
 <!DOCTYPE html>
@@ -729,6 +727,7 @@ require 'navbar.php';
 </head>
 
 <body>
+    <?php require "navbar.php"; ?>
 
     <div class="qr-wrapper">
 
