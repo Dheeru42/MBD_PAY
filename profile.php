@@ -27,6 +27,44 @@ function decryptData($text)
     );
 }
 
+// login authentication
+
+if (!isset($_SESSION['user'])) {
+
+    header("location:login.php");
+    exit;
+}
+
+$u_account = $_SESSION['account'];
+
+if (!isset($_SESSION['user']) && isset($_COOKIE['remember_user'])) {
+    $_SESSION['user'] = $_COOKIE['remember_user'];
+}
+
+
+if (isset($_SESSION['user'])) {
+
+    $username = $_SESSION['user'];
+}
+
+if (isset($_SESSION['mobile'])) {
+    $u_mob = $_SESSION['mobile'];
+}
+
+if (!isset($_SESSION['account'])) {
+    header("location:login.php");
+    exit;
+}
+
+if (!isset($_SESSION['wallet_id'])) {
+
+    header("location:login.php");
+    exit;
+}
+
+$u_wallet_id = $_SESSION['wallet_id'];
+
+// access profile data from server
 try {
     $mobile = $_SESSION['mobile'];
 
@@ -38,7 +76,7 @@ try {
     $email = $user['email'];
     $account = $user['account_no'];
     $mobile = $user['mobile'];
-    $wallet_id = $user['wallet_id'];
+    $wallet_id = $user['wallet_id'] ?? "";
     $balance = decryptData($user['balance']);
 
     $initial = strtoupper(substr($name, 0, 1));
@@ -58,7 +96,7 @@ try {
     $_SESSION['email'] = decryptData($cache['email']);
     $_SESSION['account'] = decryptData($cache['account']);
     $_SESSION['mobile'] = decryptData($cache['mobile']);
-    $_SESSION['wallet_id'] = decryptData($cache['wallet_id']);
+    $_SESSION['wallet_id_cache'] = decryptData($cache['wallet_id'] ?? "");
     $balance = decryptData($cache['balance']);
 }
 ?>
@@ -456,7 +494,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                             if ($serverConnected) {
                                 echo htmlspecialchars($wallet_id);
                             } else {
-                                echo htmlspecialchars($_SESSION['wallet_id']  ??  " ");
+                                echo htmlspecialchars($_SESSION['wallet_id_cache']);
                             }
                             ?>
                         </div>

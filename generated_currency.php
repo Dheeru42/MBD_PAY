@@ -84,7 +84,13 @@ if (!isset($_SESSION['account'])) {
     exit;
 }
 
+if (!isset($_SESSION['wallet_id'])) {
 
+    header("location:login.php");
+    exit;
+}
+
+$u_wallet_id = $_SESSION['wallet_id'];
 
 /*
 |--------------------------------------------------------------------------
@@ -141,15 +147,17 @@ try {
                  FROM currency
                  WHERE id=?
                  AND sender_mobile=?
+                 AND wallet_id = ?
                  AND status='GENERATED'
                  LIMIT 1"
             );
 
             mysqli_stmt_bind_param(
                 $stmt,
-                "is",
+                "iss",
                 $currency_id,
-                $u_mob
+                $u_mob,
+                $u_wallet_id
             );
 
             mysqli_stmt_execute($stmt);

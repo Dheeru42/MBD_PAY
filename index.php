@@ -1196,7 +1196,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                         <a href="synchronize.php" class="action-btn">
                             🔄
-                            <span>Syncrinization</span>
+                            <span>Syncronization</span>
                         </a>
 
                     </div>

@@ -95,6 +95,13 @@ if (!isset($_SESSION['mode'])) {
     exit;
 }
 
+
+if (!isset($_SESSION['wallet_id'])) {
+    header("location:index.php");
+    exit;
+}
+$u_wallet_id = $_SESSION['wallet_id'];
+
 // make serever connection
 try {
     $mobile = $_SESSION['mobile'];

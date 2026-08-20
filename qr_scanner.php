@@ -42,6 +42,8 @@ if (!isset($_SESSION['mode'])) {
     exit;
 }
 
+
+// qr scan data is serve to server for credit and debit
 $qrData = '';
 
 try {
@@ -78,6 +80,7 @@ try {
             $c_conn,
             "SELECT
                 id,
+                wallet_id,
                 serial_no,
                 encrypted_serial,
                 amount,
@@ -127,6 +130,7 @@ try {
                 alert("Currency not found, invalid, or already scanned.");
             </script>';
         } else {
+            $c_conn->begin_transaction();
             if ($user_mob != $sen_mob) {
                 $updateStmt = mysqli_prepare(
                     $c_conn,
@@ -183,6 +187,8 @@ try {
           alert("⚠️ Warning: Something Wrong Occur.");
           </script>';
 }
+
+// add navbar to page
 require 'navbar.php';
 ?>
 

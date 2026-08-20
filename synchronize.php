@@ -11,11 +11,34 @@ date_default_timezone_set('Asia/Kolkata');
 |--------------------------------------------------------------------------
 */
 
-if (!isset($_SESSION['user'])) {
-    header("Location: login.php");
+$u_account = $_SESSION['account'];
+
+if (!isset($_SESSION['user']) && isset($_COOKIE['remember_user'])) {
+    $_SESSION['user'] = $_COOKIE['remember_user'];
+}
+
+
+if (isset($_SESSION['user'])) {
+
+    $username = $_SESSION['user'];
+}
+
+if (isset($_SESSION['mobile'])) {
+    $u_mob = $_SESSION['mobile'];
+}
+
+if (!isset($_SESSION['account'])) {
+    header("location:login.php");
     exit;
 }
 
+if (!isset($_SESSION['wallet_id'])) {
+
+    header("location:login.php");
+    exit;
+}
+
+$u_wallet_id = $_SESSION['wallet_id'];
 
 /*
 |--------------------------------------------------------------------------
