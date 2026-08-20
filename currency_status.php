@@ -98,6 +98,7 @@ try {
                 generated_at
             FROM currency
             WHERE sender_mobile = $u_mobile
+            AND wallet_id = '$u_wallet_id'
             ORDER BY generated_at DESC";
 
     $result = mysqli_query($c_conn, $sql);
@@ -820,7 +821,7 @@ function statusIcon($status)
         <section class="table-card">
 
             <div class="table-head">
-                <h2>Server Currency Records</h2>
+                <h2>MBD Currency Records</h2>
 
                 <span class="record-count" id="visibleCount">
                     Showing <?php echo number_format($total_currency); ?> records
@@ -835,7 +836,6 @@ function statusIcon($status)
 
                         <thead>
                             <tr>
-                                <th>#</th>
                                 <th>ID</th>
                                 <th>Serial Number</th>
                                 <th>Amount</th>
@@ -881,11 +881,6 @@ function statusIcon($status)
                                         <?php echo $index + 1; ?>
                                     </td>
 
-                                    <td>
-                                        <strong>
-                                            #<?php echo e($currency['id'] ?? ''); ?>
-                                        </strong>
-                                    </td>
 
                                     <td>
                                         <div class="serial">
@@ -901,17 +896,16 @@ function statusIcon($status)
                                     </td>
 
                                     <td class="mobile">
-                                        <?php echo e($sender); ?>
+                                        <?php echo e(substr($sender, 0, 3) . '****' . substr($sender, -3)); ?>
                                     </td>
 
                                     <td class="mobile">
-                                         <?php if (!empty($receiver)) {
-                                            echo e($receiver); 
-                                        }
-                                        else{
+                                        <?php if (!empty($receiver)) {
+                                            echo e(substr($receiver, 0, 3) . '****' . substr($receiver, -3));
+                                        } else {
                                             echo '—';
                                         }
-                                            ?>
+                                        ?>
                                     </td>
 
                                     <td>
@@ -935,7 +929,7 @@ function statusIcon($status)
                                         }
                                         ?>
                                     </td>
-                                    
+
                                     <td class="date">
                                         <?php
                                         if (!empty($currency['scanned_at'])) {

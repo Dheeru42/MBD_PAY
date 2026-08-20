@@ -17,6 +17,14 @@ if (isset($_SESSION['mobile'])) {
     $user_mob = $_SESSION['mobile'];
 }
 
+if (!isset($_SESSION['wallet_id'])) {
+
+    header("location:login.php");
+    exit;
+}
+
+$u_wallet_id = $_SESSION['wallet_id'];
+
 if (!isset($_SESSION['account'])) {
     header("location:index.php");
     exit;

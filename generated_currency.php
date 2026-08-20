@@ -3177,7 +3177,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
                                                 ) {
 
                                                     echo htmlspecialchars(
-                                                        
+
                                                         decryptData($currency['receiver_mobile'])
                                                     );
                                                 } else {

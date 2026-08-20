@@ -333,8 +333,8 @@ try {
                     $_SESSION['mobile']
                         =
                         decryptData($cache['mobile']);
-                    
-                        $_SESSION['wallet_id']
+
+                    $_SESSION['wallet_id']
                         =
                         decryptData($cache['wallet_id']);
 

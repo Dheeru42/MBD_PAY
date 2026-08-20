@@ -538,10 +538,8 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
         .currency {
-            background: linear-gradient(135deg, #36967c, #059669);
-            color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 8px 24px rgba(5, 150, 105, 0.25);
+           background: #ffe0e0;
+            color: #d00000;
         }
 
         .withdrawl {
@@ -721,7 +719,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                 <p>
                     Wallet ID : <?php echo $wallet_id; ?>
                 </p>
-                
+
                 <p>
                     Mobile Number : <?php echo $u_mobile; ?>
                 </p>
@@ -836,10 +834,10 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                                     $type = "debit";
                                 } elseif ($row['type'] == "Currency Received") {
 
-                                    $type = "withdrawl";
+                                    $type = "credit";
                                 } elseif ($row['type'] == "Currency Generated") {
 
-                                    $type = "currency";
+                                    $type = "debit";
                                 } else {
 
                                     $type = "transfer";

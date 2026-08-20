@@ -643,6 +643,7 @@ try {
             $stmt = $c_conn->prepare(
                 "INSERT INTO currency
                 (
+                    wallet_id,
                     serial_no,
                     encrypted_serial,
                     sender_mobile,
@@ -652,6 +653,7 @@ try {
                 )
                 VALUES
                 (
+                    ?,
                     ?,
                     ?,
                     ?,
@@ -675,7 +677,8 @@ try {
 
 
             $stmt->bind_param(
-                "sssss",
+                "ssssss",
+                $u_wallet_id,
                 $serial_no,
                 $encrypted_serial,
                 $u_mob,
@@ -2618,7 +2621,7 @@ try {
                             ₹200
 
                         </button>
-                        
+
                         <button
                             type="button"
                             onclick="setAmount(500)">

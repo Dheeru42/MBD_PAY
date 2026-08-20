@@ -456,7 +456,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                             if ($serverConnected) {
                                 echo htmlspecialchars($wallet_id);
                             } else {
-                                echo htmlspecialchars($_SESSION['wallet_id']);
+                                echo htmlspecialchars($_SESSION['wallet_id']  ??  " ");
                             }
                             ?>
                         </div>
