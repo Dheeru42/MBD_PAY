@@ -293,7 +293,9 @@ try {
 
                     $_SESSION['mode'] = "ONLINE";
 
-                    header("location:index.php");
+                    // header("location:index.php");
+                    // update at login time
+                    header("location:synchronize_login.php");
 
                     exit;
                 } else {
