@@ -5,6 +5,8 @@ session_start();
 // default time zone 
 date_default_timezone_set('Asia/Kolkata');
 
+// last syn
+$_SESSION['last_update'] = date("h:i:s A");
 
 /*
 |--------------------------------------------------------------------------

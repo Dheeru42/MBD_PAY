@@ -2,8 +2,11 @@
 
 session_start();
 
+// default time zone 
 date_default_timezone_set('Asia/Kolkata');
 
+// last syn
+$_SESSION['last_update'] = date("h:i:s A");
 
 /*
 |--------------------------------------------------------------------------
@@ -47,6 +50,7 @@ $u_wallet_id = $_SESSION['wallet_id'];
 */
 
 require_once __DIR__ . '/currency_con.php';
+require 'conn.php';
 
 
 /*
@@ -521,6 +525,46 @@ if ($c_conn->connect_errno) {
     die('Database connection failed: ' .
         $c_conn->connect_error);
 }
+
+// synchronize profile data at login time
+
+try {
+    // mbd pay balance
+    $Sql1 = "SELECT * FROM users WHERE mobile='$u_mob' AND account_no = '$u_account'";
+    $result1 = mysqli_query($conn, $Sql1);
+    if ($w_user = mysqli_fetch_assoc($result1)) {
+        $available_wallet = $w_user['balance'];
+        $userId = hash("sha256", $u_mob);
+        
+        $file = "cache/users/$userId/profile.json";
+        
+
+        if (file_exists($file)) {
+
+            $data = json_decode(
+                file_get_contents($file),
+                true
+            );
+
+            $data['balance'] = $available_wallet;
+
+            $data['update_at'] = date("Y-m-d H:i:s");
+
+
+
+            file_put_contents(
+                $file,
+                json_encode(
+                    $data,
+                    JSON_PRETTY_PRINT
+                )
+            );
+        }
+    }
+} catch (\Throwable $th) {
+    echo 'aagyaa';
+}
+
 
 
 /*
@@ -1426,7 +1470,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         </h1>
 
         <p class="description">
-            Updating your MBD Pay currency data.
+            Updating your MBD Pay Cache data.
             Please wait...
         </p>
 

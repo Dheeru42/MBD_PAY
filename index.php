@@ -79,13 +79,8 @@ if (!isset($_SESSION['account'])) {
     exit;
 }
 
-// SERVER STATUS
-
-if (!$serverConnected) {
-    // Update last successful sync time
-    $_SESSION['last_sync'] = date("h:i:s A");
-}
-
+// last update cache
+$last_update = $_SESSION['last_update'];
 
 // available balance
 
@@ -1167,13 +1162,8 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                     <div class="sync-time">
                         Last Sync •
-
                         <?php
-                        if ($serverConnected) {
-                            echo "Just Now";
-                        } else {
-                            echo $_SESSION['last_sync'];
-                        }
+                        echo $last_update;
                         ?>
                     </div>
 
