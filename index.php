@@ -46,6 +46,13 @@ if (!isset($_SESSION['user'])) {
     header("location:login.php");
     exit;
 }
+if($serverConnected){
+if (!isset($_SESSION['last_update'])) {
+
+    header("location:synchronize_login.php");
+    exit;
+}
+}
 
 if (!isset($_SESSION['wallet_id'])) {
 
@@ -80,7 +87,9 @@ if (!isset($_SESSION['account'])) {
 }
 
 // last update cache
-$last_update = $_SESSION['last_update'];
+if ($serverConnected) {
+    $last_update = $_SESSION['last_update'];
+}
 
 // available balance
 
@@ -107,6 +116,7 @@ try {
     );
     $cache['balance'] = decryptData($cache['balance']);
     $_SESSION['balance'] = $cache['balance'];
+    $last_update = date("H:i:s", strtotime($cache['update_at']));
 }
 
 /*FETCH GENERATED CURRENCIES*/
