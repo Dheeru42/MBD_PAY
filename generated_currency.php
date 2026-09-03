@@ -1804,7 +1804,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             margin-top: 6px;
             color: rgba(23, 85, 58, .52);
             font-family: Georgia, "Times New Roman", serif;
-            font-size: 8px;
+            font-size: 10px;
             letter-spacing: 1px;
             text-align: center;
         }

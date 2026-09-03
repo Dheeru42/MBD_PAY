@@ -242,6 +242,60 @@ try {
             'completed_at'   => date('Y-m-d H:i:s'),
         ];
 
+        $data = $_SESSION['qr_result'];
+        echo $data['transaction_id'];
+
+
+        // Update MBD Pay wallet
+
+        /*
+        write code foe update wallet balance
+        */
+
+
+        // Update MBD Pay Transaction
+
+        /*   $walletTransaction = "
+            INSERT INTO transactions
+            (
+            transaction_id,
+            mobile,
+            type,
+            amount,
+            balance_before,
+            balance_after,
+            description,
+            status
+            )
+            VALUES
+            (?,?,?,?,?,?,?,?)
+        ";
+
+
+            $stmt1 = mysqli_prepare($conn, $walletTransaction);
+
+
+            $type = "Credit";
+            $st = 'Success';
+            $desc = "Wallet recharge from bank account";
+
+
+            mysqli_stmt_bind_param(
+                $stmt1,
+                "ssssssss",
+                $transaction_id,
+                $mobile,
+                $type,
+                $e_amount,
+                $e_u_bal,
+                $wallet_balance,
+                $desc,
+                $st
+            );
+
+
+            mysqli_stmt_execute($stmt1);
+*/
         header('Location: qr_success.php');
         exit;
     }
