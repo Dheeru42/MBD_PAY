@@ -3,6 +3,8 @@ session_start();
 require 'conn.php';
 require 'currency_con.php';
 
+date_default_timezone_set('Asia/Kolkata');
+
 if (!isset($_SESSION['user'])) {
     header("location:login.php");
     exit;
@@ -42,9 +44,75 @@ if (!isset($_SESSION['mode'])) {
     exit;
 }
 
+define("SECRET_KEY", "MBDPAY@2026_SUPER_SECRET_KEY_32");
 
-// qr scan data is serve to server for credit and debit
+/* Encrypt Function */
+function encryptData($text)
+{
+    $key = hash("sha256", SECRET_KEY, true);
+    $iv  = random_bytes(16);
+
+    $cipher = openssl_encrypt(
+        $text,
+        "AES-256-CBC",
+        $key,
+        OPENSSL_RAW_DATA,
+        $iv
+    );
+
+    return base64_encode($iv . $cipher);
+}
+
+/* Decrypt Function */
+
+function decryptData($text)
+{
+    $key = hash("sha256", SECRET_KEY, true);
+
+    $data = base64_decode($text);
+
+    $iv = substr($data, 0, 16);
+
+    $cipher = substr($data, 16);
+
+
+    return openssl_decrypt(
+        $cipher,
+        "AES-256-CBC",
+        $key,
+        OPENSSL_RAW_DATA,
+        $iv
+    );
+}
+
+
+// QR scan data is served to server for credit/debit processing.
+// Transaction result is stored in the session so sensitive transaction
+// information is not exposed in the success/failure URL.
 $qrData = '';
+
+function createTransactionId(): string
+{
+    return 'MBD' . date('YmdHis') . strtoupper(bin2hex(random_bytes(3)));
+}
+
+function setQrFailure(string $reason, array $details = []): void
+{
+    $_SESSION['qr_result'] = array_merge([
+        'transaction_id' => createTransactionId(),
+        'status'         => 'FAILED',
+        'reason'         => $reason,
+        'amount'         => $details['amount'] ?? null,
+        'serial_no'      => $details['serial_no'] ?? null,
+        'sender_mobile'  => $details['sender_mobile'] ?? null,
+        'receiver_mobile' => $details['receiver_mobile'] ?? null,
+        'generated_at'   => $details['generated_at'] ?? null,
+        'completed_at'   => date('Y-m-d H:i:s'),
+    ], $details);
+
+    header('Location: qr_fail.php');
+    exit;
+}
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -52,13 +120,13 @@ try {
         $qrData = trim($_POST['qr_data'] ?? '');
 
         if ($qrData === '') {
-            throw new Exception('QR data is empty.');
+            setQrFailure('QR data is empty. Please scan a valid QR code.');
         }
 
         $data = json_decode($qrData, true);
 
         if (!is_array($data)) {
-            throw new Exception('Invalid QR data. QR must contain valid JSON.');
+            setQrFailure('Invalid QR code. The QR data format is not supported.');
         }
 
         $encrypted_currency_serial_no =
@@ -67,13 +135,8 @@ try {
         $currency_serial_no =
             trim((string)($data['currency_serial_no'] ?? ''));
 
-        if (
-            $encrypted_currency_serial_no === '' ||
-            $currency_serial_no === ''
-        ) {
-            throw new Exception(
-                'QR data does not contain currency serial information.'
-            );
+        if ($encrypted_currency_serial_no === '' || $currency_serial_no === '') {
+            setQrFailure('This QR code does not contain valid currency information.');
         }
 
         $stmt = mysqli_prepare(
@@ -96,22 +159,18 @@ try {
         );
 
         if (!$stmt) {
-            throw new Exception(
-                'Database prepare failed: ' . mysqli_error($c_conn)
-            );
+            throw new Exception('Database prepare failed.');
         }
 
         mysqli_stmt_bind_param(
             $stmt,
-            "ss",
+            'ss',
             $encrypted_currency_serial_no,
             $currency_serial_no
         );
 
         if (!mysqli_stmt_execute($stmt)) {
-            throw new Exception(
-                'Database query failed: ' . mysqli_stmt_error($stmt)
-            );
+            throw new Exception('Database query failed.');
         }
 
         $currency_result = mysqli_stmt_get_result($stmt);
@@ -121,71 +180,74 @@ try {
         }
 
         $currency = mysqli_fetch_assoc($currency_result);
-        // sender mobile
-        $sen_mob = $currency['sender_mobile'] ?? '';
 
         if (!$currency) {
-
-            echo '<script>
-                alert("Currency not found, invalid, or already scanned.");
-            </script>';
-        } else {
-            // $c_conn->begin_transaction();
-            if ($user_mob != $sen_mob) {
-                $updateStmt = mysqli_prepare(
-                    $c_conn,
-                    "UPDATE currency
-                 SET status = 'SCANNED',receiver_mobile = ?
-                 WHERE id = ?
-                 AND status = 'GENERATED'
-                 LIMIT 1"
-                );
-
-                if (!$updateStmt) {
-                    throw new Exception(
-                        'Status update prepare failed: ' . mysqli_error($c_conn)
-                    );
-                }
-
-                $currency_id = (int)$currency['id'];
-
-                mysqli_stmt_bind_param(
-                    $updateStmt,
-                    "si",
-                    $user_mob,
-                    $currency_id
-                );
-
-                if (!mysqli_stmt_execute($updateStmt)) {
-                    throw new Exception(
-                        'Currency status update failed: ' .
-                            mysqli_stmt_error($updateStmt)
-                    );
-                }
-
-                $serialForAlert =
-                    htmlspecialchars(
-                        $currency['serial_no'],
-                        ENT_QUOTES,
-                        'UTF-8'
-                    );
-
-                echo '<script>
-                alert("QR scanned successfully. Currency Serial No: ' .
-                    $serialForAlert .
-                    '");
-            </script>';
-            } else {
-                echo '<script>
-                      alert("⚠️ Warning: You cannot scan your own currency.");
-                      </script>';
-            }
+            setQrFailure('Currency not found, invalid, or already scanned.', [
+                'serial_no' => $currency_serial_no
+            ]);
         }
+
+        $sen_mob = (string)($currency['sender_mobile'] ?? '');
+
+        // A user cannot scan their own currency.
+        if ((string)$user_mob === $sen_mob) {
+            setQrFailure('You cannot scan your own currency.', [
+                'amount'        => decryptData($currency['amount']) ?? null,
+                'serial_no'     => $currency['serial_no'] ?? null,
+                'sender_mobile' => $currency['sender_mobile'] ?? null,
+                'generated_at'  => $currency['generated_at'] ?? null,
+            ]);
+        }
+
+        $currency_id = (int)$currency['id'];
+
+        $updateStmt = mysqli_prepare(
+            $c_conn,
+            "UPDATE currency
+             SET status = 'SCANNED', receiver_mobile = ?
+             WHERE id = ?
+             AND status = 'GENERATED'
+             LIMIT 1"
+        );
+
+        if (!$updateStmt) {
+            throw new Exception('Status update could not be prepared.');
+        }
+
+        mysqli_stmt_bind_param($updateStmt, 'si', $user_mob, $currency_id);
+
+        if (!mysqli_stmt_execute($updateStmt)) {
+            throw new Exception('Transaction could not be completed.');
+        }
+
+        // If another request scanned it first, do not report a false success.
+        if (mysqli_stmt_affected_rows($updateStmt) !== 1) {
+            setQrFailure('This currency has already been processed or is no longer available.', [
+                'amount'        => decryptData($currency['amount']) ?? null,
+                'serial_no'     => $currency['serial_no'] ?? null,
+                'sender_mobile' => $currency['sender_mobile'] ?? null,
+                'receiver_mobile' => $user_mob,
+                'generated_at'  => $currency['generated_at'] ?? null,
+            ]);
+        }
+
+        $_SESSION['qr_result'] = [
+            'transaction_id' => createTransactionId(),
+            'status'         => 'SUCCESS',
+            'amount'         => decryptData($currency['amount']) ?? null,
+            'serial_no'      => $currency['serial_no'] ?? null,
+            'sender_mobile'  => $currency['sender_mobile'] ?? null,
+            'receiver_mobile' => $user_mob,
+            'generated_at'   => $currency['generated_at'] ?? null,
+            'completed_at'   => date('Y-m-d H:i:s'),
+        ];
+
+        header('Location: qr_success.php');
+        exit;
     }
 } catch (Throwable $e) {
-    echo '<script>
-          alert("⚠️ Warning: Something Wrong Occur.");
-          </script>';
+    // Keep technical database errors out of the customer-facing page.
+    setQrFailure('We could not complete the transaction. Please try again.');
 }
 
 ?>
