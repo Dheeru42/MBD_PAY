@@ -318,7 +318,7 @@ try {
 
         $type = "Currency Received";
         $st = 'Success';
-        $desc = "Digital Currency Recieved From " . $sen_mob ."/" . $sender_wallet_id;
+        $desc = "Digital Currency Recieved From " . $sen_mob . "/" . $sender_wallet_id;
 
 
         mysqli_stmt_bind_param(
@@ -336,6 +336,40 @@ try {
 
 
         mysqli_stmt_execute($stmt1);
+
+        // update local cache
+
+        $userId = hash("sha256", $user_mob);
+
+        $file = "cache/users/$userId/profile.json";
+
+
+        if (file_exists($file)) {
+
+            $data = json_decode(
+                file_get_contents($file),
+                true
+            );
+
+            $U_balance = $latest_wallet_balance;
+
+            $data['balance'] = $U_balance;
+
+            $data['server_sync'] = true;
+
+            $data['update_at'] = date("Y-m-d H:i:s");
+
+            $data['last_transaction'] = $transaction_id_cur;
+
+
+            file_put_contents(
+                $file,
+                json_encode(
+                    $data,
+                    JSON_PRETTY_PRINT
+                )
+            );
+        }
 
         header('Location: qr_success.php');
         exit;
