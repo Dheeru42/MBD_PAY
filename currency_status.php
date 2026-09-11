@@ -95,7 +95,8 @@ try {
                 sender_mobile,
                 receiver_mobile,
                 status,
-                generated_at
+                generated_at,
+                scanned_at
             FROM currency
             WHERE sender_mobile = $u_mobile
             AND wallet_id = '$u_wallet_id'

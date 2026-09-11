@@ -3102,9 +3102,12 @@ try {
                                     if (
                                         !empty($row['receiver_mobile'])
                                     ) {
+                                        $mobile = $row['receiver_mobile'];
+
+                                        $maskedMobile = substr($mobile, 0, 3) . '****' . substr($mobile, -3);
 
                                         echo htmlspecialchars(
-                                            $row['receiver_mobile']
+                                            $maskedMobile
                                         );
                                     } else {
 
