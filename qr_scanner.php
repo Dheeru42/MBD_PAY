@@ -5,6 +5,8 @@ require 'currency_con.php';
 
 date_default_timezone_set('Asia/Kolkata');
 
+$date_time = date('Y-m-d H:i:s');
+
 if (!isset($_SESSION['user'])) {
     header("location:login.php");
     exit;
@@ -188,6 +190,8 @@ try {
         }
 
         $sen_mob = (string)($currency['sender_mobile'] ?? '');
+        $sen_amount = $currency['amount'] ?? '';
+        $sender_wallet_id = $currency['wallet_id'];
 
         // A user cannot scan their own currency.
         if ((string)$user_mob === $sen_mob) {
@@ -204,7 +208,7 @@ try {
         $updateStmt = mysqli_prepare(
             $c_conn,
             "UPDATE currency
-             SET status = 'SCANNED', receiver_mobile = ?
+             SET status = 'SCANNED', receiver_mobile = ?,scanned_at = ?,completed_at = ?
              WHERE id = ?
              AND status = 'GENERATED'
              LIMIT 1"
@@ -214,7 +218,7 @@ try {
             throw new Exception('Status update could not be prepared.');
         }
 
-        mysqli_stmt_bind_param($updateStmt, 'si', $user_mob, $currency_id);
+        mysqli_stmt_bind_param($updateStmt, 'sssi', $user_mob, $date_time, $date_time, $currency_id);
 
         if (!mysqli_stmt_execute($updateStmt)) {
             throw new Exception('Transaction could not be completed.');
@@ -243,19 +247,56 @@ try {
         ];
 
         $data = $_SESSION['qr_result'];
-        echo $data['transaction_id'];
+        $transaction_id_cur =  $data['transaction_id'];
 
 
         // Update MBD Pay wallet
 
-        /*
-        write code foe update wallet balance
-        */
+        $walletBalanceQuery = "
+        SELECT balance 
+        FROM users 
+        WHERE mobile='$user_mob'
+    ";
+
+        $walletResult = mysqli_query($conn, $walletBalanceQuery);
+
+        $walletData = mysqli_fetch_assoc($walletResult);
+
+        $old_wallet_balance = $walletData['balance'];
+
+        $d_wallet_balance = decryptData($walletData['balance']);
+
+        $d_send_amount = decryptData($sen_amount);
+
+        $update_wallet_bal = $d_wallet_balance + $d_send_amount;
+
+        $e_update_wallet_bal = encryptData($update_wallet_bal);
+
+        // Credit to MBD Wallet
+        $walletQuery = "UPDATE users SET balance = ?, update_at = ? WHERE mobile = ?";
+
+        $stmt2 = mysqli_prepare($conn, $walletQuery);
+        mysqli_stmt_bind_param($stmt2, "sss", $e_update_wallet_bal, $date_time, $user_mob);
+        mysqli_stmt_execute($stmt2);
 
 
         // Update MBD Pay Transaction
 
-        /*   $walletTransaction = "
+        //  fetch latest balance of user
+
+        $latest_walletBalanceQuery = "
+        SELECT balance 
+        FROM users 
+        WHERE mobile='$user_mob'
+    ";
+
+        $latest_walletResult = mysqli_query($conn, $latest_walletBalanceQuery);
+
+        $latest_walletData = mysqli_fetch_assoc($latest_walletResult);
+
+        $latest_wallet_balance = $latest_walletData['balance'];
+
+        $walletTransaction = "
             INSERT INTO transactions
             (
             transaction_id,
@@ -272,30 +313,30 @@ try {
         ";
 
 
-            $stmt1 = mysqli_prepare($conn, $walletTransaction);
+        $stmt1 = mysqli_prepare($conn, $walletTransaction);
 
 
-            $type = "Credit";
-            $st = 'Success';
-            $desc = "Wallet recharge from bank account";
+        $type = "Credit";
+        $st = 'Success';
+        $desc = "Digital Currency Recieved From " . $sen_mob ."/" . $sender_wallet_id;
 
 
-            mysqli_stmt_bind_param(
-                $stmt1,
-                "ssssssss",
-                $transaction_id,
-                $mobile,
-                $type,
-                $e_amount,
-                $e_u_bal,
-                $wallet_balance,
-                $desc,
-                $st
-            );
+        mysqli_stmt_bind_param(
+            $stmt1,
+            "ssssssss",
+            $transaction_id_cur,
+            $user_mob,
+            $type,
+            $sen_amount,
+            $old_wallet_balance,
+            $latest_wallet_balance,
+            $desc,
+            $st
+        );
 
 
-            mysqli_stmt_execute($stmt1);
-*/
+        mysqli_stmt_execute($stmt1);
+
         header('Location: qr_success.php');
         exit;
     }
