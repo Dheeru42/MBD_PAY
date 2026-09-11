@@ -3,7 +3,7 @@
     <div class="footer-content">
 
         <div class="footer-logo">
-            ₹ MBD Pay
+            ₹ MBD PAY
         </div>
 
 

@@ -292,7 +292,7 @@
         </div>
 
 
-        MBD Pay
+        MBD PAY
 
 
     </div>
