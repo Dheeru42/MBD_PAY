@@ -280,6 +280,44 @@ try {
         "Unable to fetch today's transactions.";
 }
 
+// fethc all generated currency
+try {
+    $sql = "SELECT
+            id,
+            serial_no,
+            encrypted_serial,
+            amount,
+            sender_mobile,
+            receiver_mobile,
+            status, 
+            generated_at
+        FROM currency
+        WHERE status = 'GENERATED' AND sender_mobile=$u_mob
+        ORDER BY generated_at DESC";
+
+
+    $result = mysqli_query(
+        $c_conn,
+        $sql
+    );
+
+
+    if (!$result) {
+
+        die("Currency query failed: "
+            . mysqli_error($conn));
+    }
+
+    $total_currency =
+        mysqli_num_rows($result);
+
+    
+
+
+} catch (\Throwable $th) {
+
+    $total_currency = 0;
+}
 session_abort();
 ?>
 
@@ -1197,12 +1235,12 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     <div class="offline-card">
 
                         <div>
-                            <strong>Offline Transactions</strong><br>
-                            <small>Waiting for Synchronization</small>
+                            <strong>Generated Currency</strong><br>
+                            <small>Awaiting Transfer</small>
                         </div>
 
                         <div class="offline-count">
-                            <?php echo $pendingSync; ?>
+                            <?php echo $total_currency; ?>
                         </div>
 
                     </div>
