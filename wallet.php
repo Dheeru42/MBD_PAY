@@ -328,7 +328,7 @@ try {
 
                                     $data['server_sync'] = true;
 
-                                    $data['update_at'] = date("Y-m-d H:i:s");
+                                    $data['update_at'] = date("Y-m-d h:i:s A");
 
                                     $data['last_transaction'] = $transaction_id;
 
@@ -919,7 +919,7 @@ try {
                                         /*
                                          * Server is update
                                          */
-                                        $data['update_at'] = date("Y-m-d H:i:s");
+                                        $data['update_at'] = date("Y-m-d h:i:s A");
 
 
                                         /*

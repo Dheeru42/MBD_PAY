@@ -173,11 +173,11 @@ function storecache($u_mob, $serial_no, $encrypted_serial, $encrypted_amount, $c
 
         "synced" => true,
 
-        "generated_at" => date("Y-m-d H:i:s"),
+        "generated_at" => date("Y-m-d h:i:s A"),
 
         "completed_at" => null,
 
-        "update_at" => date("Y-m-d H:i:s"),
+        "update_at" => date("Y-m-d h:i:s A"),
 
         "scanned_at" => null
 

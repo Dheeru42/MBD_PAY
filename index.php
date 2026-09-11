@@ -209,11 +209,11 @@ try {
     ";
 
 
-$stmt_t = $conn->prepare($sql);
-$stmt_t->bind_param("s", $u_mob);
-$stmt_t->execute();
+    $stmt_t = $conn->prepare($sql);
+    $stmt_t->bind_param("s", $u_mob);
+    $stmt_t->execute();
 
-$result = $stmt_t->get_result();
+    $result = $stmt_t->get_result();
 
     if (!mysqli_stmt_execute($stmt_t)) {
 
@@ -241,7 +241,7 @@ $result = $stmt_t->get_result();
 
     while (
         $row = $result->fetch_assoc()
-        
+
     ) {
         if (
             $row['type'] === 'Currency Received'

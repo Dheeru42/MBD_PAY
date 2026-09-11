@@ -538,7 +538,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
         .currency {
-           background: #ffe0e0;
+            background: #ffe0e0;
             color: #d00000;
         }
 

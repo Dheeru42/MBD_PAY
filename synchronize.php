@@ -6,7 +6,7 @@ session_start();
 date_default_timezone_set('Asia/Kolkata');
 
 // last syn
-$_SESSION['last_update'] = date("h:i:s A");
+$_SESSION['last_update'] = date("Y-m-d h:i:s A");
 
 /*
 |--------------------------------------------------------------------------

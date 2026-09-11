@@ -93,9 +93,9 @@ function saveUserCache($name, $wallet_id, $account, $mobile, $email, $password, 
 
         "balance" => encryptData($balance),
 
-        "created_at" => date("Y-m-d H:i:s"),
+        "created_at" => date("Y-m-d h:i:s A"),
 
-        "update_at" => date("Y-m-d H:i:s"),
+        "update_at" => date("Y-m-d h:i:s A"),
 
         "server_sync" => false
 

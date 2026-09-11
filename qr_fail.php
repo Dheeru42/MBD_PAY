@@ -14,7 +14,7 @@ if (!is_array($result) || ($result['status'] ?? '') !== 'FAILED') {
         'serial_no' => null,
         'sender_mobile' => null,
         'receiver_mobile' => null,
-        'completed_at' => date('Y-m-d H:i:s')
+        'completed_at' => date("Y-m-d h:i:s A")
     ];
 }
 

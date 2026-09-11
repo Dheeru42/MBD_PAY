@@ -5,7 +5,7 @@ require 'currency_con.php';
 
 date_default_timezone_set('Asia/Kolkata');
 
-$date_time = date('Y-m-d H:i:s');
+$date_time = date("Y-m-d h:i:s A");
 
 if (!isset($_SESSION['user'])) {
     header("location:login.php");
@@ -109,7 +109,7 @@ function setQrFailure(string $reason, array $details = []): void
         'sender_mobile'  => $details['sender_mobile'] ?? null,
         'receiver_mobile' => $details['receiver_mobile'] ?? null,
         'generated_at'   => $details['generated_at'] ?? null,
-        'completed_at'   => date('Y-m-d H:i:s'),
+        'completed_at'   => date("Y-m-d h:i:s A"),
     ], $details);
 
     header('Location: qr_fail.php');
@@ -243,7 +243,7 @@ try {
             'sender_mobile'  => $currency['sender_mobile'] ?? null,
             'receiver_mobile' => $user_mob,
             'generated_at'   => $currency['generated_at'] ?? null,
-            'completed_at'   => date('Y-m-d H:i:s'),
+            'completed_at'   => date("Y-m-d h:i:s A"),
         ];
 
         $data = $_SESSION['qr_result'];
@@ -357,7 +357,7 @@ try {
 
             $data['server_sync'] = true;
 
-            $data['update_at'] = date("Y-m-d H:i:s");
+            $data['update_at'] = date("Y-m-d h:i:s A");
 
             $data['last_transaction'] = $transaction_id_cur;
 
