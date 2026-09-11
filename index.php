@@ -46,12 +46,12 @@ if (!isset($_SESSION['user'])) {
     header("location:login.php");
     exit;
 }
-if($serverConnected){
-if (!isset($_SESSION['last_update'])) {
+if ($serverConnected) {
+    if (!isset($_SESSION['last_update'])) {
 
-    header("location:synchronize_login.php");
-    exit;
-}
+        header("location:synchronize_login.php");
+        exit;
+    }
 }
 
 if (!isset($_SESSION['wallet_id'])) {
@@ -201,49 +201,29 @@ try {
             created_at
         FROM transactions
         WHERE mobile = ?
-          AND status = 'Currency Received'
+          AND status = 'Success'
+          AND type = 'Currency Received'
           AND created_at >= CURDATE()
           AND created_at < CURDATE() + INTERVAL 1 DAY
         ORDER BY created_at DESC
     ";
 
 
-    $stmt2 = mysqli_prepare(
-        $conn,
-        $sql
-    );
+$stmt_t = $conn->prepare($sql);
+$stmt_t->bind_param("s", $u_mob);
+$stmt_t->execute();
 
+$result = $stmt_t->get_result();
 
-    if (!$stmt2) {
-
-        throw new Exception(
-            "Transaction query preparation failed: "
-                . mysqli_error($conn)
-        );
-    }
-
-
-    mysqli_stmt_bind_param(
-        $stmt2,
-        "s",
-        $u_mobile
-    );
-
-
-    if (!mysqli_stmt_execute($stmt2)) {
+    if (!mysqli_stmt_execute($stmt_t)) {
 
         throw new Exception(
             "Transaction query failed: "
-                . mysqli_stmt_error($stmt2)
+                . mysqli_stmt_error($stmt_t)
         );
     }
 
-
-    $transactions =
-        mysqli_stmt_get_result($stmt2);
-
-
-    if (!$transactions) {
+    if (!$result) {
 
         throw new Exception(
             "Unable to fetch transactions."
@@ -257,17 +237,16 @@ try {
 
     $receivedToday = 0;
 
-
     // Calculate Today's Total Credit
 
     while (
-        $row = mysqli_fetch_assoc($transactions)
+        $row = $result->fetch_assoc()
+        
     ) {
-
         if (
             $row['type'] === 'Currency Received'
             &&
-            $row['status'] === 'Currency Received'
+            $row['status'] === 'Success'
         ) {
 
             $amount =
@@ -285,12 +264,10 @@ try {
     // Reset pointer for table display
 
     mysqli_data_seek(
-        $transactions,
+        $result,
         0
     );
-
-
-    mysqli_stmt_close($stmt2);
+    mysqli_stmt_close($stmt_t);
 } catch (\Throwable $th) {
 
     $total_credit = 0;

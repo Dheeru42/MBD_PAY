@@ -316,7 +316,7 @@ try {
         $stmt1 = mysqli_prepare($conn, $walletTransaction);
 
 
-        $type = "Credit";
+        $type = "Currency Received";
         $st = 'Success';
         $desc = "Digital Currency Recieved From " . $sen_mob ."/" . $sender_wallet_id;
 
