@@ -116,7 +116,7 @@ try {
     );
     $cache['balance'] = decryptData($cache['balance']);
     $_SESSION['balance'] = $cache['balance'];
-    $last_update = date("H:i:s", strtotime($cache['update_at']));
+    $last_update = $cache['update_at'];
 }
 
 /*FETCH GENERATED CURRENCIES*/
