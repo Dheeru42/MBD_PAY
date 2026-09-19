@@ -772,7 +772,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             font-weight: 700;
             opacity: .55;
             margin-bottom: 7px;
-            margin-left: 120px;
+            margin-left: 80px;
         }
 
         .balance-amount {
@@ -1416,7 +1416,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     </div>
                 </div> <!-- Balance -->
                 <div class="balance-content">
-                    <div class="currency-label"> TOTAL AVAILABLE </div>
+                    <div class="currency-label"> TOTAL AVAILABLE BALANCE </div>
                     <div class="balance-amount"> <small>₹</small><?php echo number_format($senderBalance, 2); ?> </div>
                     <div class="balance-line"></div>
                 </div> <!-- Bottom Information -->
