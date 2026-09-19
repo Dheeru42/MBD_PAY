@@ -310,10 +310,6 @@ try {
 
     $total_currency =
         mysqli_num_rows($result);
-
-    
-
-
 } catch (\Throwable $th) {
 
     $total_currency = 0;
@@ -428,6 +424,12 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         .wallet-actions {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 30px;
+        }
+        .wallet-actions-offline {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
             gap: 15px;
             margin-top: 30px;
         }
@@ -1246,8 +1248,16 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     </div>
 
                 <?php } else { ?>
-                    <br>
-                    <br>
+                <br>
+                <br>
+                    <div class="wallet-actions-offline">
+
+                        <a href="send_offline_money.php" class="action-btn">
+                            ➤
+                            <span>Send Money Offline</span>
+                        </a>
+                    </div>
+
                     <br>
                     <br>
                     <!-- Offline Mode -->
