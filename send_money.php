@@ -148,7 +148,7 @@ try {
     LIMIT 1
 ");
 
-    $stmt->bind_param("iss", $u_wallet_id, $u_account, $u_mob);
+    $stmt->bind_param("sss", $u_wallet_id, $u_account, $u_mob);
     $stmt->execute();
 
     $result = $stmt->get_result();
@@ -165,69 +165,69 @@ try {
 }
 
 
-/*
 // FIND RECIPIENT
 
+try {
 
-if (isset($_POST['find_user'])) {
+    if (isset($_POST['find_user'])) {
 
-    if (!isset($_POST['csrf_token']) ||
-        !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        if (
+            !isset($_POST['csrf_token']) ||
+            !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+        ) {
 
-        $message = "Invalid security token. Please refresh the page.";
-        $messageType = "error";
-
-    } else {
-
-        $mobile = trim($_POST['mobile'] ?? '');
-
-        
-        // Basic Indian mobile validation.
-        //  Change this if your application supports other countries.
-        if (!preg_match('/^[6-9][0-9]{9}$/', $mobile)) {
-
-            $message = "Please enter a valid 10-digit mobile number.";
+            $message = "Invalid security token. Please refresh the page.";
             $messageType = "error";
-
         } else {
 
-            $stmt = $conn->prepare("
-                SELECT id, name, mobile
+            $mobile = trim($_POST['mobile'] ?? '');
+
+            //  mobile validation.
+
+            if (!preg_match('/^[6-9][0-9]{9}$/', $mobile)) {
+
+                $message = "Please enter a valid 10-digit mobile number.";
+                $messageType = "error";
+            } else {
+
+                $stmt = $conn->prepare("
+                SELECT *
                 FROM users
                 WHERE mobile = ?
                 LIMIT 1
             ");
 
-            $stmt->bind_param("s", $mobile);
-            $stmt->execute();
+                $stmt->bind_param("s", $mobile);
+                $stmt->execute();
 
-            $result = $stmt->get_result();
+                $result = $stmt->get_result();
 
-            if ($row = $result->fetch_assoc()) {
+                if ($row = $result->fetch_assoc()) {
 
-                if ((int)$row['id'] === $senderId) {
+                    if ($row['wallet_id'] === $u_wallet_id) {
 
-                    $message = "You cannot send money to your own account.";
-                    $messageType = "error";
+                        $message = "You cannot send money to your own account.";
+                        $messageType = "error";
+                    } else {
 
+                        $recipient = $row;
+                    }
                 } else {
 
-                    $recipient = $row;
-
+                    $message = "No MBD PAY user was found with this mobile number.";
+                    $messageType = "error";
                 }
 
-            } else {
-
-                $message = "No MBD PAY user was found with this mobile number.";
-                $messageType = "error";
+                $stmt->close();
             }
-
-            $stmt->close();
         }
     }
+} catch (\Throwable $th) {
+    $message = "Unable To Find MBD PAY user.";
+    $messageType = "error";
 }
 
-
+/*
 // SEND MONEY
 
 
@@ -1405,15 +1405,14 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                 <?php if ($message1 !== ''): ?> <div class=" alert <?php echo $messageType === 'success' ? 'alert-success' : 'alert-error'; ?> "> <?php echo htmlspecialchars($message1); ?> </div> <?php endif; ?> <!-- Card Header -->
                 <div class="balance-header">
                     <div class="wallet-icon"> 💳 </div>
-                    <div class="balance-label"> <span>MY WALLET</span> <strong>Available Balance</strong> </div>
-                    <div class="balance-status"> 
-                        <span></span><?php if($wallet_status == 'Active') {
-                            echo 'Active';
-                            } 
-                            else{
-                                echo 'Inactive';
-                            }
-                            ?>
+                    <div class="balance-label"> <span>WALLET ID :</span> <strong><?php echo $u_wallet_id; ?></strong> </div>
+                    <div class="balance-status">
+                        <span></span><?php if ($wallet_status == 'Active') {
+                                            echo 'Active';
+                                        } else {
+                                            echo 'Inactive';
+                                        }
+                                        ?>
                     </div>
                 </div> <!-- Balance -->
                 <div class="balance-content">
@@ -1598,7 +1597,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                         <input
                             type="hidden"
                             name="receiver_id"
-                            value="<?php echo (int)$recipient['id']; ?>">
+                            value="<?php echo $recipient['wallet_id']; ?>">
 
 
                         <div class="form-group">
