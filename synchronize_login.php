@@ -374,7 +374,7 @@ function createCurrencyCacheFile(
 
         'generated_at' => $g_date,
 
-        'update_at' => date("Y-m-d H:i:s"),
+        'update_at' => date("Y-m-d h:i:s A"),
 
         'completed_at' =>
         null,
@@ -548,7 +548,7 @@ try {
 
             $data['balance'] = $available_wallet;
 
-            $data['update_at'] = date("Y-m-d H:i:s");
+            $data['update_at'] = date("Y-m-d h:i:s A");
 
 
 
