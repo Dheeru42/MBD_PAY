@@ -1405,7 +1405,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                 <?php if ($message1 !== ''): ?> <div class=" alert <?php echo $messageType === 'success' ? 'alert-success' : 'alert-error'; ?> "> <?php echo htmlspecialchars($message1); ?> </div> <?php endif; ?> <!-- Card Header -->
                 <div class="balance-header">
                     <div class="wallet-icon"> 💳 </div>
-                    <div class="balance-label"> <span>WALLET ID :</span> <strong><?php echo $u_wallet_id; ?></strong> </div>
+                    <div class="balance-label"> <span>WALLET ID </span> <strong><?php echo $u_wallet_id; ?></strong> </div>
                     <div class="balance-status">
                         <span></span><?php if ($wallet_status == 'Active') {
                                             echo 'Active';
