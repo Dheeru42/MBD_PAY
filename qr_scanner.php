@@ -184,10 +184,18 @@ try {
         $currency = mysqli_fetch_assoc($currency_result);
 
         if (!$currency) {
+            if ($currency['status']!='GENERATED') {
+            setQrFailure('Currency already scanned.', [
+                'serial_no' => $currency_serial_no
+            ]);
+            }
+            else{
             setQrFailure('Currency not found, invalid, or already scanned.', [
                 'serial_no' => $currency_serial_no
             ]);
+            }
         }
+       
 
         $sen_mob = (string)($currency['sender_mobile'] ?? '');
         $sen_amount = $currency['amount'] ?? '';

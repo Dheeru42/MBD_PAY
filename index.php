@@ -1209,9 +1209,9 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                             <span>Scan QR Currency</span>
                         </a>
 
-                        <a href="synchronize.php" class="action-btn">
-                            🔄
-                            <span>Syncronization</span>
+                        <a href="send_money.php" class="action-btn">
+                            ➤
+                            <span>Send Money</span>
                         </a>
 
                     </div>
