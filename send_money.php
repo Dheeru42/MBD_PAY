@@ -236,7 +236,7 @@ try {
 
             $receiverId = $_POST['receiver_id'];
             $receiverMob = $_SESSION['recipient_mob'];
-            $amount = trim($_POST['amount'] ?? '');
+            $amount = floatval($_POST['amount']);
             $e_amount = encryptData($amount);
 
             // Convert amount safely.
@@ -307,7 +307,7 @@ try {
 
                         $d_currentBalance = decryptData($senderWallet['balance']);
 
-                        $e_currentBalance = encryptData($senderWallet['balance']);
+                        $e_currentBalance = $senderWallet['balance'];
 
                         // CHECK BALANCE
 
@@ -335,9 +335,9 @@ try {
 
                         $receiverWallet = $result->fetch_assoc();
 
-                        $d_receiver_bal = decryptData($receiverWallet);
+                        $d_receiver_bal = decryptData($receiverWallet['balance']);
 
-                        $e_receiver_bal = encryptData($receiverWallet);
+                        $e_receiver_bal = $receiverWallet['balance'];
 
                         $stmt->close();
 
@@ -348,7 +348,7 @@ try {
                             );
                         }
 
-
+                        
                         // DEDUCT FROM SENDER
 
                         /* prepare balance of sender for update*/
@@ -1729,7 +1729,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                                     min="1"
                                     max="100000"
                                     step="0.01"
-                                    inputmode="decimal"
                                     required>
 
                             </div>
