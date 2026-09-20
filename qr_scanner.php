@@ -47,6 +47,7 @@ if (!isset($_SESSION['mode'])) {
 }
 
 define("SECRET_KEY", "MBDPAY@2026_SUPER_SECRET_KEY_32");
+define("CACHE_DIR", __DIR__ . "/cache/users/");
 
 /* Encrypt Function */
 function encryptData($text)
@@ -86,6 +87,42 @@ function decryptData($text)
         $iv
     );
 }
+
+/* synchronize if balance mismatch */
+
+try {
+
+    // server balance
+
+    $stmt = mysqli_prepare($conn, "SELECT name,balance FROM users WHERE mobile=? AND account_no=?");
+    mysqli_stmt_bind_param($stmt, "ss", $user_mob, $u_account);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $user = mysqli_fetch_assoc($result);
+
+    $server_bal = decryptData($user['balance']);
+
+    // user cache path
+
+    $userId = hash("sha256", $user_mob);
+
+    $profile = CACHE_DIR . $userId . "/profile.json";
+
+    $cache = json_decode(
+        file_get_contents($profile),
+        true
+    );
+
+    $cache_bal = decryptData($cache['balance']);
+
+    // start
+    if ($server_bal != $cache_bal) {
+        header("location:synchronize_login.php");
+    }
+} catch (\Throwable $th) {
+    header("location:synchronize_login.php");
+}
+
 
 
 // QR scan data is served to server for credit/debit processing.
@@ -184,18 +221,17 @@ try {
         $currency = mysqli_fetch_assoc($currency_result);
 
         if (!$currency) {
-            if ($currency['status']!='GENERATED') {
-            setQrFailure('Currency already scanned.', [
-                'serial_no' => $currency_serial_no
-            ]);
-            }
-            else{
-            setQrFailure('Currency not found, invalid, or already scanned.', [
-                'serial_no' => $currency_serial_no
-            ]);
+            if ($currency['status'] != 'GENERATED') {
+                setQrFailure('Currency already scanned.', [
+                    'serial_no' => $currency_serial_no
+                ]);
+            } else {
+                setQrFailure('Currency not found, invalid, or already scanned.', [
+                    'serial_no' => $currency_serial_no
+                ]);
             }
         }
-       
+
 
         $sen_mob = (string)($currency['sender_mobile'] ?? '');
         $sen_amount = $currency['amount'] ?? '';

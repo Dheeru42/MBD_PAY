@@ -151,6 +151,41 @@ function decryptData($text)
     return (float)$decrypted;
 }
 
+/* synchronize if balance mismatch */
+
+try {
+
+    // server balance
+
+    $stmt = mysqli_prepare($conn, "SELECT name,balance FROM users WHERE mobile=? AND account_no=?");
+    mysqli_stmt_bind_param($stmt, "ss", $u_mob, $u_account);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $user = mysqli_fetch_assoc($result);
+
+    $server_bal = decryptData($user['balance']);
+
+    // user cache path
+
+    $userId = hash("sha256", $u_mob);
+
+    $profile = CACHE_DIR . $userId . "/profile.json";
+
+    $cache = json_decode(
+        file_get_contents($profile),
+        true
+    );
+
+    $cache_bal = decryptData($cache['balance']);
+
+    // start
+    if ($server_bal != $cache_bal) {
+        header("location:synchronize_login.php");
+    }
+} catch (\Throwable $th) {
+    header("location:synchronize_login.php");
+}
+
 
 /* =========================================================
    TRANSACTION ID
@@ -208,7 +243,6 @@ try {
     }
 
     $stmt->close();
-
 } catch (Throwable $th) {
 
     $senderBalance = 0;
@@ -238,7 +272,6 @@ try {
 
             $message = "Invalid security token. Please refresh the page.";
             $messageType = "error";
-
         } else {
 
             $mobile = trim(
@@ -254,7 +287,6 @@ try {
 
                 $message = "Please enter a valid 10-digit mobile number.";
                 $messageType = "error";
-
             } else {
 
                 $stmt = $conn->prepare("
@@ -288,12 +320,10 @@ try {
                             "You cannot send money to your own account.";
 
                         $messageType = "error";
-
                     } else {
 
                         $recipient = $row;
                     }
-
                 } else {
 
                     $message =
@@ -306,7 +336,6 @@ try {
             }
         }
     }
-
 } catch (Throwable $th) {
 
     $message = "Unable To Find MBD PAY user.";
@@ -339,7 +368,6 @@ try {
                 "Invalid security token. Please refresh the page.";
 
             $messageType = "error";
-
         } else {
 
             /* =================================================
@@ -375,7 +403,6 @@ try {
                     "Please enter a valid 4-digit PIN.";
 
                 $messageType = "error";
-
             } else {
 
                 /* =============================================
@@ -424,7 +451,6 @@ try {
                         "Incorrect PIN. Payment was not processed.";
 
                     $messageType = "error";
-
                 } else {
 
                     /* =========================================
@@ -445,7 +471,6 @@ try {
                             "Please enter a valid amount.";
 
                         $messageType = "error";
-
                     } else {
 
                         $amount = (float)$amountInput;
@@ -457,14 +482,12 @@ try {
                                 "Amount must be greater than ₹0.";
 
                             $messageType = "error";
-
                         } elseif ($amount > 100000) {
 
                             $message =
                                 "Maximum transfer amount is ₹1,00,000.";
 
                             $messageType = "error";
-
                         } elseif (
                             round($amount, 2) != $amount
                         ) {
@@ -473,14 +496,12 @@ try {
                                 "Amount can contain a maximum of 2 decimal places.";
 
                             $messageType = "error";
-
                         } elseif ($receiverId === '') {
 
                             $message =
                                 "Invalid recipient.";
 
                             $messageType = "error";
-
                         } elseif (
                             (string)$receiverId
                             ===
@@ -491,14 +512,12 @@ try {
                                 "You cannot send money to yourself.";
 
                             $messageType = "error";
-
                         } elseif ($receiverMob === '') {
 
                             $message =
                                 "Recipient information is missing.";
 
                             $messageType = "error";
-
                         } else {
 
                             /* =================================
@@ -959,8 +978,6 @@ try {
                                 unset(
                                     $_SESSION['recipient_mob']
                                 );
-
-
                             } catch (Throwable $e) {
 
                                 /*
@@ -981,7 +998,6 @@ try {
             }
         }
     }
-
 } catch (Throwable $th) {
 
     $message =
@@ -1013,7 +1029,6 @@ try {
 
 
     <style>
-
         * {
             box-sizing: border-box;
         }
@@ -1031,12 +1046,10 @@ try {
                 sans-serif;
 
             background:
-                radial-gradient(
-                    circle at top left,
+                radial-gradient(circle at top left,
                     #bbf7d0,
                     #ecfdf5 45%,
-                    #d1fae5
-                );
+                    #d1fae5);
 
             color: #022c22;
         }
@@ -1087,19 +1100,16 @@ try {
             border-radius: 22px;
 
             background:
-                linear-gradient(
-                    135deg,
+                linear-gradient(135deg,
                     #facc15,
-                    #f59e0b
-                );
+                    #f59e0b);
 
             color: white;
 
             font-size: 35px;
 
             box-shadow:
-                0 12px 30px
-                rgba(245, 158, 11, .3);
+                0 12px 30px rgba(245, 158, 11, .3);
         }
 
 
@@ -1159,16 +1169,13 @@ try {
             color: white;
 
             background:
-                linear-gradient(
-                    135deg,
+                linear-gradient(135deg,
                     #022c22 0%,
                     #064e3b 45%,
-                    #059669 100%
-                );
+                    #059669 100%);
 
             box-shadow:
-                0 25px 60px
-                rgba(2, 44, 34, .28);
+                0 25px 60px rgba(2, 44, 34, .28);
 
             display: flex;
 
@@ -1189,8 +1196,7 @@ try {
             transform: translateY(-6px);
 
             box-shadow:
-                0 30px 70px
-                rgba(2, 44, 34, .35);
+                0 30px 70px rgba(2, 44, 34, .35);
         }
 
 
@@ -1274,16 +1280,14 @@ try {
                 rgba(255, 255, 255, .14);
 
             border:
-                1px solid
-                rgba(255, 255, 255, .18);
+                1px solid rgba(255, 255, 255, .18);
 
             backdrop-filter: blur(10px);
 
             font-size: 23px;
 
             box-shadow:
-                inset 0 1px 0
-                rgba(255, 255, 255, .2);
+                inset 0 1px 0 rgba(255, 255, 255, .2);
         }
 
 
@@ -1339,8 +1343,7 @@ try {
                 rgba(255, 255, 255, .10);
 
             border:
-                1px solid
-                rgba(255, 255, 255, .12);
+                1px solid rgba(255, 255, 255, .12);
 
             font-size: 11px;
 
@@ -1356,23 +1359,17 @@ try {
 
             border-radius: 50%;
 
-            <?php if ($wallet_status == 'Active') { ?>
-
-            background: #4ade80;
+            <?php if ($wallet_status == 'Active') { ?>background: #4ade80;
 
             box-shadow:
                 0 0 10px #4ade80;
 
-            <?php } else { ?>
-
-            background: #b60505;
+            <?php } else { ?>background: #b60505;
 
             box-shadow:
                 0 0 10px #b31414;
 
-            <?php } ?>
-
-            animation:
+            <?php } ?>animation:
                 walletPulse 1.8s infinite;
         }
 
@@ -1427,8 +1424,7 @@ try {
             letter-spacing: -.8px;
 
             text-shadow:
-                0 4px 15px
-                rgba(0, 0, 0, .15);
+                0 4px 15px rgba(0, 0, 0, .15);
         }
 
 
@@ -1453,11 +1449,9 @@ try {
             margin-top: 18px;
 
             background:
-                linear-gradient(
-                    90deg,
+                linear-gradient(90deg,
                     rgba(255, 255, 255, .35),
-                    rgba(255, 255, 255, 0)
-                );
+                    rgba(255, 255, 255, 0));
         }
 
 
@@ -1550,8 +1544,7 @@ try {
                 rgba(255, 255, 255, .12);
 
             border:
-                1px solid
-                rgba(255, 255, 255, .15);
+                1px solid rgba(255, 255, 255, .15);
 
             font-size: 20px;
 
@@ -1583,12 +1576,10 @@ try {
             padding: 30px;
 
             box-shadow:
-                0 15px 45px
-                rgba(15, 23, 42, .12);
+                0 15px 45px rgba(15, 23, 42, .12);
 
             border:
-                1px solid
-                rgba(255, 255, 255, .8);
+                1px solid rgba(255, 255, 255, .8);
         }
 
 
@@ -1733,8 +1724,7 @@ try {
             border-color: #059669;
 
             box-shadow:
-                0 0 0 4px
-                rgba(5, 150, 105, .10);
+                0 0 0 4px rgba(5, 150, 105, .10);
         }
 
 
@@ -1765,11 +1755,9 @@ try {
             margin-bottom: 20px;
 
             background:
-                linear-gradient(
-                    135deg,
+                linear-gradient(135deg,
                     #ecfdf5,
-                    #f0fdf4
-                );
+                    #f0fdf4);
 
             border:
                 1px solid #bbf7d0;
@@ -1803,11 +1791,9 @@ try {
             justify-content: center;
 
             background:
-                linear-gradient(
-                    135deg,
+                linear-gradient(135deg,
                     #059669,
-                    #047857
-                );
+                    #047857);
 
             color: white;
 
@@ -1875,15 +1861,12 @@ try {
             color: white;
 
             background:
-                linear-gradient(
-                    135deg,
+                linear-gradient(135deg,
                     #059669,
-                    #047857
-                );
+                    #047857);
 
             box-shadow:
-                0 10px 25px
-                rgba(5, 150, 105, .25);
+                0 10px 25px rgba(5, 150, 105, .25);
 
             transition: .25s;
         }
@@ -1895,8 +1878,7 @@ try {
                 translateY(-2px);
 
             box-shadow:
-                0 15px 30px
-                rgba(5, 150, 105, .3);
+                0 15px 30px rgba(5, 150, 105, .3);
         }
 
 
@@ -1984,8 +1966,7 @@ try {
             padding: 30px;
 
             box-shadow:
-                0 25px 80px
-                rgba(0, 0, 0, .30);
+                0 25px 80px rgba(0, 0, 0, .30);
 
             text-align: center;
 
@@ -2001,8 +1982,7 @@ try {
                 opacity: 0;
 
                 transform:
-                    scale(.90)
-                    translateY(15px);
+                    scale(.90) translateY(15px);
             }
 
             to {
@@ -2010,8 +1990,7 @@ try {
                 opacity: 1;
 
                 transform:
-                    scale(1)
-                    translateY(0);
+                    scale(1) translateY(0);
             }
         }
 
@@ -2034,19 +2013,16 @@ try {
             justify-content: center;
 
             background:
-                linear-gradient(
-                    135deg,
+                linear-gradient(135deg,
                     #059669,
-                    #047857
-                );
+                    #047857);
 
             color: white;
 
             font-size: 30px;
 
             box-shadow:
-                0 10px 25px
-                rgba(5, 150, 105, .25);
+                0 10px 25px rgba(5, 150, 105, .25);
         }
 
 
@@ -2108,8 +2084,7 @@ try {
             background: white;
 
             box-shadow:
-                0 0 0 4px
-                rgba(5, 150, 105, .10);
+                0 0 0 4px rgba(5, 150, 105, .10);
         }
 
 
@@ -2166,11 +2141,9 @@ try {
             border-radius: 13px;
 
             background:
-                linear-gradient(
-                    135deg,
+                linear-gradient(135deg,
                     #059669,
-                    #047857
-                );
+                    #047857);
 
             color: white;
 
@@ -2256,7 +2229,6 @@ try {
                 letter-spacing: 9px;
             }
         }
-
     </style>
 
 </head>
@@ -2265,55 +2237,55 @@ try {
 <body>
 
 
-<?php require 'navbar.php'; ?>
+    <?php require 'navbar.php'; ?>
 
 
-<div class="send-page">
+    <div class="send-page">
 
 
-    <!-- =====================================================
+        <!-- =====================================================
          HEADER
     ====================================================== -->
 
-    <div class="page-header">
+        <div class="page-header">
 
-        <div class="icon">
-            ₹
+            <div class="icon">
+                ₹
+            </div>
+
+            <h1>
+                Send Money
+            </h1>
+
+            <p>
+                Transfer money instantly to another MBD PAY user
+                using their mobile number.
+            </p>
+
         </div>
 
-        <h1>
-            Send Money
-        </h1>
 
-        <p>
-            Transfer money instantly to another MBD PAY user
-            using their mobile number.
-        </p>
-
-    </div>
-
-
-    <!-- =====================================================
+        <!-- =====================================================
          MAIN GRID
     ====================================================== -->
 
-    <div class="send-grid">
+        <div class="send-grid">
 
 
-        <!-- =================================================
+            <!-- =================================================
              BALANCE CARD
         ================================================== -->
 
-        <div class="balance-card">
+            <div class="balance-card">
 
-            <div class="balance-glow glow-one"></div>
+                <div class="balance-glow glow-one"></div>
 
-            <div class="balance-glow glow-two"></div>
+                <div class="balance-glow glow-two"></div>
 
 
-            <?php if ($message1 !== ''): ?>
+                <?php if ($message1 !== ''): ?>
 
-                <div class="
+                    <div class="
                     alert
                     <?php
                     echo $messageType === 'success'
@@ -2322,760 +2294,743 @@ try {
                     ?>
                 ">
 
-                    <?php
-                    echo htmlspecialchars(
-                        $message1
-                    );
-                    ?>
-
-                </div>
-
-            <?php endif; ?>
-
-
-            <!-- CARD HEADER -->
-
-            <div class="balance-header">
-
-                <div class="wallet-icon">
-                    💳
-                </div>
-
-
-                <div class="balance-label">
-
-                    <span>
-                        WALLET ID
-                    </span>
-
-                    <strong>
                         <?php
                         echo htmlspecialchars(
-                            $u_wallet_id
+                            $message1
                         );
                         ?>
-                    </strong>
 
-                </div>
-
-
-                <div class="balance-status">
-
-                    <span></span>
-
-                    <?php
-
-                    if ($wallet_status == 'Active') {
-
-                        echo 'Active';
-
-                    } else {
-
-                        echo 'Inactive';
-                    }
-
-                    ?>
-
-                </div>
-
-            </div>
-
-
-            <!-- BALANCE -->
-
-            <div class="balance-content">
-
-                <div class="currency-label">
-
-                    TOTAL AVAILABLE BALANCE
-
-                </div>
-
-
-                <div class="balance-amount">
-
-                    <small>₹</small>
-
-                    <?php
-
-                    echo number_format(
-                        (float)$senderBalance,
-                        2
-                    );
-
-                    ?>
-
-                </div>
-
-
-                <div class="balance-line"></div>
-
-            </div>
-
-
-            <!-- FOOTER -->
-
-            <div class="balance-footer">
-
-                <div class="secure">
-
-                    <div class="secure-icon">
-                        🔒
                     </div>
 
-                    <div>
+                <?php endif; ?>
 
-                        <strong>
-                            Secure Wallet
-                        </strong>
+
+                <!-- CARD HEADER -->
+
+                <div class="balance-header">
+
+                    <div class="wallet-icon">
+                        💳
+                    </div>
+
+
+                    <div class="balance-label">
 
                         <span>
-                            Your money is protected
+                            WALLET ID
                         </span>
+
+                        <strong>
+                            <?php
+                            echo htmlspecialchars(
+                                $u_wallet_id
+                            );
+                            ?>
+                        </strong>
+
+                    </div>
+
+
+                    <div class="balance-status">
+
+                        <span></span>
+
+                        <?php
+
+                        if ($wallet_status == 'Active') {
+
+                            echo 'Active';
+                        } else {
+
+                            echo 'Inactive';
+                        }
+
+                        ?>
 
                     </div>
 
                 </div>
 
 
-                <div class="send-icon">
-                    →
+                <!-- BALANCE -->
+
+                <div class="balance-content">
+
+                    <div class="currency-label">
+
+                        TOTAL AVAILABLE BALANCE
+
+                    </div>
+
+
+                    <div class="balance-amount">
+
+                        <small>₹</small>
+
+                        <?php
+
+                        echo number_format(
+                            (float)$senderBalance,
+                            2
+                        );
+
+                        ?>
+
+                    </div>
+
+
+                    <div class="balance-line"></div>
+
                 </div>
+
+
+                <!-- FOOTER -->
+
+                <div class="balance-footer">
+
+                    <div class="secure">
+
+                        <div class="secure-icon">
+                            🔒
+                        </div>
+
+                        <div>
+
+                            <strong>
+                                Secure Wallet
+                            </strong>
+
+                            <span>
+                                Your money is protected
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="send-icon">
+                        →
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+             FORM CARD
+        ================================================== -->
+
+            <div class="form-card">
+
+
+                <h2 class="form-title">
+                    Send Money
+                </h2>
+
+
+                <p class="form-subtitle">
+
+                    Enter the recipient's registered mobile number.
+
+                </p>
+
+
+                <!-- MESSAGE -->
+
+                <?php if ($message !== ''): ?>
+
+                    <div class="
+                    alert
+                    <?php
+                    echo $messageType === 'success'
+                        ? 'alert-success'
+                        : 'alert-error';
+                    ?>
+                ">
+
+                        <?php
+                        echo htmlspecialchars(
+                            $message
+                        );
+                        ?>
+
+                    </div>
+
+                <?php endif; ?>
+
+
+                <?php if (!$recipient): ?>
+
+
+                    <!-- =========================================
+                     FIND USER
+                ========================================== -->
+
+                    <form method="POST">
+
+                        <input
+                            type="hidden"
+                            name="csrf_token"
+                            value="<?php
+                                    echo htmlspecialchars(
+                                        $csrfToken
+                                    );
+                                    ?>">
+
+
+                        <div class="form-group">
+
+                            <label>
+                                Recipient Mobile Number
+                            </label>
+
+
+                            <div class="input-wrap">
+
+                                <span class="input-icon">
+                                    📱
+                                </span>
+
+
+                                <input
+                                    type="tel"
+                                    name="mobile"
+                                    class="form-control"
+                                    placeholder="Enter 10-digit mobile number"
+                                    maxlength="10"
+                                    pattern="[6-9][0-9]{9}"
+                                    inputmode="numeric"
+                                    required>
+
+                            </div>
+
+                        </div>
+
+
+                        <button
+                            type="submit"
+                            name="find_user"
+                            class="btn btn-find">
+
+                            🔍 Find MBD PAY User
+
+                        </button>
+
+                    </form>
+
+
+                <?php else: ?>
+
+
+                    <!-- =========================================
+                     RECIPIENT FOUND
+                ========================================== -->
+
+                    <div class="recipient-card">
+
+
+                        <div class="recipient-left">
+
+
+                            <div class="avatar">
+
+                                <?php
+
+                                echo strtoupper(
+                                    substr(
+                                        $recipient['name'],
+                                        0,
+                                        1
+                                    )
+                                );
+
+                                ?>
+
+                            </div>
+
+
+                            <div>
+
+                                <div class="recipient-name">
+
+                                    <?php
+
+                                    echo htmlspecialchars(
+                                        $recipient['name']
+                                    );
+
+                                    ?>
+
+                                </div>
+
+
+                                <div class="recipient-mobile">
+
+                                    📱
+
+                                    <?php
+
+                                    echo htmlspecialchars(
+                                        $recipient['mobile']
+                                    );
+
+                                    ?>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="verified">
+
+                            ✓ Verified
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =========================================
+                     SEND FORM
+                ========================================== -->
+
+                    <form
+                        method="POST"
+                        id="sendMoneyForm">
+
+                        <input
+                            type="hidden"
+                            name="csrf_token"
+                            value="<?php
+                                    echo htmlspecialchars(
+                                        $csrfToken
+                                    );
+                                    ?>">
+
+
+                        <input
+                            type="hidden"
+                            name="receiver_id"
+                            value="<?php
+                                    echo htmlspecialchars(
+                                        $recipient['wallet_id']
+                                    );
+                                    ?>">
+
+
+                        <!-- AMOUNT -->
+
+                        <div class="form-group">
+
+                            <label>
+                                Amount
+                            </label>
+
+
+                            <div class="input-wrap">
+
+                                <span class="input-icon">
+                                    ₹
+                                </span>
+
+
+                                <input
+                                    type="number"
+                                    name="amount"
+                                    id="amount"
+                                    class="form-control amount-input"
+                                    placeholder="0.00"
+                                    min="1"
+                                    max="100000"
+                                    step="0.01"
+                                    inputmode="decimal"
+                                    required>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- SEND BUTTON -->
+
+                        <button
+                            type="button"
+                            class="btn"
+                            onclick="openPinModal();">
+
+                            💸 Send Money
+
+                        </button>
+
+
+                    </form>
+
+
+                    <div class="security-note">
+
+                        🔐 Your transfer is processed securely.
+                        You must enter your 4-digit transaction PIN
+                        before the payment is processed.
+
+                    </div>
+
+
+                <?php endif; ?>
+
 
             </div>
 
         </div>
 
-
-        <!-- =================================================
-             FORM CARD
-        ================================================== -->
-
-        <div class="form-card">
+    </div>
 
 
-            <h2 class="form-title">
-                Send Money
+    <?php require 'footer.php'; ?>
+
+
+    <!-- =========================================================
+     PIN MODAL
+========================================================= -->
+
+    <div
+        class="pin-modal"
+        id="pinModal"
+        onclick="closePinFromOutside(event);">
+
+
+        <div
+            class="pin-box"
+            onclick="event.stopPropagation();">
+
+
+            <div class="pin-icon">
+                🔐
+            </div>
+
+
+            <h2>
+                Enter Transaction PIN
             </h2>
 
 
-            <p class="form-subtitle">
+            <p>
 
-                Enter the recipient's registered mobile number.
+                Enter your 4-digit PIN to confirm this payment.
 
             </p>
 
 
-            <!-- MESSAGE -->
+            <input
+                type="password"
+                id="pinInput"
+                class="pin-input"
+                maxlength="4"
+                minlength="4"
+                inputmode="numeric"
+                pattern="[0-9]{4}"
+                autocomplete="off"
+                placeholder="••••">
 
-            <?php if ($message !== ''): ?>
 
-                <div class="
-                    alert
-                    <?php
-                    echo $messageType === 'success'
-                        ? 'alert-success'
-                        : 'alert-error';
-                    ?>
-                ">
+            <div
+                class="pin-error"
+                id="pinError"></div>
 
-                    <?php
-                    echo htmlspecialchars(
-                        $message
-                    );
-                    ?>
 
-                </div>
+            <div class="pin-buttons">
 
-            <?php endif; ?>
 
+                <button
+                    type="button"
+                    class="pin-cancel"
+                    onclick="closePinModal();">
 
-            <?php if (!$recipient): ?>
+                    Cancel
 
+                </button>
 
-                <!-- =========================================
-                     FIND USER
-                ========================================== -->
 
-                <form method="POST">
+                <button
+                    type="button"
+                    class="pin-confirm"
+                    id="pinConfirmButton"
+                    onclick="confirmPin();">
 
-                    <input
-                        type="hidden"
-                        name="csrf_token"
-                        value="<?php
-                        echo htmlspecialchars(
-                            $csrfToken
-                        );
-                        ?>">
+                    Confirm Payment
 
+                </button>
 
-                    <div class="form-group">
-
-                        <label>
-                            Recipient Mobile Number
-                        </label>
-
-
-                        <div class="input-wrap">
-
-                            <span class="input-icon">
-                                📱
-                            </span>
-
-
-                            <input
-                                type="tel"
-                                name="mobile"
-                                class="form-control"
-                                placeholder="Enter 10-digit mobile number"
-                                maxlength="10"
-                                pattern="[6-9][0-9]{9}"
-                                inputmode="numeric"
-                                required>
-
-                        </div>
-
-                    </div>
-
-
-                    <button
-                        type="submit"
-                        name="find_user"
-                        class="btn btn-find">
-
-                        🔍 Find MBD PAY User
-
-                    </button>
-
-                </form>
-
-
-            <?php else: ?>
-
-
-                <!-- =========================================
-                     RECIPIENT FOUND
-                ========================================== -->
-
-                <div class="recipient-card">
-
-
-                    <div class="recipient-left">
-
-
-                        <div class="avatar">
-
-                            <?php
-
-                            echo strtoupper(
-                                substr(
-                                    $recipient['name'],
-                                    0,
-                                    1
-                                )
-                            );
-
-                            ?>
-
-                        </div>
-
-
-                        <div>
-
-                            <div class="recipient-name">
-
-                                <?php
-
-                                echo htmlspecialchars(
-                                    $recipient['name']
-                                );
-
-                                ?>
-
-                            </div>
-
-
-                            <div class="recipient-mobile">
-
-                                📱
-
-                                <?php
-
-                                echo htmlspecialchars(
-                                    $recipient['mobile']
-                                );
-
-                                ?>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="verified">
-
-                        ✓ Verified
-
-                    </div>
-
-                </div>
-
-
-                <!-- =========================================
-                     SEND FORM
-                ========================================== -->
-
-                <form
-                    method="POST"
-                    id="sendMoneyForm"
-                >
-
-                    <input
-                        type="hidden"
-                        name="csrf_token"
-                        value="<?php
-                        echo htmlspecialchars(
-                            $csrfToken
-                        );
-                        ?>">
-
-
-                    <input
-                        type="hidden"
-                        name="receiver_id"
-                        value="<?php
-                        echo htmlspecialchars(
-                            $recipient['wallet_id']
-                        );
-                        ?>">
-
-
-                    <!-- AMOUNT -->
-
-                    <div class="form-group">
-
-                        <label>
-                            Amount
-                        </label>
-
-
-                        <div class="input-wrap">
-
-                            <span class="input-icon">
-                                ₹
-                            </span>
-
-
-                            <input
-                                type="number"
-                                name="amount"
-                                id="amount"
-                                class="form-control amount-input"
-                                placeholder="0.00"
-                                min="1"
-                                max="100000"
-                                step="0.01"
-                                inputmode="decimal"
-                                required>
-
-                        </div>
-
-                    </div>
-
-
-                    <!-- SEND BUTTON -->
-
-                    <button
-                        type="button"
-                        class="btn"
-                        onclick="openPinModal();">
-
-                        💸 Send Money
-
-                    </button>
-
-
-                </form>
-
-
-                <div class="security-note">
-
-                    🔐 Your transfer is processed securely.
-                    You must enter your 4-digit transaction PIN
-                    before the payment is processed.
-
-                </div>
-
-
-            <?php endif; ?>
-
+            </div>
 
         </div>
 
     </div>
 
-</div>
 
-
-<?php require 'footer.php'; ?>
-
-
-<!-- =========================================================
-     PIN MODAL
-========================================================= -->
-
-<div
-    class="pin-modal"
-    id="pinModal"
-    onclick="closePinFromOutside(event);"
->
-
-
-    <div
-        class="pin-box"
-        onclick="event.stopPropagation();"
-    >
-
-
-        <div class="pin-icon">
-            🔐
-        </div>
-
-
-        <h2>
-            Enter Transaction PIN
-        </h2>
-
-
-        <p>
-
-            Enter your 4-digit PIN to confirm this payment.
-
-        </p>
-
-
-        <input
-            type="password"
-            id="pinInput"
-            class="pin-input"
-            maxlength="4"
-            minlength="4"
-            inputmode="numeric"
-            pattern="[0-9]{4}"
-            autocomplete="off"
-            placeholder="••••"
-        >
-
-
-        <div
-            class="pin-error"
-            id="pinError"
-        ></div>
-
-
-        <div class="pin-buttons">
-
-
-            <button
-                type="button"
-                class="pin-cancel"
-                onclick="closePinModal();"
-            >
-
-                Cancel
-
-            </button>
-
-
-            <button
-                type="button"
-                class="pin-confirm"
-                id="pinConfirmButton"
-                onclick="confirmPin();"
-            >
-
-                Confirm Payment
-
-            </button>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-<script>
-
-/* =========================================================
+    <script>
+        /* =========================================================
    OPEN PIN MODAL
 ========================================================= */
 
-function openPinModal()
-{
-    const amountInput =
-        document.getElementById("amount");
+        function openPinModal() {
+            const amountInput =
+                document.getElementById("amount");
 
-    const amount =
-        amountInput.value.trim();
+            const amount =
+                amountInput.value.trim();
 
-    const pinModal =
-        document.getElementById("pinModal");
+            const pinModal =
+                document.getElementById("pinModal");
 
-    const pinInput =
-        document.getElementById("pinInput");
+            const pinInput =
+                document.getElementById("pinInput");
 
-    const pinError =
-        document.getElementById("pinError");
+            const pinError =
+                document.getElementById("pinError");
 
 
-    /* CLEAR OLD ERROR */
+            /* CLEAR OLD ERROR */
 
-    pinError.textContent = "";
+            pinError.textContent = "";
 
 
-    /* CHECK AMOUNT */
-
-    if (
-        amount === "" ||
-        isNaN(amount) ||
-        Number(amount) <= 0
-    ) {
-
-        alert(
-            "Please enter a valid amount."
-        );
-
-        amountInput.focus();
-
-        return;
-    }
-
-
-    if (Number(amount) > 100000) {
-
-        alert(
-            "Maximum transfer amount is ₹1,00,000."
-        );
-
-        amountInput.focus();
-
-        return;
-    }
-
-
-    /* OPEN MODAL */
-
-    pinModal.classList.add("show");
-
-    pinInput.value = "";
-
-    setTimeout(
-        function()
-        {
-            pinInput.focus();
-        },
-        100
-    );
-}
-
-
-/* =========================================================
-   CLOSE PIN MODAL
-========================================================= */
-
-function closePinModal()
-{
-    const pinModal =
-        document.getElementById("pinModal");
-
-    const pinInput =
-        document.getElementById("pinInput");
-
-    const pinError =
-        document.getElementById("pinError");
-
-
-    pinModal.classList.remove("show");
-
-    pinInput.value = "";
-
-    pinError.textContent = "";
-}
-
-
-/* =========================================================
-   CLOSE WHEN CLICK OUTSIDE
-========================================================= */
-
-function closePinFromOutside(event)
-{
-    if (
-        event.target.id === "pinModal"
-    ) {
-
-        closePinModal();
-    }
-}
-
-
-/* =========================================================
-   CONFIRM PIN
-========================================================= */
-
-function confirmPin()
-{
-    const pinInput =
-        document.getElementById("pinInput");
-
-    const pinError =
-        document.getElementById("pinError");
-
-    const confirmButton =
-        document.getElementById(
-            "pinConfirmButton"
-        );
-
-    const form =
-        document.getElementById(
-            "sendMoneyForm"
-        );
-
-
-    const pin =
-        pinInput.value.trim();
-
-
-    /* VALIDATE PIN */
-
-    if (!/^[0-9]{4}$/.test(pin)) {
-
-        pinError.textContent =
-            "Please enter your 4-digit PIN.";
-
-        pinInput.focus();
-
-        return;
-    }
-
-
-    /* PREVENT DOUBLE CLICK */
-
-    confirmButton.disabled = true;
-
-    confirmButton.textContent =
-        "Processing...";
-
-
-    /* REMOVE OLD PIN FIELD */
-
-    const oldPin =
-        form.querySelector(
-            'input[name="transaction_pin"]'
-        );
-
-    if (oldPin) {
-
-        oldPin.remove();
-    }
-
-
-    /* CREATE PIN FIELD */
-
-    const pinField =
-        document.createElement("input");
-
-    pinField.type = "hidden";
-
-    pinField.name =
-        "transaction_pin";
-
-    pinField.value = pin;
-
-
-    form.appendChild(
-        pinField
-    );
-
-
-    /* CREATE SEND MONEY FIELD */
-
-    const sendField =
-        document.createElement("input");
-
-    sendField.type = "hidden";
-
-    sendField.name =
-        "send_money";
-
-    sendField.value = "1";
-
-
-    form.appendChild(
-        sendField
-    );
-
-
-    /* SUBMIT FORM */
-
-    form.submit();
-}
-
-
-/* =========================================================
-   ENTER KEY = CONFIRM PIN
-========================================================= */
-
-document
-    .getElementById("pinInput")
-    ?.addEventListener(
-        "keydown",
-        function(event)
-        {
+            /* CHECK AMOUNT */
 
             if (
-                event.key === "Enter"
+                amount === "" ||
+                isNaN(amount) ||
+                Number(amount) <= 0
             ) {
 
-                event.preventDefault();
+                alert(
+                    "Please enter a valid amount."
+                );
 
-                confirmPin();
+                amountInput.focus();
+
+                return;
             }
 
+
+            if (Number(amount) > 100000) {
+
+                alert(
+                    "Maximum transfer amount is ₹1,00,000."
+                );
+
+                amountInput.focus();
+
+                return;
+            }
+
+
+            /* OPEN MODAL */
+
+            pinModal.classList.add("show");
+
+            pinInput.value = "";
+
+            setTimeout(
+                function() {
+                    pinInput.focus();
+                },
+                100
+            );
+        }
+
+
+        /* =========================================================
+           CLOSE PIN MODAL
+        ========================================================= */
+
+        function closePinModal() {
+            const pinModal =
+                document.getElementById("pinModal");
+
+            const pinInput =
+                document.getElementById("pinInput");
+
+            const pinError =
+                document.getElementById("pinError");
+
+
+            pinModal.classList.remove("show");
+
+            pinInput.value = "";
+
+            pinError.textContent = "";
+        }
+
+
+        /* =========================================================
+           CLOSE WHEN CLICK OUTSIDE
+        ========================================================= */
+
+        function closePinFromOutside(event) {
             if (
-                event.key === "Escape"
+                event.target.id === "pinModal"
             ) {
 
                 closePinModal();
             }
         }
-    );
 
 
-/* =========================================================
-   ONLY ALLOW NUMBERS IN PIN
-========================================================= */
+        /* =========================================================
+           CONFIRM PIN
+        ========================================================= */
 
-document
-    .getElementById("pinInput")
-    ?.addEventListener(
-        "input",
-        function()
-        {
+        function confirmPin() {
+            const pinInput =
+                document.getElementById("pinInput");
 
-            this.value =
-                this.value
-                .replace(
-                    /[^0-9]/g,
-                    ''
-                )
-                .slice(0, 4);
+            const pinError =
+                document.getElementById("pinError");
+
+            const confirmButton =
+                document.getElementById(
+                    "pinConfirmButton"
+                );
+
+            const form =
+                document.getElementById(
+                    "sendMoneyForm"
+                );
+
+
+            const pin =
+                pinInput.value.trim();
+
+
+            /* VALIDATE PIN */
+
+            if (!/^[0-9]{4}$/.test(pin)) {
+
+                pinError.textContent =
+                    "Please enter your 4-digit PIN.";
+
+                pinInput.focus();
+
+                return;
+            }
+
+
+            /* PREVENT DOUBLE CLICK */
+
+            confirmButton.disabled = true;
+
+            confirmButton.textContent =
+                "Processing...";
+
+
+            /* REMOVE OLD PIN FIELD */
+
+            const oldPin =
+                form.querySelector(
+                    'input[name="transaction_pin"]'
+                );
+
+            if (oldPin) {
+
+                oldPin.remove();
+            }
+
+
+            /* CREATE PIN FIELD */
+
+            const pinField =
+                document.createElement("input");
+
+            pinField.type = "hidden";
+
+            pinField.name =
+                "transaction_pin";
+
+            pinField.value = pin;
+
+
+            form.appendChild(
+                pinField
+            );
+
+
+            /* CREATE SEND MONEY FIELD */
+
+            const sendField =
+                document.createElement("input");
+
+            sendField.type = "hidden";
+
+            sendField.name =
+                "send_money";
+
+            sendField.value = "1";
+
+
+            form.appendChild(
+                sendField
+            );
+
+
+            /* SUBMIT FORM */
+
+            form.submit();
         }
-    );
 
-</script>
+
+        /* =========================================================
+           ENTER KEY = CONFIRM PIN
+        ========================================================= */
+
+        document
+            .getElementById("pinInput")
+            ?.addEventListener(
+                "keydown",
+                function(event) {
+
+                    if (
+                        event.key === "Enter"
+                    ) {
+
+                        event.preventDefault();
+
+                        confirmPin();
+                    }
+
+                    if (
+                        event.key === "Escape"
+                    ) {
+
+                        closePinModal();
+                    }
+                }
+            );
+
+
+        /* =========================================================
+           ONLY ALLOW NUMBERS IN PIN
+        ========================================================= */
+
+        document
+            .getElementById("pinInput")
+            ?.addEventListener(
+                "input",
+                function() {
+
+                    this.value =
+                        this.value
+                        .replace(
+                            /[^0-9]/g,
+                            ''
+                        )
+                        .slice(0, 4);
+                }
+            );
+    </script>
 
 
 </body>

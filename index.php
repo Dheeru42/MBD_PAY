@@ -91,6 +91,42 @@ if ($serverConnected) {
     $last_update = $_SESSION['last_update'];
 }
 
+/* synchronize if balance mismatch */
+
+try {
+
+    // server balance
+
+    $stmt = mysqli_prepare($conn, "SELECT name,balance FROM users WHERE mobile=? AND account_no=?");
+    mysqli_stmt_bind_param($stmt, "ss", $u_mob, $u_account);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $user = mysqli_fetch_assoc($result);
+
+    $server_bal = decryptData($user['balance']);
+
+    // user cache path
+
+    $userId = hash("sha256", $u_mob);
+
+    $profile = CACHE_DIR . $userId . "/profile.json";
+
+    $cache = json_decode(
+        file_get_contents($profile),
+        true
+    );
+
+    $cache_bal = decryptData($cache['balance']);
+
+    // start
+    if ($server_bal != $cache_bal) {
+        header("location:synchronize_login.php");
+    }
+} catch (\Throwable $th) {
+    header("location:synchronize_login.php");
+}
+
+
 // available balance
 
 try {
@@ -427,6 +463,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             gap: 15px;
             margin-top: 30px;
         }
+
         .wallet-actions-offline {
             display: grid;
             grid-template-columns: repeat(1, 1fr);
@@ -1248,8 +1285,8 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     </div>
 
                 <?php } else { ?>
-                <br>
-                <br>
+                    <br>
+                    <br>
                     <div class="wallet-actions-offline">
 
                         <a href="send_offline_money.php" class="action-btn">

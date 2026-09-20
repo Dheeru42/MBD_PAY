@@ -85,6 +85,8 @@ if (!isset($_SESSION['account'])) {
 
 $u_account = $_SESSION['account'];
 
+$u_mob = $_SESSION['mobile'];
+
 if (!isset($_SESSION['mobile'])) {
     header("location:index.php");
     exit;
@@ -101,6 +103,41 @@ if (!isset($_SESSION['wallet_id'])) {
     exit;
 }
 $u_wallet_id = $_SESSION['wallet_id'];
+
+/* synchronize if balance mismatch */
+
+try {
+
+    // server balance
+
+    $stmt = mysqli_prepare($conn, "SELECT name,balance FROM users WHERE mobile=? AND account_no=?");
+    mysqli_stmt_bind_param($stmt, "ss", $u_mob, $u_account);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $user = mysqli_fetch_assoc($result);
+
+    $server_bal = decryptData($user['balance']);
+
+    // user cache path
+
+    $userId = hash("sha256", $u_mob);
+
+    $profile = CACHE_DIR . $userId . "/profile.json";
+
+    $cache = json_decode(
+        file_get_contents($profile),
+        true
+    );
+
+    $cache_bal = decryptData($cache['balance']);
+
+    // start
+    if ($server_bal != $cache_bal) {
+        header("location:synchronize_login.php");
+    }
+} catch (\Throwable $th) {
+    header("location:synchronize_login.php");
+}
 
 // make serever connection
 try {

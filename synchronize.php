@@ -535,9 +535,9 @@ try {
     if ($w_user = mysqli_fetch_assoc($result1)) {
         $available_wallet = $w_user['balance'];
         $userId = hash("sha256", $u_mob);
-        
+
         $file = "cache/users/$userId/profile.json";
-        
+
 
         if (file_exists($file)) {
 
