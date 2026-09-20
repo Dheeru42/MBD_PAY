@@ -3,41 +3,25 @@ session_start();
 
 require 'conn.php';
 
-// LOGIN CHECK
+/* =========================================================
+   LOGIN CHECK
+========================================================= */
 
 if (!isset($_SESSION['user'])) {
-
     header("location:login.php");
     exit;
 }
+
 if ($serverConnected) {
     if (!isset($_SESSION['last_update'])) {
-
         header("location:synchronize_login.php");
         exit;
     }
 }
 
 if (!isset($_SESSION['wallet_id'])) {
-
     header("location:login.php");
     exit;
-}
-
-$u_wallet_id = $_SESSION['wallet_id'];
-
-$u_account = $_SESSION['account'];
-$u_mob = $_SESSION['mobile'];
-
-if (!isset($_SESSION['user']) && isset($_COOKIE['remember_user'])) {
-    $_SESSION['user'] = $_COOKIE['remember_user'];
-}
-
-
-
-if (isset($_SESSION['user'])) {
-
-    $username = $_SESSION['user'];
 }
 
 if (!isset($_SESSION['mobile'])) {
@@ -49,6 +33,17 @@ if (!isset($_SESSION['account'])) {
     header("location:login.php");
     exit;
 }
+
+
+/* =========================================================
+   USER SESSION DATA
+========================================================= */
+
+$u_wallet_id = $_SESSION['wallet_id'];
+$u_account   = $_SESSION['account'];
+$u_mob       = $_SESSION['mobile'];
+
+$username = $_SESSION['user'];
 
 
 /* =========================================================
@@ -67,146 +62,243 @@ $csrfToken = $_SESSION['csrf_token'];
 ========================================================= */
 
 $message = '';
-
 $message1 = '';
-
 $messageType = '';
 
 $recipient = null;
-
 $amount = '';
 
 $senderBalance = 0;
+$wallet_status = 'Inactive';
 
-// cache directory
+
+/* =========================================================
+   CACHE DIRECTORY
+========================================================= */
 
 define("CACHE_DIR", __DIR__ . "/cache/users/");
 
-// secrete key
 
-define("SECRET_KEY", "MBDPAY@2026_SUPER_SECRET_KEY_32");
+/* =========================================================
+   SECRET KEY
+========================================================= */
 
-/* Encrypt Function */
+define(
+    "SECRET_KEY",
+    "MBDPAY@2026_SUPER_SECRET_KEY_32"
+);
+
+
+/* =========================================================
+   ENCRYPT FUNCTION
+========================================================= */
+
 function encryptData($text)
 {
     $key = hash("sha256", SECRET_KEY, true);
-    $iv  = random_bytes(16);
+
+    $iv = random_bytes(16);
 
     $cipher = openssl_encrypt(
-        $text,
+        (string)$text,
         "AES-256-CBC",
         $key,
         OPENSSL_RAW_DATA,
         $iv
     );
 
+    if ($cipher === false) {
+        throw new Exception("Unable to encrypt data.");
+    }
+
     return base64_encode($iv . $cipher);
 }
 
-/* Decrypt Function */
+
+/* =========================================================
+   DECRYPT FUNCTION
+========================================================= */
 
 function decryptData($text)
 {
+    if (empty($text)) {
+        return 0.0;
+    }
+
     $key = hash("sha256", SECRET_KEY, true);
 
-    $data = base64_decode($text);
+    $data = base64_decode($text, true);
+
+    if ($data === false || strlen($data) < 17) {
+        return 0.0;
+    }
 
     $iv = substr($data, 0, 16);
-
     $cipher = substr($data, 16);
 
-
-    return openssl_decrypt(
+    $decrypted = openssl_decrypt(
         $cipher,
         "AES-256-CBC",
         $key,
         OPENSSL_RAW_DATA,
         $iv
     );
+
+    if ($decrypted === false || !is_numeric($decrypted)) {
+        return 0.0;
+    }
+
+    return (float)$decrypted;
 }
 
 
-// GET SENDER BALANCE FROM DATABASE
+/* =========================================================
+   TRANSACTION ID
+========================================================= */
+
+function generateTransactionId()
+{
+    return "MBD"
+        . date("ymdHis")
+        . strtoupper(bin2hex(random_bytes(4)));
+}
+
+
+/* =========================================================
+   GET SENDER BALANCE
+========================================================= */
 
 try {
-    $stmt = $conn->prepare("
-    SELECT *
-    FROM users
-    WHERE wallet_id = ?
-    AND account_no = ?
-    AND mobile = ?
-    LIMIT 1
-");
 
-    $stmt->bind_param("sss", $u_wallet_id, $u_account, $u_mob);
+    $stmt = $conn->prepare("
+        SELECT *
+        FROM users
+        WHERE wallet_id = ?
+        AND account_no = ?
+        AND mobile = ?
+        LIMIT 1
+    ");
+
+    $stmt->bind_param(
+        "sss",
+        $u_wallet_id,
+        $u_account,
+        $u_mob
+    );
+
     $stmt->execute();
 
     $result = $stmt->get_result();
 
     if ($row = $result->fetch_assoc()) {
-        $senderBalance = decryptData($row['balance']);
+
+        /*
+         * IMPORTANT:
+         * Database balance is encrypted.
+         * Decrypt it before using number_format().
+         */
+
+        $senderBalance = decryptData(
+            $row['balance']
+        );
+
+        $senderBalance = (float)$senderBalance;
+
         $wallet_status = $row['Wallet Status'];
     }
 
     $stmt->close();
-} catch (\Throwable $th) {
+
+} catch (Throwable $th) {
+
+    $senderBalance = 0;
+
     $message1 = "Unable To Fetch Balance.";
     $messageType = "error";
 }
 
 
-// FIND RECIPIENT
+/* =========================================================
+   FIND RECIPIENT
+========================================================= */
 
 try {
 
     if (isset($_POST['find_user'])) {
 
+        /* CSRF CHECK */
+
         if (
             !isset($_POST['csrf_token']) ||
-            !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+            !hash_equals(
+                $_SESSION['csrf_token'],
+                $_POST['csrf_token']
+            )
         ) {
 
             $message = "Invalid security token. Please refresh the page.";
             $messageType = "error";
+
         } else {
 
-            $mobile = trim($_POST['mobile'] ?? '');
+            $mobile = trim(
+                $_POST['mobile'] ?? ''
+            );
 
             $_SESSION['recipient_mob'] = $mobile;
 
-            //  mobile validation.
+
+            /* MOBILE VALIDATION */
 
             if (!preg_match('/^[6-9][0-9]{9}$/', $mobile)) {
 
                 $message = "Please enter a valid 10-digit mobile number.";
                 $messageType = "error";
+
             } else {
 
                 $stmt = $conn->prepare("
-                SELECT *
-                FROM users
-                WHERE mobile = ?
-                LIMIT 1
-            ");
+                    SELECT *
+                    FROM users
+                    WHERE mobile = ?
+                    LIMIT 1
+                ");
 
-                $stmt->bind_param("s", $mobile);
+                $stmt->bind_param(
+                    "s",
+                    $mobile
+                );
+
                 $stmt->execute();
 
                 $result = $stmt->get_result();
 
+
                 if ($row = $result->fetch_assoc()) {
 
-                    if ($row['wallet_id'] === $u_wallet_id) {
+                    /* PREVENT SELF TRANSFER */
 
-                        $message = "You cannot send money to your own account.";
+                    if (
+                        (string)$row['wallet_id']
+                        ===
+                        (string)$u_wallet_id
+                    ) {
+
+                        $message =
+                            "You cannot send money to your own account.";
+
                         $messageType = "error";
+
                     } else {
 
                         $recipient = $row;
                     }
+
                 } else {
 
-                    $message = "No MBD PAY user was found with this mobile number.";
+                    $message =
+                        "No MBD PAY user was found with this mobile number.";
+
                     $messageType = "error";
                 }
 
@@ -214,372 +306,689 @@ try {
             }
         }
     }
-} catch (\Throwable $th) {
+
+} catch (Throwable $th) {
+
     $message = "Unable To Find MBD PAY user.";
     $messageType = "error";
 }
 
-// SEND MONEY
+
+/* =========================================================
+   SEND MONEY
+   PIN IS REQUIRED HERE
+========================================================= */
 
 try {
 
     if (isset($_POST['send_money'])) {
 
+        /* =====================================================
+           CSRF CHECK
+        ===================================================== */
+
         if (
             !isset($_POST['csrf_token']) ||
-            !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+            !hash_equals(
+                $_SESSION['csrf_token'],
+                $_POST['csrf_token']
+            )
         ) {
 
-            $message = "Invalid security token. Please refresh the page.";
+            $message =
+                "Invalid security token. Please refresh the page.";
+
             $messageType = "error";
+
         } else {
 
-            $receiverId = $_POST['receiver_id'];
-            $receiverMob = $_SESSION['recipient_mob'];
-            $amount = floatval($_POST['amount']);
-            $e_amount = encryptData($amount);
+            /* =================================================
+               GET FORM DATA
+            ================================================= */
 
-            // Convert amount safely.
+            $receiverId = trim(
+                $_POST['receiver_id'] ?? ''
+            );
 
-            if (!is_numeric($amount)) {
+            $receiverMob =
+                $_SESSION['recipient_mob'] ?? '';
 
-                $message = "Please enter a valid amount.";
+            $amountInput =
+                trim($_POST['amount'] ?? '');
+
+            $transactionPin =
+                trim($_POST['transaction_pin'] ?? '');
+
+
+            /* =================================================
+               PIN VALIDATION
+            ================================================= */
+
+            if (
+                !preg_match(
+                    '/^[0-9]{4}$/',
+                    $transactionPin
+                )
+            ) {
+
+                $message =
+                    "Please enter a valid 4-digit PIN.";
+
                 $messageType = "error";
+
             } else {
 
-                //  Amount must be positive and limited to 2 decimals.
+                /* =============================================
+                   VERIFY PIN FROM DATABASE
+                ============================================= */
 
-                if ($amount <= 0) {
+                $stmt = $conn->prepare("
+                    SELECT pin
+                    FROM users
+                    WHERE wallet_id = ?
+                    AND account_no = ?
+                    AND mobile = ?
+                    LIMIT 1
+                ");
 
-                    $message = "Amount must be greater than ₹0.";
+                $stmt->bind_param(
+                    "sss",
+                    $u_wallet_id,
+                    $u_account,
+                    $u_mob
+                );
+
+                $stmt->execute();
+
+                $result = $stmt->get_result();
+
+                $userRow = $result->fetch_assoc();
+
+                $stmt->close();
+
+
+                /* =============================================
+                   CHECK PASSWORD HASH
+                ============================================= */
+
+                if (
+                    !$userRow ||
+                    empty($userRow['pin']) ||
+                    !password_verify(
+                        $transactionPin,
+                        $userRow['pin']
+                    )
+                ) {
+
+                    $message =
+                        "Incorrect PIN. Payment was not processed.";
+
                     $messageType = "error";
-                } elseif ($amount > 100000) {
 
-                    $message = "Maximum transfer amount is ₹1,00,000.";
-                    $messageType = "error";
-                } elseif (round($amount, 2) != $amount) {
-
-                    $message = "Amount can contain a maximum of 2 decimal places.";
-                    $messageType = "error";
-                } elseif ($receiverId <= 0) {
-
-                    $message = "Invalid recipient.";
-                    $messageType = "error";
-                } elseif ($receiverId === $u_wallet_id) {
-
-                    $message = "You cannot send money to yourself.";
-                    $messageType = "error";
                 } else {
 
-                    // START DATABASE TRANSACTION
-
-
-                    $conn->begin_transaction();
-
-                    try {
-
-                        // LOCK SENDER WALLET
-
-
-                        $stmt = $conn->prepare("
-                        SELECT balance
-                        FROM users
-                        WHERE wallet_id = ?
-                        AND account_no = ?
-                        AND mobile = ?
-                        FOR UPDATE
-                    ");
-
-                        $stmt->bind_param("sss", $u_wallet_id, $u_account, $u_mob);
-                        $stmt->execute();
-
-                        $result = $stmt->get_result();
-
-                        $senderWallet = $result->fetch_assoc();
-
-                        $stmt->close();
-
-
-                        if (!$senderWallet) {
-                            throw new Exception("Sender wallet was not found.");
-                        }
-
-
-                        $d_currentBalance = decryptData($senderWallet['balance']);
-
-                        $e_currentBalance = $senderWallet['balance'];
-
-                        // CHECK BALANCE
-
-                        if ($d_currentBalance < $amount) {
-
-                            throw new Exception(
-                                "Insufficient wallet balance."
-                            );
-                        }
-
-                        // LOCK RECEIVER WALLET
-
-                        $stmt = $conn->prepare("
-                        SELECT balance
-                        FROM users
-                        WHERE wallet_id = ?
-                        AND mobile = ?
-                        FOR UPDATE
-                    ");
-
-                        $stmt->bind_param("ss", $receiverId, $receiverMob);
-                        $stmt->execute();
-
-                        $result = $stmt->get_result();
-
-                        $receiverWallet = $result->fetch_assoc();
-
-                        $d_receiver_bal = decryptData($receiverWallet['balance']);
-
-                        $e_receiver_bal = $receiverWallet['balance'];
-
-                        $stmt->close();
-
-
-                        if (!$receiverWallet) {
-                            throw new Exception(
-                                "Recipient wallet was not found."
-                            );
-                        }
-
-                        
-                        // DEDUCT FROM SENDER
-
-                        /* prepare balance of sender for update*/
-
-                        $update_sender_bal = $d_currentBalance - $amount;
-
-                        $e_update_sender_bal = encryptData($update_sender_bal);
-
-                        $stmt = $conn->prepare("
-                        UPDATE users
-                        SET balance = ?
-                        WHERE wallet_id = ?
-                        AND mobile = ?
-                        AND account_no = ?
-                    ");
-
-                        $stmt->bind_param(
-                            "ssss",
-                            $e_update_sender_bal,
-                            $u_wallet_id,
-                            $u_mob,
-                            $u_account
-                        );
-
-                        if (!$stmt->execute()) {
-                            throw new Exception(
-                                "Unable to debit sender wallet."
-                            );
-                        }
-
-                        $stmt->close();
-
-                        // ADD TO RECEIVER
-
-                        /* prepare reciever balance for update*/
-                        $update_reciever_bal = $d_receiver_bal + $amount;
-
-                        $e_update_reciever_bal = encryptData($update_reciever_bal);
-
-                        $stmt = $conn->prepare("
-                        UPDATE users
-                        SET balance = ?
-                        WHERE wallet_id = ?
-                        AND mobile = ?
-                    ");
-
-                        $stmt->bind_param(
-                            "sss",
-                            $e_update_reciever_bal,
-                            $receiverId,
-                            $receiverMob
-                        );
-
-                        if (!$stmt->execute()) {
-                            throw new Exception(
-                                "Unable to credit recipient wallet."
-                            );
-                        }
-
-                        $stmt->close();
-
-                        // CREATE TRANSACTION RECORD FOR RECIEVER
-
-                        /* Generate transaction ID */
-
-                        function generateTransactionId()
-                        {
-                            return "MBD" . date("ymdHis") . strtoupper(bin2hex(random_bytes(4)));
-                        }
-
-                        $transaction_id1 = generateTransactionId();
-
-                        $transaction_id2 = generateTransactionId();
-
-                        $transactionType = "Credit";
-                        $status = 'Success';
-                        $description = "Money Trasfer By " . $u_mob . "/" . $u_wallet_id;
-
-                        $stmt = $conn->prepare("
-                        INSERT INTO transactions
-                        (
-                            transaction_id,
-                            mobile,
-                            type,
-                            amount,
-                            balance_before,
-                            balance_after,
-                            description,
-                            status
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ");
-
-                        $stmt->bind_param(
-                            "ssssssss",
-                            $transaction_id1,
-                            $receiverMob,
-                            $transactionType,
-                            $e_amount,
-                            $e_receiver_bal,
-                            $e_update_reciever_bal,
-                            $description,
-                            $status
-                        );
-
-                        if (!$stmt->execute()) {
-                            throw new Exception(
-                                "Transaction record could not be created."
-                            );
-                        }
-
-                        $stmt->close();
-
-
-                        // COMMIT
-                        $conn->commit();
-
-                        // CREATE TRANSACTION RECORD FOR SENDER
-
-                        $transaction_id2 = generateTransactionId();
-
-                        $transactionType2 = "Debit";
-                        $status2 = 'Success';
-                        $description2 = "Money Trasfer To " . $receiverMob . "/" . $receiverId;
-
-                        $stmt2 = $conn->prepare("
-                        INSERT INTO transactions
-                        (
-                            transaction_id,
-                            mobile,
-                            type,
-                            amount,
-                            balance_before,
-                            balance_after,
-                            description,
-                            status
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ");
-
-                        $stmt2->bind_param(
-                            "ssssssss",
-                            $transaction_id2,
-                            $u_mob,
-                            $transactionType2,
-                            $e_amount,
-                            $e_currentBalance,
-                            $e_update_sender_bal,
-                            $description2,
-                            $status2
-                        );
-
-                        if (!$stmt2->execute()) {
-                            throw new Exception(
-                                "Transaction record could not be created."
-                            );
-                        }
-
-                        $stmt2->close();
-
-
-                        // COMMIT
-                        $conn->commit();
-
-                        /* update sender cache */
-
-                        $userId = hash("sha256", $u_mob);
-
-                        $file = "cache/users/$userId/profile.json";
-
-
-                        if (file_exists($file)) {
-
-                            $data = json_decode(
-                                file_get_contents($file),
-                                true
-                            );
-
-                            $U_balance = $e_update_sender_bal;
-
-                            $data['balance'] = $U_balance;
-
-                            $data['server_sync'] = true;
-
-                            $data['update_at'] = date("Y-m-d h:i:s A");
-
-                            $data['last_transaction'] = $transaction_id2;
-
-
-                            file_put_contents(
-                                $file,
-                                json_encode(
-                                    $data,
-                                    JSON_PRETTY_PRINT
-                                )
-                            );
-                        }
-
-                        // Update displayed balance.
-
-                        $senderBalance = $d_currentBalance - $amount;
-
-                        //  Success message.
+                    /* =========================================
+                       PIN CORRECT
+                       NOW PROCESS PAYMENT
+                    ========================================= */
+
+                    /* =========================================
+                       AMOUNT VALIDATION
+                    ========================================= */
+
+                    if (
+                        $amountInput === '' ||
+                        !is_numeric($amountInput)
+                    ) {
 
                         $message =
-                            "₹" .
-                            number_format($amount, 2) .
-                            " sent successfully.";
+                            "Please enter a valid amount.";
 
-                        $messageType = "success";
-
-
-                        //  Clear recipient after successful transfer.
-
-                        $recipient = null;
-                    } catch (Throwable $e) {
-
-
-                        // ROLLBACK
-
-                        $conn->rollback();
-
-                        $message = $e->getMessage();
                         $messageType = "error";
+
+                    } else {
+
+                        $amount = (float)$amountInput;
+
+
+                        if ($amount <= 0) {
+
+                            $message =
+                                "Amount must be greater than ₹0.";
+
+                            $messageType = "error";
+
+                        } elseif ($amount > 100000) {
+
+                            $message =
+                                "Maximum transfer amount is ₹1,00,000.";
+
+                            $messageType = "error";
+
+                        } elseif (
+                            round($amount, 2) != $amount
+                        ) {
+
+                            $message =
+                                "Amount can contain a maximum of 2 decimal places.";
+
+                            $messageType = "error";
+
+                        } elseif ($receiverId === '') {
+
+                            $message =
+                                "Invalid recipient.";
+
+                            $messageType = "error";
+
+                        } elseif (
+                            (string)$receiverId
+                            ===
+                            (string)$u_wallet_id
+                        ) {
+
+                            $message =
+                                "You cannot send money to yourself.";
+
+                            $messageType = "error";
+
+                        } elseif ($receiverMob === '') {
+
+                            $message =
+                                "Recipient information is missing.";
+
+                            $messageType = "error";
+
+                        } else {
+
+                            /* =================================
+                               ENCRYPT AMOUNT
+                            ================================= */
+
+                            $e_amount =
+                                encryptData(
+                                    (string)$amount
+                                );
+
+
+                            /* =================================
+                               START DATABASE TRANSACTION
+                            ================================= */
+
+                            $conn->begin_transaction();
+
+                            try {
+
+                                /* =================================
+                                   LOCK SENDER WALLET
+                                ================================= */
+
+                                $stmt = $conn->prepare("
+                                    SELECT balance
+                                    FROM users
+                                    WHERE wallet_id = ?
+                                    AND account_no = ?
+                                    AND mobile = ?
+                                    FOR UPDATE
+                                ");
+
+                                $stmt->bind_param(
+                                    "sss",
+                                    $u_wallet_id,
+                                    $u_account,
+                                    $u_mob
+                                );
+
+                                $stmt->execute();
+
+                                $result =
+                                    $stmt->get_result();
+
+                                $senderWallet =
+                                    $result->fetch_assoc();
+
+                                $stmt->close();
+
+
+                                if (!$senderWallet) {
+
+                                    throw new Exception(
+                                        "Sender wallet was not found."
+                                    );
+                                }
+
+
+                                /* =================================
+                                   DECRYPT SENDER BALANCE
+                                ================================= */
+
+                                $d_currentBalance =
+                                    decryptData(
+                                        $senderWallet['balance']
+                                    );
+
+                                $d_currentBalance =
+                                    (float)$d_currentBalance;
+
+
+                                /* =================================
+                                   CHECK BALANCE
+                                ================================= */
+
+                                if (
+                                    $d_currentBalance
+                                    <
+                                    $amount
+                                ) {
+
+                                    throw new Exception(
+                                        "Insufficient wallet balance."
+                                    );
+                                }
+
+
+                                /* =================================
+                                   LOCK RECEIVER WALLET
+                                ================================= */
+
+                                $stmt = $conn->prepare("
+                                    SELECT balance
+                                    FROM users
+                                    WHERE wallet_id = ?
+                                    AND mobile = ?
+                                    FOR UPDATE
+                                ");
+
+                                $stmt->bind_param(
+                                    "ss",
+                                    $receiverId,
+                                    $receiverMob
+                                );
+
+                                $stmt->execute();
+
+                                $result =
+                                    $stmt->get_result();
+
+                                $receiverWallet =
+                                    $result->fetch_assoc();
+
+                                $stmt->close();
+
+
+                                if (!$receiverWallet) {
+
+                                    throw new Exception(
+                                        "Recipient wallet was not found."
+                                    );
+                                }
+
+
+                                /* =================================
+                                   DECRYPT RECEIVER BALANCE
+                                ================================= */
+
+                                $d_receiver_bal =
+                                    decryptData(
+                                        $receiverWallet['balance']
+                                    );
+
+                                $d_receiver_bal =
+                                    (float)$d_receiver_bal;
+
+
+                                /* =================================
+                                   SAVE BALANCE BEFORE
+                                ================================= */
+
+                                $e_currentBalance =
+                                    encryptData(
+                                        (string)$d_currentBalance
+                                    );
+
+                                $e_receiver_bal =
+                                    encryptData(
+                                        (string)$d_receiver_bal
+                                    );
+
+
+                                /* =================================
+                                   CALCULATE NEW BALANCES
+                                ================================= */
+
+                                $update_sender_bal =
+                                    round(
+                                        $d_currentBalance - $amount,
+                                        2
+                                    );
+
+                                $update_receiver_bal =
+                                    round(
+                                        $d_receiver_bal + $amount,
+                                        2
+                                    );
+
+
+                                /* =================================
+                                   ENCRYPT NEW BALANCES
+                                ================================= */
+
+                                $e_update_sender_bal =
+                                    encryptData(
+                                        (string)$update_sender_bal
+                                    );
+
+                                $e_update_receiver_bal =
+                                    encryptData(
+                                        (string)$update_receiver_bal
+                                    );
+
+
+                                /* =================================
+                                   UPDATE SENDER
+                                ================================= */
+
+                                $stmt = $conn->prepare("
+                                    UPDATE users
+                                    SET balance = ?
+                                    WHERE wallet_id = ?
+                                    AND mobile = ?
+                                    AND account_no = ?
+                                ");
+
+                                $stmt->bind_param(
+                                    "ssss",
+                                    $e_update_sender_bal,
+                                    $u_wallet_id,
+                                    $u_mob,
+                                    $u_account
+                                );
+
+                                if (!$stmt->execute()) {
+
+                                    throw new Exception(
+                                        "Unable to debit sender wallet."
+                                    );
+                                }
+
+                                $stmt->close();
+
+
+                                /* =================================
+                                   UPDATE RECEIVER
+                                ================================= */
+
+                                $stmt = $conn->prepare("
+                                    UPDATE users
+                                    SET balance = ?
+                                    WHERE wallet_id = ?
+                                    AND mobile = ?
+                                ");
+
+                                $stmt->bind_param(
+                                    "sss",
+                                    $e_update_receiver_bal,
+                                    $receiverId,
+                                    $receiverMob
+                                );
+
+                                if (!$stmt->execute()) {
+
+                                    throw new Exception(
+                                        "Unable to credit recipient wallet."
+                                    );
+                                }
+
+                                $stmt->close();
+
+
+                                /* =================================
+                                   TRANSACTION IDs
+                                ================================= */
+
+                                $transaction_id_receiver =
+                                    generateTransactionId();
+
+                                $transaction_id_sender =
+                                    generateTransactionId();
+
+
+                                /* =================================
+                                   RECEIVER TRANSACTION
+                                ================================= */
+
+                                $transactionTypeReceiver =
+                                    "Credit";
+
+                                $statusReceiver =
+                                    "Success";
+
+                                $descriptionReceiver =
+                                    "Money Transfer By "
+                                    . $u_mob
+                                    . "/"
+                                    . $u_wallet_id;
+
+
+                                $stmt = $conn->prepare("
+                                    INSERT INTO transactions
+                                    (
+                                        transaction_id,
+                                        mobile,
+                                        type,
+                                        amount,
+                                        balance_before,
+                                        balance_after,
+                                        description,
+                                        status
+                                    )
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                ");
+
+                                $stmt->bind_param(
+                                    "ssssssss",
+                                    $transaction_id_receiver,
+                                    $receiverMob,
+                                    $transactionTypeReceiver,
+                                    $e_amount,
+                                    $e_receiver_bal,
+                                    $e_update_receiver_bal,
+                                    $descriptionReceiver,
+                                    $statusReceiver
+                                );
+
+                                if (!$stmt->execute()) {
+
+                                    throw new Exception(
+                                        "Receiver transaction record could not be created."
+                                    );
+                                }
+
+                                $stmt->close();
+
+
+                                /* =================================
+                                   SENDER TRANSACTION
+                                ================================= */
+
+                                $transactionTypeSender =
+                                    "Debit";
+
+                                $statusSender =
+                                    "Success";
+
+                                $descriptionSender =
+                                    "Money Transfer To "
+                                    . $receiverMob
+                                    . "/"
+                                    . $receiverId;
+
+
+                                $stmt = $conn->prepare("
+                                    INSERT INTO transactions
+                                    (
+                                        transaction_id,
+                                        mobile,
+                                        type,
+                                        amount,
+                                        balance_before,
+                                        balance_after,
+                                        description,
+                                        status
+                                    )
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                ");
+
+                                $stmt->bind_param(
+                                    "ssssssss",
+                                    $transaction_id_sender,
+                                    $u_mob,
+                                    $transactionTypeSender,
+                                    $e_amount,
+                                    $e_currentBalance,
+                                    $e_update_sender_bal,
+                                    $descriptionSender,
+                                    $statusSender
+                                );
+
+                                if (!$stmt->execute()) {
+
+                                    throw new Exception(
+                                        "Sender transaction record could not be created."
+                                    );
+                                }
+
+                                $stmt->close();
+
+
+                                /* =================================
+                                   COMMIT EVERYTHING
+                                ================================= */
+
+                                $conn->commit();
+
+
+                                /* =================================
+                                   UPDATE LOCAL CACHE
+                                ================================= */
+
+                                $userId =
+                                    hash(
+                                        "sha256",
+                                        $u_mob
+                                    );
+
+                                $file =
+                                    __DIR__
+                                    . "/cache/users/"
+                                    . $userId
+                                    . "/profile.json";
+
+
+                                if (file_exists($file)) {
+
+                                    $data =
+                                        json_decode(
+                                            file_get_contents($file),
+                                            true
+                                        );
+
+                                    if (!is_array($data)) {
+                                        $data = [];
+                                    }
+
+                                    /*
+                                     * Store encrypted balance
+                                     */
+
+                                    $data['balance'] =
+                                        $e_update_sender_bal;
+
+                                    $data['server_sync'] =
+                                        true;
+
+                                    $data['update_at'] =
+                                        date(
+                                            "Y-m-d h:i:s A"
+                                        );
+
+                                    $data['last_transaction'] =
+                                        $transaction_id_sender;
+
+
+                                    file_put_contents(
+                                        $file,
+                                        json_encode(
+                                            $data,
+                                            JSON_PRETTY_PRINT
+                                        )
+                                    );
+                                }
+
+
+                                /* =================================
+                                   UPDATE DISPLAYED BALANCE
+                                ================================= */
+
+                                $senderBalance =
+                                    $update_sender_bal;
+
+
+                                /* =================================
+                                   SUCCESS MESSAGE
+                                ================================= */
+
+                                $message =
+                                    "₹"
+                                    . number_format(
+                                        $amount,
+                                        2
+                                    )
+                                    . " sent successfully.";
+
+                                $messageType =
+                                    "success";
+
+
+                                /* =================================
+                                   CLEAR RECIPIENT
+                                ================================= */
+
+                                $recipient = null;
+
+                                unset(
+                                    $_SESSION['recipient_mob']
+                                );
+
+
+                            } catch (Throwable $e) {
+
+                                /*
+                                 * ROLLBACK EVERYTHING
+                                 */
+
+                                $conn->rollback();
+
+                                $message =
+                                    $e->getMessage();
+
+                                $messageType =
+                                    "error";
+                            }
+                        }
                     }
                 }
             }
         }
     }
-} catch (\Throwable $th) {
-    //
+
+} catch (Throwable $th) {
+
+    $message =
+        "Unable to process the payment.";
+
+    $messageType =
+        "error";
 }
 ?>
 
@@ -596,23 +1005,24 @@ try {
 
     <title>MBD PAY | Send Money</title>
 
-    <link rel="icon" type="image/svg+xml"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'
-viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20'
-fill='%23059669'/%3E%3Ctext x='50' y='72'
-text-anchor='middle' font-size='70'
-font-family='Arial'
-font-weight='bold'
-fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
+
+    <link
+        rel="icon"
+        type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
+
 
     <style>
+
         * {
             box-sizing: border-box;
         }
 
 
         body {
+
             margin: 0;
+
             padding-bottom: 70px;
 
             font-family:
@@ -621,10 +1031,12 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                 sans-serif;
 
             background:
-                radial-gradient(circle at top left,
+                radial-gradient(
+                    circle at top left,
                     #bbf7d0,
                     #ecfdf5 45%,
-                    #d1fae5);
+                    #d1fae5
+                );
 
             color: #022c22;
         }
@@ -675,16 +1087,19 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             border-radius: 22px;
 
             background:
-                linear-gradient(135deg,
+                linear-gradient(
+                    135deg,
                     #facc15,
-                    #f59e0b);
+                    #f59e0b
+                );
 
             color: white;
 
             font-size: 35px;
 
             box-shadow:
-                0 12px 30px rgba(245, 158, 11, .3);
+                0 12px 30px
+                rgba(245, 158, 11, .3);
         }
 
 
@@ -709,7 +1124,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 
         /* =====================================================
-           MAIN GRID
+           GRID
         ===================================================== */
 
         .send-grid {
@@ -730,344 +1145,427 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         ===================================================== */
 
         .balance-card {
+
             position: relative;
+
             min-height: 285px;
+
             padding: 28px;
+
             overflow: hidden;
+
             border-radius: 28px;
+
             color: white;
-            background: linear-gradient(135deg, #022c22 0%, #064e3b 45%, #059669 100%);
-            box-shadow: 0 25px 60px rgba(2, 44, 34, .28);
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #022c22 0%,
+                    #064e3b 45%,
+                    #059669 100%
+                );
+
+            box-shadow:
+                0 25px 60px
+                rgba(2, 44, 34, .28);
+
             display: flex;
+
             flex-direction: column;
+
             justify-content: space-between;
+
             isolation: isolate;
-            transition: transform .35s ease, box-shadow .35s ease;
+
+            transition:
+                transform .35s ease,
+                box-shadow .35s ease;
         }
 
-        /* Hover Effect */
+
         .balance-card:hover {
+
             transform: translateY(-6px);
-            box-shadow: 0 30px 70px rgba(2, 44, 34, .35);
+
+            box-shadow:
+                0 30px 70px
+                rgba(2, 44, 34, .35);
         }
 
-        /* ===================================================== DECORATIVE GLOW ===================================================== */
+
         .balance-glow {
+
             position: absolute;
+
             border-radius: 50%;
+
             pointer-events: none;
+
             z-index: -1;
+
             filter: blur(2px);
         }
 
+
         .glow-one {
+
             width: 230px;
+
             height: 230px;
+
             right: -90px;
+
             top: -100px;
-            background: rgba(255, 255, 255, .10);
+
+            background:
+                rgba(255, 255, 255, .10);
         }
+
 
         .glow-two {
+
             width: 180px;
+
             height: 180px;
+
             left: -100px;
+
             bottom: -100px;
-            background: rgba(16, 185, 129, .20);
+
+            background:
+                rgba(16, 185, 129, .20);
         }
 
-        /* ===================================================== HEADER ===================================================== */
+
+        /* =====================================================
+           BALANCE HEADER
+        ===================================================== */
+
         .balance-header {
+
             display: flex;
+
             align-items: center;
+
             gap: 13px;
+
             position: relative;
+
             z-index: 2;
         }
 
+
         .wallet-icon {
+
             width: 48px;
+
             height: 48px;
+
             display: flex;
+
             align-items: center;
+
             justify-content: center;
+
             border-radius: 15px;
-            background: rgba(255, 255, 255, .14);
-            border: 1px solid rgba(255, 255, 255, .18);
+
+            background:
+                rgba(255, 255, 255, .14);
+
+            border:
+                1px solid
+                rgba(255, 255, 255, .18);
+
             backdrop-filter: blur(10px);
+
             font-size: 23px;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2);
+
+            box-shadow:
+                inset 0 1px 0
+                rgba(255, 255, 255, .2);
         }
 
+
         .balance-label {
+
             display: flex;
+
             flex-direction: column;
+
             gap: 3px;
+
             flex: 1;
         }
 
+
         .balance-label span {
+
             font-size: 10px;
+
             letter-spacing: 1.8px;
+
             opacity: .65;
+
             font-weight: 700;
         }
+
 
         .balance-label strong {
+
             font-size: 15px;
+
             font-weight: 700;
         }
 
-        /* ===================================================== STATUS ===================================================== */
-        <?php if ($wallet_status == 'Active') { ?>.balance-status {
+
+        /* =====================================================
+           STATUS
+        ===================================================== */
+
+        .balance-status {
+
             display: flex;
+
             align-items: center;
+
             gap: 6px;
+
             padding: 6px 10px;
+
             border-radius: 20px;
-            background: rgba(255, 255, 255, .10);
-            border: 1px solid rgba(255, 255, 255, .12);
+
+            background:
+                rgba(255, 255, 255, .10);
+
+            border:
+                1px solid
+                rgba(255, 255, 255, .12);
+
             font-size: 11px;
+
             font-weight: 600;
         }
 
+
         .balance-status span {
+
             width: 7px;
+
             height: 7px;
+
             border-radius: 50%;
+
+            <?php if ($wallet_status == 'Active') { ?>
+
             background: #4ade80;
-            box-shadow: 0 0 10px #4ade80;
-            animation: walletPulse 1.8s infinite;
-        }
 
-        <?php } else { ?>.balance-status {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 10px;
-            border-radius: 20px;
-            background: rgba(255, 255, 255, .10);
-            border: 1px solid rgba(255, 255, 255, .12);
-            font-size: 11px;
-            font-weight: 600;
-        }
+            box-shadow:
+                0 0 10px #4ade80;
 
-        .balance-status span {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
+            <?php } else { ?>
+
             background: #b60505;
-            box-shadow: 0 0 10px #b31414;
-            animation: walletPulse 1.8s infinite;
+
+            box-shadow:
+                0 0 10px #b31414;
+
+            <?php } ?>
+
+            animation:
+                walletPulse 1.8s infinite;
         }
 
-        <?php } ?>@keyframes walletPulse {
+
+        @keyframes walletPulse {
+
             50% {
+
                 opacity: .35;
+
                 transform: scale(.75);
             }
         }
 
-        /* ===================================================== BALANCE CONTENT ===================================================== */
+
+        /* =====================================================
+           BALANCE CONTENT
+        ===================================================== */
+
         .balance-content {
+
             position: relative;
+
             z-index: 2;
+
             margin-top: 20px;
         }
 
+
         .currency-label {
+
             font-size: 10px;
+
             letter-spacing: 2px;
+
             font-weight: 700;
+
             opacity: .55;
+
             margin-bottom: 7px;
-            margin-left: 80px;
         }
+
 
         .balance-amount {
+
             font-size: 39px;
+
             line-height: 1.1;
+
             font-weight: 800;
+
             letter-spacing: -.8px;
-            text-shadow: 0 4px 15px rgba(0, 0, 0, .15);
+
+            text-shadow:
+                0 4px 15px
+                rgba(0, 0, 0, .15);
         }
 
+
         .balance-amount small {
+
             font-size: 23px;
+
             vertical-align: 6px;
+
             margin-right: 3px;
+
             opacity: .8;
         }
 
+
         .balance-line {
+
             width: 100%;
+
             height: 1px;
+
             margin-top: 18px;
-            background: linear-gradient(90deg, rgba(255, 255, 255, .35), rgba(255, 255, 255, 0));
+
+            background:
+                linear-gradient(
+                    90deg,
+                    rgba(255, 255, 255, .35),
+                    rgba(255, 255, 255, 0)
+                );
         }
 
-        /* ===================================================== FOOTER ===================================================== */
+
+        /* =====================================================
+           BALANCE FOOTER
+        ===================================================== */
+
         .balance-footer {
+
             display: flex;
+
             align-items: center;
+
             justify-content: space-between;
+
             position: relative;
+
             z-index: 2;
+
             margin-top: 20px;
         }
 
+
         .secure {
+
             display: flex;
+
             align-items: center;
+
             gap: 10px;
         }
 
+
         .secure-icon {
+
             width: 35px;
+
             height: 35px;
+
             display: flex;
+
             align-items: center;
+
             justify-content: center;
+
             border-radius: 11px;
-            background: rgba(255, 255, 255, .10);
+
+            background:
+                rgba(255, 255, 255, .10);
+
             font-size: 15px;
         }
 
+
         .secure strong {
+
             display: block;
+
             font-size: 12px;
+
             margin-bottom: 2px;
         }
 
+
         .secure span {
+
             display: block;
+
             font-size: 10px;
+
             opacity: .55;
         }
 
-        /* ===================================================== SEND ARROW ===================================================== */
+
         .send-icon {
+
             width: 38px;
+
             height: 38px;
+
             display: flex;
+
             align-items: center;
+
             justify-content: center;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, .12);
-            border: 1px solid rgba(255, 255, 255, .15);
-            font-size: 20px;
-            transition: .3s;
-        }
-
-        .balance-card:hover .send-icon {
-            transform: translateX(5px);
-            background: rgba(255, 255, 255, .20);
-        }
-
-        /* ===================================================== ALERT INSIDE CARD ===================================================== */
-        .balance-card .alert {
-            position: relative;
-            z-index: 10;
-            padding: 11px 13px;
-            margin-bottom: 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-            backdrop-filter: blur(10px);
-        }
-
-        .balance-card .alert-success {
-            color: #dcfce7;
-            background: rgba(22, 101, 52, .35);
-            border: 1px solid rgba(134, 239, 172, .25);
-        }
-
-        .balance-card .alert-error {
-            color: #fee2e2;
-            background: rgba(153, 27, 27, .35);
-            border: 1px solid rgba(252, 165, 165, .25);
-        }
-
-        /* ===================================================== MOBILE ===================================================== */
-        @media(max-width:800px) {
-            .balance-card {
-                min-height: 260px;
-                padding: 24px;
-                border-radius: 24px;
-            }
-
-            .balance-amount {
-                font-size: 34px;
-            }
-
-            .balance-status {
-                display: none;
-            }
-
-            .wallet-icon {
-                width: 44px;
-                height: 44px;
-            }
-        }
-
-        .balance-card::before {
-
-            content: "";
-
-            position: absolute;
-
-            width: 180px;
-
-            height: 180px;
-
-            right: -70px;
-
-            top: -70px;
 
             border-radius: 50%;
 
             background:
-                rgba(255, 255, 255, .08);
+                rgba(255, 255, 255, .12);
+
+            border:
+                1px solid
+                rgba(255, 255, 255, .15);
+
+            font-size: 20px;
+
+            transition: .3s;
         }
 
 
-        .balance-card .small-title {
+        .balance-card:hover .send-icon {
 
-            font-size: 14px;
+            transform:
+                translateX(5px);
 
-            opacity: .8;
-
-            margin-bottom: 12px;
-
-            margin-left: 100px;
-        }
-
-
-        .balance-amount {
-
-            font-size: 38px;
-
-            font-weight: 800;
-
-            margin-bottom: 25px;
-
-            margin-left: 100px;
-        }
-
-
-        .balance-card .secure {
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 8px;
-
-            font-size: 13px;
-
-            opacity: .9;
-
-            margin-left: 100px;
+            background:
+                rgba(255, 255, 255, .20);
         }
 
 
@@ -1077,23 +1575,27 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         .form-card {
 
-            background: rgba(255, 255, 255, .95);
+            background:
+                rgba(255, 255, 255, .95);
 
             border-radius: 25px;
 
             padding: 30px;
 
             box-shadow:
-                0 15px 45px rgba(15, 23, 42, .12);
+                0 15px 45px
+                rgba(15, 23, 42, .12);
 
             border:
-                1px solid rgba(255, 255, 255, .8);
+                1px solid
+                rgba(255, 255, 255, .8);
         }
 
 
         .form-title {
 
-            margin: 0 0 8px;
+            margin:
+                0 0 8px;
 
             font-size: 23px;
 
@@ -1103,7 +1605,8 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         .form-subtitle {
 
-            margin: 0 0 25px;
+            margin:
+                0 0 25px;
 
             color: #64748b;
 
@@ -1117,7 +1620,8 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         .alert {
 
-            padding: 14px 16px;
+            padding:
+                14px 16px;
 
             border-radius: 14px;
 
@@ -1229,7 +1733,8 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             border-color: #059669;
 
             box-shadow:
-                0 0 0 4px rgba(5, 150, 105, .10);
+                0 0 0 4px
+                rgba(5, 150, 105, .10);
         }
 
 
@@ -1260,9 +1765,11 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             margin-bottom: 20px;
 
             background:
-                linear-gradient(135deg,
+                linear-gradient(
+                    135deg,
                     #ecfdf5,
-                    #f0fdf4);
+                    #f0fdf4
+                );
 
             border:
                 1px solid #bbf7d0;
@@ -1296,9 +1803,11 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             justify-content: center;
 
             background:
-                linear-gradient(135deg,
+                linear-gradient(
+                    135deg,
                     #059669,
-                    #047857);
+                    #047857
+                );
 
             color: white;
 
@@ -1328,7 +1837,8 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         .verified {
 
-            padding: 6px 10px;
+            padding:
+                6px 10px;
 
             border-radius: 20px;
 
@@ -1365,12 +1875,15 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             color: white;
 
             background:
-                linear-gradient(135deg,
+                linear-gradient(
+                    135deg,
                     #059669,
-                    #047857);
+                    #047857
+                );
 
             box-shadow:
-                0 10px 25px rgba(5, 150, 105, .25);
+                0 10px 25px
+                rgba(5, 150, 105, .25);
 
             transition: .25s;
         }
@@ -1378,16 +1891,19 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         .btn:hover {
 
-            transform: translateY(-2px);
+            transform:
+                translateY(-2px);
 
             box-shadow:
-                0 15px 30px rgba(5, 150, 105, .3);
+                0 15px 30px
+                rgba(5, 150, 105, .3);
         }
 
 
         .btn:active {
 
-            transform: translateY(0);
+            transform:
+                translateY(0);
         }
 
 
@@ -1418,6 +1934,257 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             line-height: 1.5;
 
             text-align: center;
+        }
+
+
+        /* =====================================================
+           PIN MODAL
+        ===================================================== */
+
+        .pin-modal {
+
+            display: none;
+
+            position: fixed;
+
+            inset: 0;
+
+            z-index: 99999;
+
+            background:
+                rgba(2, 44, 34, .60);
+
+            backdrop-filter:
+                blur(7px);
+
+            align-items: center;
+
+            justify-content: center;
+
+            padding: 20px;
+        }
+
+
+        .pin-modal.show {
+
+            display: flex;
+        }
+
+
+        .pin-box {
+
+            width: 100%;
+
+            max-width: 390px;
+
+            background: white;
+
+            border-radius: 25px;
+
+            padding: 30px;
+
+            box-shadow:
+                0 25px 80px
+                rgba(0, 0, 0, .30);
+
+            text-align: center;
+
+            animation:
+                pinPopup .22s ease;
+        }
+
+
+        @keyframes pinPopup {
+
+            from {
+
+                opacity: 0;
+
+                transform:
+                    scale(.90)
+                    translateY(15px);
+            }
+
+            to {
+
+                opacity: 1;
+
+                transform:
+                    scale(1)
+                    translateY(0);
+            }
+        }
+
+
+        .pin-icon {
+
+            width: 65px;
+
+            height: 65px;
+
+            margin:
+                0 auto 15px;
+
+            border-radius: 20px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #059669,
+                    #047857
+                );
+
+            color: white;
+
+            font-size: 30px;
+
+            box-shadow:
+                0 10px 25px
+                rgba(5, 150, 105, .25);
+        }
+
+
+        .pin-box h2 {
+
+            margin:
+                0 0 7px;
+
+            color: #022c22;
+
+            font-size: 23px;
+        }
+
+
+        .pin-box p {
+
+            margin:
+                0 0 20px;
+
+            color: #64748b;
+
+            font-size: 13px;
+
+            line-height: 1.5;
+        }
+
+
+        .pin-input {
+
+            width: 100%;
+
+            height: 58px;
+
+            border:
+                2px solid #d1d5db;
+
+            border-radius: 15px;
+
+            text-align: center;
+
+            font-size: 28px;
+
+            font-weight: 800;
+
+            letter-spacing: 12px;
+
+            padding-left: 12px;
+
+            outline: none;
+
+            background: #f8fafc;
+        }
+
+
+        .pin-input:focus {
+
+            border-color: #059669;
+
+            background: white;
+
+            box-shadow:
+                0 0 0 4px
+                rgba(5, 150, 105, .10);
+        }
+
+
+        .pin-error {
+
+            min-height: 20px;
+
+            margin-top: 10px;
+
+            color: #dc2626;
+
+            font-size: 13px;
+
+            font-weight: 600;
+        }
+
+
+        .pin-buttons {
+
+            display: grid;
+
+            grid-template-columns: 1fr 1fr;
+
+            gap: 10px;
+
+            margin-top: 10px;
+        }
+
+
+        .pin-cancel {
+
+            height: 50px;
+
+            border: 0;
+
+            border-radius: 13px;
+
+            background: #e5e7eb;
+
+            color: #374151;
+
+            font-weight: 700;
+
+            cursor: pointer;
+        }
+
+
+        .pin-confirm {
+
+            height: 50px;
+
+            border: 0;
+
+            border-radius: 13px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #059669,
+                    #047857
+                );
+
+            color: white;
+
+            font-weight: 800;
+
+            cursor: pointer;
+        }
+
+
+        .pin-confirm:disabled {
+
+            opacity: .6;
+
+            cursor: not-allowed;
         }
 
 
@@ -1463,7 +2230,33 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                 font-size: 32px;
             }
+
+
+            .balance-status {
+
+                display: none;
+            }
         }
+
+
+        @media(max-width: 450px) {
+
+            .pin-box {
+
+                padding: 25px 20px;
+
+                border-radius: 22px;
+            }
+
+
+            .pin-input {
+
+                font-size: 25px;
+
+                letter-spacing: 9px;
+            }
+        }
+
     </style>
 
 </head>
@@ -1471,93 +2264,56 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 <body>
 
-    <?php require 'navbar.php'; ?>
 
-    <div class="send-page">
+<?php require 'navbar.php'; ?>
 
 
-        <!-- =====================================================
+<div class="send-page">
+
+
+    <!-- =====================================================
          HEADER
     ====================================================== -->
 
-        <div class="page-header">
+    <div class="page-header">
 
-            <div class="icon">
-                ₹
-            </div>
-
-            <h1>Send Money</h1>
-
-            <p>
-                Transfer money instantly to another MBD PAY user
-                using their mobile number.
-            </p>
-
+        <div class="icon">
+            ₹
         </div>
 
+        <h1>
+            Send Money
+        </h1>
+
+        <p>
+            Transfer money instantly to another MBD PAY user
+            using their mobile number.
+        </p>
+
+    </div>
 
 
-        <!-- =====================================================
-         GRID
+    <!-- =====================================================
+         MAIN GRID
     ====================================================== -->
 
-        <div class="send-grid">
+    <div class="send-grid">
 
 
-            <!-- =================================================
-             BALANCE
+        <!-- =================================================
+             BALANCE CARD
         ================================================== -->
 
-            <div class="balance-card"> <!-- Decorative background -->
-                <div class="balance-glow glow-one"></div>
-                <div class="balance-glow glow-two"></div>
-                <?php if ($message1 !== ''): ?> <div class=" alert <?php echo $messageType === 'success' ? 'alert-success' : 'alert-error'; ?> "> <?php echo htmlspecialchars($message1); ?> </div> <?php endif; ?> <!-- Card Header -->
-                <div class="balance-header">
-                    <div class="wallet-icon"> 💳 </div>
-                    <div class="balance-label"> <span>WALLET ID </span> <strong><?php echo $u_wallet_id; ?></strong> </div>
-                    <div class="balance-status">
-                        <span></span><?php if ($wallet_status == 'Active') {
-                                            echo 'Active';
-                                        } else {
-                                            echo 'Inactive';
-                                        }
-                                        ?>
-                    </div>
-                </div> <!-- Balance -->
-                <div class="balance-content">
-                    <div class="currency-label"> TOTAL AVAILABLE BALANCE </div>
-                    <div class="balance-amount"> <small>₹</small><?php echo number_format($senderBalance, 2); ?> </div>
-                    <div class="balance-line"></div>
-                </div> <!-- Bottom Information -->
-                <div class="balance-footer">
-                    <div class="secure">
-                        <div class="secure-icon"> 🔒 </div>
-                        <div> <strong>Secure Wallet</strong> <span>Your money is protected</span> </div>
-                    </div>
-                    <div class="send-icon"> → </div>
-                </div>
-            </div>
+        <div class="balance-card">
+
+            <div class="balance-glow glow-one"></div>
+
+            <div class="balance-glow glow-two"></div>
 
 
+            <?php if ($message1 !== ''): ?>
 
-            <!-- =================================================
-             FORM
-        ================================================== -->
-
-            <div class="form-card">
-
-                <h2 class="form-title">
-                    Send Money
-                </h2>
-
-                <p class="form-subtitle">
-                    Enter the recipient's registered mobile number.
-                </p>
-
-
-                <?php if ($message !== ''): ?>
-
-                    <div class="
+                <div class="
                     alert
                     <?php
                     echo $messageType === 'success'
@@ -1566,212 +2322,760 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     ?>
                 ">
 
-                        <?php echo htmlspecialchars($message); ?>
+                    <?php
+                    echo htmlspecialchars(
+                        $message1
+                    );
+                    ?>
+
+                </div>
+
+            <?php endif; ?>
+
+
+            <!-- CARD HEADER -->
+
+            <div class="balance-header">
+
+                <div class="wallet-icon">
+                    💳
+                </div>
+
+
+                <div class="balance-label">
+
+                    <span>
+                        WALLET ID
+                    </span>
+
+                    <strong>
+                        <?php
+                        echo htmlspecialchars(
+                            $u_wallet_id
+                        );
+                        ?>
+                    </strong>
+
+                </div>
+
+
+                <div class="balance-status">
+
+                    <span></span>
+
+                    <?php
+
+                    if ($wallet_status == 'Active') {
+
+                        echo 'Active';
+
+                    } else {
+
+                        echo 'Inactive';
+                    }
+
+                    ?>
+
+                </div>
+
+            </div>
+
+
+            <!-- BALANCE -->
+
+            <div class="balance-content">
+
+                <div class="currency-label">
+
+                    TOTAL AVAILABLE BALANCE
+
+                </div>
+
+
+                <div class="balance-amount">
+
+                    <small>₹</small>
+
+                    <?php
+
+                    echo number_format(
+                        (float)$senderBalance,
+                        2
+                    );
+
+                    ?>
+
+                </div>
+
+
+                <div class="balance-line"></div>
+
+            </div>
+
+
+            <!-- FOOTER -->
+
+            <div class="balance-footer">
+
+                <div class="secure">
+
+                    <div class="secure-icon">
+                        🔒
+                    </div>
+
+                    <div>
+
+                        <strong>
+                            Secure Wallet
+                        </strong>
+
+                        <span>
+                            Your money is protected
+                        </span>
 
                     </div>
 
-                <?php endif; ?>
+                </div>
 
 
-
-                <?php if (!$recipient): ?>
-
-
-                    <!-- =========================================
-                     FIND USER
-                ========================================== -->
-
-                    <form method="POST">
-
-                        <input
-                            type="hidden"
-                            name="csrf_token"
-                            value="<?php echo htmlspecialchars($csrfToken); ?>">
-
-
-                        <div class="form-group">
-
-                            <label>
-                                Recipient Mobile Number
-                            </label>
-
-                            <div class="input-wrap">
-
-                                <span class="input-icon">
-                                    📱
-                                </span>
-
-                                <input
-                                    type="tel"
-                                    name="mobile"
-                                    class="form-control"
-                                    placeholder="Enter 10-digit mobile number"
-                                    maxlength="10"
-                                    pattern="[6-9][0-9]{9}"
-                                    inputmode="numeric"
-                                    required>
-
-                            </div>
-
-                        </div>
-
-
-                        <button
-                            type="submit"
-                            name="find_user"
-                            class="btn btn-find">
-
-                            🔍 Find MBD PAY User
-
-                        </button>
-
-                    </form>
-
-
-                <?php else: ?>
-
-
-                    <!-- =========================================
-                     RECIPIENT FOUND
-                ========================================== -->
-
-                    <div class="recipient-card">
-
-                        <div class="recipient-left">
-
-                            <div class="avatar">
-
-                                <?php
-                                echo strtoupper(
-                                    substr(
-                                        $recipient['name'],
-                                        0,
-                                        1
-                                    )
-                                );
-                                ?>
-
-                            </div>
-
-
-                            <div>
-
-                                <div class="recipient-name">
-
-                                    <?php
-                                    echo htmlspecialchars(
-                                        $recipient['name']
-                                    );
-                                    ?>
-
-                                </div>
-
-
-                                <div class="recipient-mobile">
-
-                                    📱
-                                    <?php
-                                    echo htmlspecialchars(
-                                        $recipient['mobile']
-                                    );
-                                    ?>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-
-                        <div class="verified">
-                            ✓ Verified
-                        </div>
-
-                    </div>
-
-
-
-                    <!-- =========================================
-                     SEND FORM
-                ========================================== -->
-
-                    <form method="POST">
-
-                        <input
-                            type="hidden"
-                            name="csrf_token"
-                            value="<?php echo htmlspecialchars($csrfToken); ?>">
-
-
-                        <input
-                            type="hidden"
-                            name="receiver_id"
-                            value="<?php echo $recipient['wallet_id']; ?>">
-
-
-                        <div class="form-group">
-
-                            <label>
-                                Amount
-                            </label>
-
-                            <div class="input-wrap">
-
-                                <span class="input-icon">
-                                    ₹
-                                </span>
-
-                                <input
-                                    type="number"
-                                    name="amount"
-                                    class="form-control amount-input"
-                                    placeholder="0.00"
-                                    min="1"
-                                    max="100000"
-                                    step="0.01"
-                                    required>
-
-                            </div>
-
-                        </div>
-
-
-                        <button
-                            type="submit"
-                            name="send_money"
-                            class="btn"
-                            onclick="
-                            return confirm(
-                                'Are you sure you want to send this money?'
-                            );
-                        ">
-
-                            💸 Send Money
-
-                        </button>
-
-                    </form>
-
-
-                    <div class="security-note">
-
-                        🔐 Your transfer is processed securely.
-                        Please verify the recipient and amount
-                        before confirming the payment.
-
-                    </div>
-
-                <?php endif; ?>
+                <div class="send-icon">
+                    →
+                </div>
 
             </div>
 
         </div>
 
+
+        <!-- =================================================
+             FORM CARD
+        ================================================== -->
+
+        <div class="form-card">
+
+
+            <h2 class="form-title">
+                Send Money
+            </h2>
+
+
+            <p class="form-subtitle">
+
+                Enter the recipient's registered mobile number.
+
+            </p>
+
+
+            <!-- MESSAGE -->
+
+            <?php if ($message !== ''): ?>
+
+                <div class="
+                    alert
+                    <?php
+                    echo $messageType === 'success'
+                        ? 'alert-success'
+                        : 'alert-error';
+                    ?>
+                ">
+
+                    <?php
+                    echo htmlspecialchars(
+                        $message
+                    );
+                    ?>
+
+                </div>
+
+            <?php endif; ?>
+
+
+            <?php if (!$recipient): ?>
+
+
+                <!-- =========================================
+                     FIND USER
+                ========================================== -->
+
+                <form method="POST">
+
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="<?php
+                        echo htmlspecialchars(
+                            $csrfToken
+                        );
+                        ?>">
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Recipient Mobile Number
+                        </label>
+
+
+                        <div class="input-wrap">
+
+                            <span class="input-icon">
+                                📱
+                            </span>
+
+
+                            <input
+                                type="tel"
+                                name="mobile"
+                                class="form-control"
+                                placeholder="Enter 10-digit mobile number"
+                                maxlength="10"
+                                pattern="[6-9][0-9]{9}"
+                                inputmode="numeric"
+                                required>
+
+                        </div>
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        name="find_user"
+                        class="btn btn-find">
+
+                        🔍 Find MBD PAY User
+
+                    </button>
+
+                </form>
+
+
+            <?php else: ?>
+
+
+                <!-- =========================================
+                     RECIPIENT FOUND
+                ========================================== -->
+
+                <div class="recipient-card">
+
+
+                    <div class="recipient-left">
+
+
+                        <div class="avatar">
+
+                            <?php
+
+                            echo strtoupper(
+                                substr(
+                                    $recipient['name'],
+                                    0,
+                                    1
+                                )
+                            );
+
+                            ?>
+
+                        </div>
+
+
+                        <div>
+
+                            <div class="recipient-name">
+
+                                <?php
+
+                                echo htmlspecialchars(
+                                    $recipient['name']
+                                );
+
+                                ?>
+
+                            </div>
+
+
+                            <div class="recipient-mobile">
+
+                                📱
+
+                                <?php
+
+                                echo htmlspecialchars(
+                                    $recipient['mobile']
+                                );
+
+                                ?>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="verified">
+
+                        ✓ Verified
+
+                    </div>
+
+                </div>
+
+
+                <!-- =========================================
+                     SEND FORM
+                ========================================== -->
+
+                <form
+                    method="POST"
+                    id="sendMoneyForm"
+                >
+
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="<?php
+                        echo htmlspecialchars(
+                            $csrfToken
+                        );
+                        ?>">
+
+
+                    <input
+                        type="hidden"
+                        name="receiver_id"
+                        value="<?php
+                        echo htmlspecialchars(
+                            $recipient['wallet_id']
+                        );
+                        ?>">
+
+
+                    <!-- AMOUNT -->
+
+                    <div class="form-group">
+
+                        <label>
+                            Amount
+                        </label>
+
+
+                        <div class="input-wrap">
+
+                            <span class="input-icon">
+                                ₹
+                            </span>
+
+
+                            <input
+                                type="number"
+                                name="amount"
+                                id="amount"
+                                class="form-control amount-input"
+                                placeholder="0.00"
+                                min="1"
+                                max="100000"
+                                step="0.01"
+                                inputmode="decimal"
+                                required>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- SEND BUTTON -->
+
+                    <button
+                        type="button"
+                        class="btn"
+                        onclick="openPinModal();">
+
+                        💸 Send Money
+
+                    </button>
+
+
+                </form>
+
+
+                <div class="security-note">
+
+                    🔐 Your transfer is processed securely.
+                    You must enter your 4-digit transaction PIN
+                    before the payment is processed.
+
+                </div>
+
+
+            <?php endif; ?>
+
+
+        </div>
+
     </div>
 
+</div>
 
 
-    <?php require 'footer.php'; ?>
+<?php require 'footer.php'; ?>
+
+
+<!-- =========================================================
+     PIN MODAL
+========================================================= -->
+
+<div
+    class="pin-modal"
+    id="pinModal"
+    onclick="closePinFromOutside(event);"
+>
+
+
+    <div
+        class="pin-box"
+        onclick="event.stopPropagation();"
+    >
+
+
+        <div class="pin-icon">
+            🔐
+        </div>
+
+
+        <h2>
+            Enter Transaction PIN
+        </h2>
+
+
+        <p>
+
+            Enter your 4-digit PIN to confirm this payment.
+
+        </p>
+
+
+        <input
+            type="password"
+            id="pinInput"
+            class="pin-input"
+            maxlength="4"
+            minlength="4"
+            inputmode="numeric"
+            pattern="[0-9]{4}"
+            autocomplete="off"
+            placeholder="••••"
+        >
+
+
+        <div
+            class="pin-error"
+            id="pinError"
+        ></div>
+
+
+        <div class="pin-buttons">
+
+
+            <button
+                type="button"
+                class="pin-cancel"
+                onclick="closePinModal();"
+            >
+
+                Cancel
+
+            </button>
+
+
+            <button
+                type="button"
+                class="pin-confirm"
+                id="pinConfirmButton"
+                onclick="confirmPin();"
+            >
+
+                Confirm Payment
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+/* =========================================================
+   OPEN PIN MODAL
+========================================================= */
+
+function openPinModal()
+{
+    const amountInput =
+        document.getElementById("amount");
+
+    const amount =
+        amountInput.value.trim();
+
+    const pinModal =
+        document.getElementById("pinModal");
+
+    const pinInput =
+        document.getElementById("pinInput");
+
+    const pinError =
+        document.getElementById("pinError");
+
+
+    /* CLEAR OLD ERROR */
+
+    pinError.textContent = "";
+
+
+    /* CHECK AMOUNT */
+
+    if (
+        amount === "" ||
+        isNaN(amount) ||
+        Number(amount) <= 0
+    ) {
+
+        alert(
+            "Please enter a valid amount."
+        );
+
+        amountInput.focus();
+
+        return;
+    }
+
+
+    if (Number(amount) > 100000) {
+
+        alert(
+            "Maximum transfer amount is ₹1,00,000."
+        );
+
+        amountInput.focus();
+
+        return;
+    }
+
+
+    /* OPEN MODAL */
+
+    pinModal.classList.add("show");
+
+    pinInput.value = "";
+
+    setTimeout(
+        function()
+        {
+            pinInput.focus();
+        },
+        100
+    );
+}
+
+
+/* =========================================================
+   CLOSE PIN MODAL
+========================================================= */
+
+function closePinModal()
+{
+    const pinModal =
+        document.getElementById("pinModal");
+
+    const pinInput =
+        document.getElementById("pinInput");
+
+    const pinError =
+        document.getElementById("pinError");
+
+
+    pinModal.classList.remove("show");
+
+    pinInput.value = "";
+
+    pinError.textContent = "";
+}
+
+
+/* =========================================================
+   CLOSE WHEN CLICK OUTSIDE
+========================================================= */
+
+function closePinFromOutside(event)
+{
+    if (
+        event.target.id === "pinModal"
+    ) {
+
+        closePinModal();
+    }
+}
+
+
+/* =========================================================
+   CONFIRM PIN
+========================================================= */
+
+function confirmPin()
+{
+    const pinInput =
+        document.getElementById("pinInput");
+
+    const pinError =
+        document.getElementById("pinError");
+
+    const confirmButton =
+        document.getElementById(
+            "pinConfirmButton"
+        );
+
+    const form =
+        document.getElementById(
+            "sendMoneyForm"
+        );
+
+
+    const pin =
+        pinInput.value.trim();
+
+
+    /* VALIDATE PIN */
+
+    if (!/^[0-9]{4}$/.test(pin)) {
+
+        pinError.textContent =
+            "Please enter your 4-digit PIN.";
+
+        pinInput.focus();
+
+        return;
+    }
+
+
+    /* PREVENT DOUBLE CLICK */
+
+    confirmButton.disabled = true;
+
+    confirmButton.textContent =
+        "Processing...";
+
+
+    /* REMOVE OLD PIN FIELD */
+
+    const oldPin =
+        form.querySelector(
+            'input[name="transaction_pin"]'
+        );
+
+    if (oldPin) {
+
+        oldPin.remove();
+    }
+
+
+    /* CREATE PIN FIELD */
+
+    const pinField =
+        document.createElement("input");
+
+    pinField.type = "hidden";
+
+    pinField.name =
+        "transaction_pin";
+
+    pinField.value = pin;
+
+
+    form.appendChild(
+        pinField
+    );
+
+
+    /* CREATE SEND MONEY FIELD */
+
+    const sendField =
+        document.createElement("input");
+
+    sendField.type = "hidden";
+
+    sendField.name =
+        "send_money";
+
+    sendField.value = "1";
+
+
+    form.appendChild(
+        sendField
+    );
+
+
+    /* SUBMIT FORM */
+
+    form.submit();
+}
+
+
+/* =========================================================
+   ENTER KEY = CONFIRM PIN
+========================================================= */
+
+document
+    .getElementById("pinInput")
+    ?.addEventListener(
+        "keydown",
+        function(event)
+        {
+
+            if (
+                event.key === "Enter"
+            ) {
+
+                event.preventDefault();
+
+                confirmPin();
+            }
+
+            if (
+                event.key === "Escape"
+            ) {
+
+                closePinModal();
+            }
+        }
+    );
+
+
+/* =========================================================
+   ONLY ALLOW NUMBERS IN PIN
+========================================================= */
+
+document
+    .getElementById("pinInput")
+    ?.addEventListener(
+        "input",
+        function()
+        {
+
+            this.value =
+                this.value
+                .replace(
+                    /[^0-9]/g,
+                    ''
+                )
+                .slice(0, 4);
+        }
+    );
+
+</script>
 
 
 </body>
