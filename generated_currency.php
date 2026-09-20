@@ -102,40 +102,40 @@ $unlocked_currency = null;
 $pin_error = "";
 
 /* synchronize if balance mismatch */
+if ($serverConnected) {
+    try {
 
-try {
+        // server balance
 
-    // server balance
+        $stmt = mysqli_prepare($conn, "SELECT name,balance FROM users WHERE mobile=? AND account_no=?");
+        mysqli_stmt_bind_param($stmt, "ss", $u_mob, $u_account);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        $user = mysqli_fetch_assoc($result);
 
-    $stmt = mysqli_prepare($conn, "SELECT name,balance FROM users WHERE mobile=? AND account_no=?");
-    mysqli_stmt_bind_param($stmt, "ss", $u_mob, $u_account);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-    $user = mysqli_fetch_assoc($result);
+        $server_bal = decryptData($user['balance']);
 
-    $server_bal = decryptData($user['balance']);
+        // user cache path
 
-    // user cache path
+        $userId = hash("sha256", $u_mob);
 
-    $userId = hash("sha256", $u_mob);
+        $profile = CACHE_DIR . $userId . "/profile.json";
 
-    $profile = CACHE_DIR . $userId . "/profile.json";
+        $cache = json_decode(
+            file_get_contents($profile),
+            true
+        );
 
-    $cache = json_decode(
-        file_get_contents($profile),
-        true
-    );
+        $cache_bal = decryptData($cache['balance']);
 
-    $cache_bal = decryptData($cache['balance']);
-
-    // start
-    if ($server_bal != $cache_bal) {
+        // start
+        if ($server_bal != $cache_bal) {
+            header("location:synchronize_login.php");
+        }
+    } catch (\Throwable $th) {
         header("location:synchronize_login.php");
     }
-} catch (\Throwable $th) {
-    header("location:synchronize_login.php");
 }
-
 
 try {
 
