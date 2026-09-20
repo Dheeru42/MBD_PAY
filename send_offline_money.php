@@ -82,6 +82,40 @@ $u_account = $_SESSION['account'];
 
 $u_mob = $_SESSION['mobile'];
 
+$u_name = $_SESSION['user'];
+
+// code to read cache data 
+
+$userId = hash("sha256", $u_mob);
+
+$profile = CACHE_DIR . $userId . "/profile.json";
+
+$cache = json_decode(
+    file_get_contents($profile),
+    true
+);
+
+$u_balance = decryptData($cache['balance']);
+
+$verify = false;
+
+// verify pin
+try {
+    if (isset($_POST['verify_pin'])) {
+        $pin = $_POST['pin'];
+        if (password_verify(
+            $pin,
+            $cache['pin']
+        )) {
+
+            $verify = true;
+            echo 'Pin verified';
+        }
+    }
+} catch (\Throwable $th) {
+    echo 'error';
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -90,28 +124,93 @@ $u_mob = $_SESSION['mobile'];
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MBD Pay - Offline Send Money</title>
-    <!-- Include QRCode.js library for offline QR generation -->
+    <title>MBD PAY | Offline Send Money</title>
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' 
+viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext 
+x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' 
+fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
+    <!-- Include QRCode.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        /* Card Container Styling matching the theme */
-        .pay-card {
-            max-width: 450px;
-            margin: 30px auto 100px auto;
-            background: #ffffff;
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
-        .pay-title {
-            text-align: center;
-            font-size: 22px;
+        body {
+            font-family: Arial, sans-serif;
+            background: #f3f4f6;
+        }
+
+        /* Two-Column Layout */
+        .offline-container {
+            max-width: 950px;
+            margin: 40px auto;
+            display: flex;
+            gap: 25px;
+            padding: 0 20px;
+        }
+
+        .left-panel,
+        .right-panel {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .left-panel {
+            flex: 1;
+            background: linear-gradient(135deg, #022c22, #059669);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .right-panel {
+            flex: 1.3;
+        }
+
+        .panel-title {
+            font-size: 20px;
             font-weight: bold;
-            color: #022c22;
             margin-bottom: 20px;
         }
 
+        /* Left Side: Balance Card */
+        .balance-box {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            backdrop-filter: blur(5px);
+        }
+
+        .balance-label {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.9;
+        }
+
+        .balance-amount {
+            font-size: 36px;
+            font-weight: bold;
+            margin-top: 8px;
+            color: #fde047;
+        }
+
+        .user-details {
+            margin-top: 25px;
+            font-size: 14px;
+            line-height: 1.8;
+            opacity: 0.95;
+        }
+
+        /* Right Side: Form */
         .form-group {
             margin-bottom: 18px;
         }
@@ -138,9 +237,9 @@ $u_mob = $_SESSION['mobile'];
             border-color: #059669;
         }
 
-        .btn-generate {
+        .btn-submit {
             width: 100%;
-            padding: 12px;
+            padding: 13px;
             background: linear-gradient(135deg, #022c22, #059669);
             color: white;
             border: none;
@@ -151,27 +250,11 @@ $u_mob = $_SESSION['mobile'];
             transition: 0.3s;
         }
 
-        .btn-generate:hover {
+        .btn-submit:hover {
             opacity: 0.95;
-            transform: translateY(-2px);
         }
 
-        /* Error/Status Alerts */
-        .alert {
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-size: 14px;
-            margin-bottom: 15px;
-            display: none;
-        }
-
-        .alert-error {
-            background-color: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #f87171;
-        }
-
-        /* Display area for output QR Code */
+        /* QR Output Section */
         .qr-wrapper {
             display: none;
             text-align: center;
@@ -189,122 +272,206 @@ $u_mob = $_SESSION['mobile'];
             margin-bottom: 15px;
         }
 
-        .qr-info {
-            font-size: 14px;
-            color: #1f2937;
-            word-break: break-all;
-        }
-
         .token-badge {
             display: inline-block;
             background: #fef3c7;
             color: #92400e;
-            padding: 4px 10px;
+            padding: 5px 12px;
             border-radius: 6px;
             font-weight: bold;
             font-family: monospace;
-            margin-top: 5px;
+            margin-top: 8px;
+        }
+
+        /* Modal Popup Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(3px);
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+
+        .modal-card {
+            background: white;
+            padding: 30px;
+            border-radius: 18px;
+            width: 90%;
+            max-width: 360px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-card h3 {
+            margin-bottom: 15px;
+            color: #022c22;
+        }
+
+        .alert-error {
+            background-color: #fee2e2;
+            color: #991b1b;
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 12px;
+            display: none;
+        }
+
+        @media(max-width: 768px) {
+            .offline-container {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
 
 <body>
 
-    <!-- NAV BAR -->
     <?php require_once 'navbar.php'; ?>
 
-    <div class="pay-card">
-        <div class="pay-title">📲 Send Money Offline</div>
-
-        <div id="errorAlert" class="alert alert-error"></div>
-
-        <form id="offlinePayForm" onsubmit="handleGenerateQR(event)">
-            <div class="form-group">
-                <label for="amount">Enter Amount (₹)</label>
-                <input type="number" id="amount" class="form-control" placeholder="0.00" min="1" step="any" required>
+    <div class="offline-container">
+        <!-- LEFT SIDE: Wallet Balance Section -->
+        <div class="left-panel">
+            <div>
+                <div class="panel-title">💳 Wallet Overview</div>
+                <div class="balance-box">
+                    <div class="balance-label">Offline Wallet Balance</div>
+                    <div class="balance-amount">₹<?php echo number_format((float)$u_balance, 2); ?></div>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="userPin">Enter Offline Security PIN</label>
-                <input type="password" id="userPin" class="form-control" placeholder="••••" maxlength="6" required>
-            </div>
-
-            <button type="submit" class="btn-generate">Generate Payment QR</button>
-        </form>
-
-        <!-- QR Code Output Display -->
-        <div id="qrWrapper" class="qr-wrapper">
-            <div id="qrcode"></div>
-            <div class="qr-info">
-                <strong>Amount:</strong> ₹<span id="displayAmount"></span><br>
-                <div class="token-badge">Token: <span id="displayToken"></span></div>
+            <div class="user-details">
+                <p><strong>Account Holder:</strong> <?php echo htmlspecialchars($u_name); ?></p>
+                <p><strong>Wallet ID:</strong> <?php echo htmlspecialchars($u_wallet_id); ?></p>
+                <p><strong>Mobile:</strong> <?php echo htmlspecialchars($u_mob); ?></p>
             </div>
         </div>
+
+        <!-- RIGHT SIDE: Send Money Option -->
+        <div class="right-panel">
+            <div class="panel-title" style="color:#022c22;">📲 Send Money Offline</div>
+
+            <form id="offlineForm" onsubmit="openPinModal(event)">
+                <div class="form-group">
+                    <label for="amount">Enter Amount (₹)</label>
+                    <input type="number" id="amount" class="form-control" placeholder="0.00" min="1" max="<?php echo $u_balance; ?>" step="any" required>
+                </div>
+
+                <button type="submit" class="btn-submit">Proceed to Send</button>
+            </form>
+            <?php if ($verify) { ?>
+                <!-- QR Code Container -->
+                <div id="qrWrapper" class="qr-wrapper">
+                    <div id="qrcode"></div>
+                    <div>
+                        <strong>Amount:</strong> ₹<span id="displayAmount"></span><br>
+                        <div class="token-badge">Token ID: <span id="displayToken"></span></div>
+                    </div>
+                </div>
+        </div>
     </div>
+<?php } ?>
 
-    <!-- FOOTER -->
-   <?php require_once 'footer.php'; ?>
+<!-- PIN VERIFICATION MODAL -->
+<div id="pinModal" class="modal-overlay">
+    <div class="modal-card">
+        <form method="post">
+            <h3>Enter Offline PIN</h3>
+            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Please enter your 4-digit security PIN to authorize this offline transaction.</p>
 
-    <script>
-        // Set a default offline PIN in localStorage if none exists for testing
-        if (!localStorage.getItem('cached_pin')) {
-            localStorage.setItem('cached_pin', '1234'); // Default PIN for demonstration
+            <div id="modalAlert" class="alert-error"></div>
+
+            <div class="form-group">
+                <input type="password" name='pin' id="modalPin" class="form-control" style="text-align:center; font-size: 22px; letter-spacing: 5px;" maxlength="4" placeholder="••••" required>
+            </div>
+
+            <button onclick="verifyPinAndGenerateQR()" class="btn-submit" name='verify_pin' style="margin-bottom: 10px;">Verify & Generate QR</button>
+            <button onclick="closePinModal()" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size: 14px;">Cancel</button>
+        </form>
+    </div>
+</div>
+
+<?php require_once 'footer.php'; ?>
+
+<script>
+    let pendingAmount = 0;
+
+    function openPinModal(e) {
+        e.preventDefault();
+        pendingAmount = document.getElementById('amount').value;
+        document.getElementById('modalPin').value = '';
+        document.getElementById('modalAlert').style.display = 'none';
+        document.getElementById('pinModal').style.display = 'flex';
+    }
+
+    function closePinModal() {
+        document.getElementById('pinModal').style.display = 'none';
+    }
+
+    function verifyPinAndGenerateQR() {
+        const enteredPin = document.getElementById('modalPin').value;
+        const modalAlert = document.getElementById('modalAlert');
+
+        // Retrieve PIN cached locally during login/signup
+        const cachedPin = localStorage.getItem('user_pin') || localStorage.getItem('cached_pin');
+
+        if (!cachedPin) {
+            modalAlert.innerText = "No cached PIN found! Please login online first.";
+            modalAlert.style.display = 'block';
+            return;
         }
 
-        function handleGenerateQR(e) {
-            e.preventDefault();
-
-            const amountInput = document.getElementById('amount').value;
-            const pinInput = document.getElementById('userPin').value;
-            const cachedPin = localStorage.getItem('cached_pin');
-            const alertBox = document.getElementById('errorAlert');
-            const qrWrapper = document.getElementById('qrWrapper');
-            const qrcodeContainer = document.getElementById('qrcode');
-
-            // Hide existing alert and QR container
-            alertBox.style.display = 'none';
-            qrWrapper.style.display = 'none';
-
-            // Step 1: Verify PIN against local cache
-            if (pinInput !== cachedPin) {
-                alertBox.innerText = 'Invalid PIN! Please check your offline security PIN.';
-                alertBox.style.display = 'block';
-                return;
-            }
-
-            // Step 2: Generate Unique Token Number
-            const timestamp = Date.now();
-            const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
-            const uniqueToken = `MBD-${timestamp}-${randomStr}`;
-
-            // Step 3: Construct Payload Object & Convert to JSON String
-            const paymentPayload = {
-                token: uniqueToken,
-                amount: parseFloat(amountInput).toFixed(2),
-                timestamp: timestamp,
-                type: 'OFFLINE_PAYMENT'
-            };
-
-            const qrDataString = JSON.stringify(paymentPayload);
-
-            // Step 4: Clear previous QR code and construct new QR
-            qrcodeContainer.innerHTML = '';
-            new QRCode(qrcodeContainer, {
-                text: qrDataString,
-                width: 180,
-                height: 180,
-                colorDark: "#022c22",
-                colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.H
-            });
-
-            // Display details
-            document.getElementById('displayAmount').innerText = parseFloat(amountInput).toFixed(2);
-            document.getElementById('displayToken').innerText = uniqueToken;
-            qrWrapper.style.display = 'block';
+        // Verify PIN against local cache
+        if (enteredPin !== cachedPin) {
+            modalAlert.innerText = "Incorrect PIN! Please try again.";
+            modalAlert.style.display = 'block';
+            return;
         }
-    </script>
 
+        // PIN verified successfully: Close modal and generate QR
+        closePinModal();
+        generateQRCode(pendingAmount);
+    }
+
+    function generateQRCode(amount) {
+        const qrWrapper = document.getElementById('qrWrapper');
+        const qrcodeContainer = document.getElementById('qrcode');
+
+        // Generate Unique Token ID
+        const timestamp = Date.now();
+        const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const uniqueToken = `MBD-${timestamp}-${randomPart}`;
+
+        // Build payload
+        const payload = {
+            token_id: uniqueToken,
+            amount: parseFloat(amount).toFixed(2),
+            sender_wallet: "<?php echo $u_wallet_id; ?>",
+            timestamp: timestamp
+        };
+
+        // Render QR Code
+        qrcodeContainer.innerHTML = '';
+        new QRCode(qrcodeContainer, {
+            text: JSON.stringify(payload),
+            width: 180,
+            height: 180,
+            colorDark: "#022c22",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+
+        document.getElementById('displayAmount').innerText = parseFloat(amount).toFixed(2);
+        document.getElementById('displayToken').innerText = uniqueToken;
+        qrWrapper.style.display = 'block';
+    }
+</script>
 </body>
 
 </html>
