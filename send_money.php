@@ -2238,7 +2238,7 @@ try {
 <body>
 
 
-    <?php require 'navbar.php'; ?>
+    <?php require_once 'navbar.php'; ?>
 
 
     <div class="send-page">
@@ -2690,7 +2690,7 @@ try {
     </div>
 
 
-    <?php require 'footer.php'; ?>
+    <?php require_once 'footer.php'; ?>
 
 
     <!-- =========================================================

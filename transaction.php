@@ -653,7 +653,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 <body>
 
 
-    <?php require 'navbar.php'; ?>
+    <?php require_once 'navbar.php'; ?>
 
 
 
@@ -983,7 +983,7 @@ No Transactions Available
 
 
 
-    <?php require 'footer.php'; ?>
+    <?php require_once 'footer.php'; ?>
 
 </body>
 

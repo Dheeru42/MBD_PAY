@@ -963,7 +963,7 @@ try {
 </head>
 
 <body>
-    <?php require "navbar.php"; ?>
+    <?php require_once "navbar.php"; ?>
 
     <div class="qr-wrapper">
 
@@ -1676,7 +1676,7 @@ try {
 
 
     <?php
-    require 'footer.php';
+    require_once 'footer.php';
     ?>
 
 </body>

@@ -5,7 +5,7 @@ $serverConnected = false;
 try {
 
     $bank_conn = @mysqli_connect(
-        "localhost",
+        "127.0.0.1",
         "root",
         "",
         "ram_bank"

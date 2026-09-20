@@ -2493,7 +2493,7 @@ try {
 <body>
 
 
-    <?php require 'navbar.php'; ?>
+    <?php require_once 'navbar.php'; ?>
 
 
     <main class="currency-page">
@@ -3202,7 +3202,7 @@ try {
     </main>
 
 
-    <?php require 'footer.php'; ?>
+    <?php require_once 'footer.php'; ?>
 
 
     <!-- =========================================================

@@ -2877,7 +2877,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 <body>
 
 
-    <?php require 'navbar.php'; ?>
+    <?php require_once 'navbar.php'; ?>
 
 
     <main class="currency-page">
@@ -3574,7 +3574,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
     <?php endif; ?>
 
 
-    <?php require 'footer.php'; ?>
+    <?php require_once 'footer.php'; ?>
 
 
     <script>

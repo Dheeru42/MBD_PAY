@@ -749,7 +749,7 @@ function statusIcon($status)
 
 <body>
 
-    <?php require 'navbar.php'; ?>
+    <?php require_once 'navbar.php'; ?>
 
     <main class="currency-status-page">
 
@@ -1012,7 +1012,7 @@ function statusIcon($status)
 
     </main>
 
-    <?php require 'footer.php'; ?>
+    <?php require_once 'footer.php'; ?>
 
     <script>
         (function() {
