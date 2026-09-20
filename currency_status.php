@@ -3,8 +3,8 @@ session_start();
 
 date_default_timezone_set('Asia/Kolkata');
 
-require 'conn.php';
-require 'currency_con.php';
+require_once 'conn.php';
+require_once 'currency_con.php';
 
 /*
 |--------------------------------------------------------------------------

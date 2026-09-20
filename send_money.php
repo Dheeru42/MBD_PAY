@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-require 'conn.php';
+require_once 'conn.php';
 
 /* =========================================================
    LOGIN CHECK

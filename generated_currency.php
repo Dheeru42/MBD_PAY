@@ -8,9 +8,9 @@ $message = "";
 
 $message1 = "";
 
-require 'conn.php';
-require 'bank_conn.php';
-require 'currency_con.php';
+require_once 'conn.php';
+require_once 'bank_conn.php';
+require_once 'currency_con.php';
 
 // catch logic
 

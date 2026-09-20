@@ -4,10 +4,10 @@ session_start();
 
 date_default_timezone_set('Asia/Kolkata');
 
-require 'conn.php';
+require_once 'conn.php';
 
 // bank conn
-require 'bank_conn.php';
+require_once 'bank_conn.php';
 
 
 $message = "";

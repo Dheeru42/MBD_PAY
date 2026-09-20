@@ -50,7 +50,7 @@ $u_wallet_id = $_SESSION['wallet_id'];
 */
 
 require_once __DIR__ . '/currency_con.php';
-require 'conn.php';
+require_once 'conn.php';
 
 
 /*

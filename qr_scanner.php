@@ -1,7 +1,7 @@
 <?php
 session_start();
-require 'conn.php';
-require 'currency_con.php';
+require_once 'conn.php';
+require_once 'currency_con.php';
 
 date_default_timezone_set('Asia/Kolkata');
 
