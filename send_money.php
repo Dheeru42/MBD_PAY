@@ -3,38 +3,7 @@ session_start();
 
 require 'conn.php';
 
-/*
-|--------------------------------------------------------------------------
-| MBD PAY - SEND MONEY
-|--------------------------------------------------------------------------
-| Assumed database:
-|
-| users
-|   id
-|   name
-|   mobile
-|
-| wallets
-|   user_id
-|   balance
-|
-| transactions
-|   sender_id
-|   receiver_id
-|   amount
-|   transaction_type
-|   description
-|   created_at
-|
-| IMPORTANT:
-| Change these names if your database uses different column/table names.
-|--------------------------------------------------------------------------
-*/
-
-
-/* =========================================================
-   LOGIN CHECK
-========================================================= */
+// LOGIN CHECK
 
 if (!isset($_SESSION['user'])) {
 
@@ -109,9 +78,30 @@ $amount = '';
 
 $senderBalance = 0;
 
+// cache directory
+
+define("CACHE_DIR", __DIR__ . "/cache/users/");
+
 // secrete key
 
 define("SECRET_KEY", "MBDPAY@2026_SUPER_SECRET_KEY_32");
+
+/* Encrypt Function */
+function encryptData($text)
+{
+    $key = hash("sha256", SECRET_KEY, true);
+    $iv  = random_bytes(16);
+
+    $cipher = openssl_encrypt(
+        $text,
+        "AES-256-CBC",
+        $key,
+        OPENSSL_RAW_DATA,
+        $iv
+    );
+
+    return base64_encode($iv . $cipher);
+}
 
 /* Decrypt Function */
 
@@ -182,6 +172,8 @@ try {
 
             $mobile = trim($_POST['mobile'] ?? '');
 
+            $_SESSION['recipient_mob'] = $mobile;
+
             //  mobile validation.
 
             if (!preg_match('/^[6-9][0-9]{9}$/', $mobile)) {
@@ -227,251 +219,368 @@ try {
     $messageType = "error";
 }
 
-/*
 // SEND MONEY
 
+try {
 
-if (isset($_POST['send_money'])) {
+    if (isset($_POST['send_money'])) {
 
-    if (!isset($_POST['csrf_token']) ||
-        !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        if (
+            !isset($_POST['csrf_token']) ||
+            !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+        ) {
 
-        $message = "Invalid security token. Please refresh the page.";
-        $messageType = "error";
-
-    } else {
-
-        $receiverId = (int)($_POST['receiver_id'] ?? 0);
-        $amount = trim($_POST['amount'] ?? '');
-
-        // Convert amount safely.
-        
-        if (!is_numeric($amount)) {
-
-            $message = "Please enter a valid amount.";
+            $message = "Invalid security token. Please refresh the page.";
             $messageType = "error";
-
         } else {
 
-            $amount = (float)$amount;
+            $receiverId = $_POST['receiver_id'];
+            $receiverMob = $_SESSION['recipient_mob'];
+            $amount = trim($_POST['amount'] ?? '');
+            $e_amount = encryptData($amount);
 
-            
-            //  Amount must be positive and limited to 2 decimals.
-            
-            if ($amount <= 0) {
+            // Convert amount safely.
 
-                $message = "Amount must be greater than ₹0.";
+            if (!is_numeric($amount)) {
+
+                $message = "Please enter a valid amount.";
                 $messageType = "error";
-
-            } elseif ($amount > 100000) {
-
-                $message = "Maximum transfer amount is ₹1,00,000.";
-                $messageType = "error";
-
-            } elseif (round($amount, 2) != $amount) {
-
-                $message = "Amount can contain a maximum of 2 decimal places.";
-                $messageType = "error";
-
-            } elseif ($receiverId <= 0) {
-
-                $message = "Invalid recipient.";
-                $messageType = "error";
-
-            } elseif ($receiverId === $senderId) {
-
-                $message = "You cannot send money to yourself.";
-                $messageType = "error";
-
             } else {
 
-                // START DATABASE TRANSACTION
-               
+                //  Amount must be positive and limited to 2 decimals.
 
-                $conn->begin_transaction();
+                if ($amount <= 0) {
 
-                try {
+                    $message = "Amount must be greater than ₹0.";
+                    $messageType = "error";
+                } elseif ($amount > 100000) {
 
-                    // LOCK SENDER WALLET
-                  
+                    $message = "Maximum transfer amount is ₹1,00,000.";
+                    $messageType = "error";
+                } elseif (round($amount, 2) != $amount) {
 
-                    $stmt = $conn->prepare("
+                    $message = "Amount can contain a maximum of 2 decimal places.";
+                    $messageType = "error";
+                } elseif ($receiverId <= 0) {
+
+                    $message = "Invalid recipient.";
+                    $messageType = "error";
+                } elseif ($receiverId === $u_wallet_id) {
+
+                    $message = "You cannot send money to yourself.";
+                    $messageType = "error";
+                } else {
+
+                    // START DATABASE TRANSACTION
+
+
+                    $conn->begin_transaction();
+
+                    try {
+
+                        // LOCK SENDER WALLET
+
+
+                        $stmt = $conn->prepare("
                         SELECT balance
-                        FROM wallets
-                        WHERE user_id = ?
+                        FROM users
+                        WHERE wallet_id = ?
+                        AND account_no = ?
+                        AND mobile = ?
                         FOR UPDATE
                     ");
 
-                    $stmt->bind_param("i", $senderId);
-                    $stmt->execute();
+                        $stmt->bind_param("sss", $u_wallet_id, $u_account, $u_mob);
+                        $stmt->execute();
 
-                    $result = $stmt->get_result();
+                        $result = $stmt->get_result();
 
-                    $senderWallet = $result->fetch_assoc();
+                        $senderWallet = $result->fetch_assoc();
 
-                    $stmt->close();
-
-
-                    if (!$senderWallet) {
-                        throw new Exception("Sender wallet was not found.");
-                    }
+                        $stmt->close();
 
 
-                    $currentBalance = (float)$senderWallet['balance'];
+                        if (!$senderWallet) {
+                            throw new Exception("Sender wallet was not found.");
+                        }
 
-                    // CHECK BALANCE
 
-                    if ($currentBalance < $amount) {
+                        $d_currentBalance = decryptData($senderWallet['balance']);
 
-                        throw new Exception(
-                            "Insufficient wallet balance."
-                        );
-                    }
+                        $e_currentBalance = encryptData($senderWallet['balance']);
 
-                    // LOCK RECEIVER WALLET
+                        // CHECK BALANCE
 
-                    $stmt = $conn->prepare("
+                        if ($d_currentBalance < $amount) {
+
+                            throw new Exception(
+                                "Insufficient wallet balance."
+                            );
+                        }
+
+                        // LOCK RECEIVER WALLET
+
+                        $stmt = $conn->prepare("
                         SELECT balance
-                        FROM wallets
-                        WHERE user_id = ?
+                        FROM users
+                        WHERE wallet_id = ?
+                        AND mobile = ?
                         FOR UPDATE
                     ");
 
-                    $stmt->bind_param("i", $receiverId);
-                    $stmt->execute();
+                        $stmt->bind_param("ss", $receiverId, $receiverMob);
+                        $stmt->execute();
 
-                    $result = $stmt->get_result();
+                        $result = $stmt->get_result();
 
-                    $receiverWallet = $result->fetch_assoc();
+                        $receiverWallet = $result->fetch_assoc();
 
-                    $stmt->close();
+                        $d_receiver_bal = decryptData($receiverWallet);
 
+                        $e_receiver_bal = encryptData($receiverWallet);
 
-                    if (!$receiverWallet) {
-                        throw new Exception(
-                            "Recipient wallet was not found."
-                        );
-                    }
+                        $stmt->close();
 
 
-                    // DEDUCT FROM SENDER
+                        if (!$receiverWallet) {
+                            throw new Exception(
+                                "Recipient wallet was not found."
+                            );
+                        }
 
-                    $stmt = $conn->prepare("
-                        UPDATE wallets
-                        SET balance = balance - ?
-                        WHERE user_id = ?
+
+                        // DEDUCT FROM SENDER
+
+                        /* prepare balance of sender for update*/
+
+                        $update_sender_bal = $d_currentBalance - $amount;
+
+                        $e_update_sender_bal = encryptData($update_sender_bal);
+
+                        $stmt = $conn->prepare("
+                        UPDATE users
+                        SET balance = ?
+                        WHERE wallet_id = ?
+                        AND mobile = ?
+                        AND account_no = ?
                     ");
 
-                    $stmt->bind_param(
-                        "di",
-                        $amount,
-                        $senderId
-                    );
-
-                    if (!$stmt->execute()) {
-                        throw new Exception(
-                            "Unable to debit sender wallet."
+                        $stmt->bind_param(
+                            "ssss",
+                            $e_update_sender_bal,
+                            $u_wallet_id,
+                            $u_mob,
+                            $u_account
                         );
-                    }
 
-                    $stmt->close();
+                        if (!$stmt->execute()) {
+                            throw new Exception(
+                                "Unable to debit sender wallet."
+                            );
+                        }
 
-                    // ADD TO RECEIVER
+                        $stmt->close();
 
-                    $stmt = $conn->prepare("
-                        UPDATE wallets
-                        SET balance = balance + ?
-                        WHERE user_id = ?
+                        // ADD TO RECEIVER
+
+                        /* prepare reciever balance for update*/
+                        $update_reciever_bal = $d_receiver_bal + $amount;
+
+                        $e_update_reciever_bal = encryptData($update_reciever_bal);
+
+                        $stmt = $conn->prepare("
+                        UPDATE users
+                        SET balance = ?
+                        WHERE wallet_id = ?
+                        AND mobile = ?
                     ");
 
-                    $stmt->bind_param(
-                        "di",
-                        $amount,
-                        $receiverId
-                    );
-
-                    if (!$stmt->execute()) {
-                        throw new Exception(
-                            "Unable to credit recipient wallet."
+                        $stmt->bind_param(
+                            "sss",
+                            $e_update_reciever_bal,
+                            $receiverId,
+                            $receiverMob
                         );
-                    }
 
-                    $stmt->close();
+                        if (!$stmt->execute()) {
+                            throw new Exception(
+                                "Unable to credit recipient wallet."
+                            );
+                        }
 
-                    // CREATE TRANSACTION RECORD
-                   
-                    $transactionType = "SEND";
-                    $description = "Money sent through mobile number";
+                        $stmt->close();
 
-                    $stmt = $conn->prepare("
+                        // CREATE TRANSACTION RECORD FOR RECIEVER
+
+                        /* Generate transaction ID */
+
+                        function generateTransactionId()
+                        {
+                            return "MBD" . date("ymdHis") . strtoupper(bin2hex(random_bytes(4)));
+                        }
+
+                        $transaction_id1 = generateTransactionId();
+
+                        $transaction_id2 = generateTransactionId();
+
+                        $transactionType = "Credit";
+                        $status = 'Success';
+                        $description = "Money Trasfer By " . $u_mob . "/" . $u_wallet_id;
+
+                        $stmt = $conn->prepare("
                         INSERT INTO transactions
                         (
-                            sender_id,
-                            receiver_id,
+                            transaction_id,
+                            mobile,
+                            type,
                             amount,
-                            transaction_type,
+                            balance_before,
+                            balance_after,
                             description,
-                            created_at
+                            status
                         )
-                        VALUES (?, ?, ?, ?, ?, NOW())
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ");
 
-                    $stmt->bind_param(
-                        "iidss",
-                        $senderId,
-                        $receiverId,
-                        $amount,
-                        $transactionType,
-                        $description
-                    );
-
-                    if (!$stmt->execute()) {
-                        throw new Exception(
-                            "Transaction record could not be created."
+                        $stmt->bind_param(
+                            "ssssssss",
+                            $transaction_id1,
+                            $receiverMob,
+                            $transactionType,
+                            $e_amount,
+                            $e_receiver_bal,
+                            $e_update_reciever_bal,
+                            $description,
+                            $status
                         );
+
+                        if (!$stmt->execute()) {
+                            throw new Exception(
+                                "Transaction record could not be created."
+                            );
+                        }
+
+                        $stmt->close();
+
+
+                        // COMMIT
+                        $conn->commit();
+
+                        // CREATE TRANSACTION RECORD FOR SENDER
+
+                        $transaction_id2 = generateTransactionId();
+
+                        $transactionType2 = "Debit";
+                        $status2 = 'Success';
+                        $description2 = "Money Trasfer To " . $receiverMob . "/" . $receiverId;
+
+                        $stmt2 = $conn->prepare("
+                        INSERT INTO transactions
+                        (
+                            transaction_id,
+                            mobile,
+                            type,
+                            amount,
+                            balance_before,
+                            balance_after,
+                            description,
+                            status
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ");
+
+                        $stmt2->bind_param(
+                            "ssssssss",
+                            $transaction_id2,
+                            $u_mob,
+                            $transactionType2,
+                            $e_amount,
+                            $e_currentBalance,
+                            $e_update_sender_bal,
+                            $description2,
+                            $status2
+                        );
+
+                        if (!$stmt2->execute()) {
+                            throw new Exception(
+                                "Transaction record could not be created."
+                            );
+                        }
+
+                        $stmt2->close();
+
+
+                        // COMMIT
+                        $conn->commit();
+
+                        /* update sender cache */
+
+                        $userId = hash("sha256", $u_mob);
+
+                        $file = "cache/users/$userId/profile.json";
+
+
+                        if (file_exists($file)) {
+
+                            $data = json_decode(
+                                file_get_contents($file),
+                                true
+                            );
+
+                            $U_balance = $e_update_sender_bal;
+
+                            $data['balance'] = $U_balance;
+
+                            $data['server_sync'] = true;
+
+                            $data['update_at'] = date("Y-m-d h:i:s A");
+
+                            $data['last_transaction'] = $transaction_id2;
+
+
+                            file_put_contents(
+                                $file,
+                                json_encode(
+                                    $data,
+                                    JSON_PRETTY_PRINT
+                                )
+                            );
+                        }
+
+                        // Update displayed balance.
+
+                        $senderBalance = $d_currentBalance - $amount;
+
+                        //  Success message.
+
+                        $message =
+                            "₹" .
+                            number_format($amount, 2) .
+                            " sent successfully.";
+
+                        $messageType = "success";
+
+
+                        //  Clear recipient after successful transfer.
+
+                        $recipient = null;
+                    } catch (Throwable $e) {
+
+
+                        // ROLLBACK
+
+                        $conn->rollback();
+
+                        $message = $e->getMessage();
+                        $messageType = "error";
                     }
-
-                    $stmt->close();
-
-
-                    // COMMIT
-                    $conn->commit();
-
-
-                    // Update displayed balance.
-                
-                    $senderBalance = $currentBalance - $amount;
-
-//  Success message.
-                    
-                    $message =
-                        "₹" .
-                        number_format($amount, 2) .
-                        " sent successfully.";
-
-                    $messageType = "success";
-
-
-                    //  Clear recipient after successful transfer.
-                    
-                    $recipient = null;
-
-
-                } catch (Throwable $e) {
-
-                  
-                    // ROLLBACK
-
-                    $conn->rollback();
-
-                    $message = $e->getMessage();
-                    $messageType = "error";
                 }
             }
         }
     }
+} catch (\Throwable $th) {
+    //
 }
-*/
 ?>
 
 <!DOCTYPE html>
