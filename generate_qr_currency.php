@@ -8,6 +8,12 @@ require_once 'conn.php';
 require_once 'bank_conn.php';
 require_once 'currency_con.php';
 
+if (!$serverConnected) {
+
+    header("location:index.php");
+    exit;
+}
+
 define(
     "SECRET_KEY",
     "MBDPAY@2026_SUPER_SECRET_KEY_32"

@@ -99,11 +99,14 @@ $u_balance = decryptData($cache['balance']);
 
 $verify = false;
 
+$d_send_amount = 0;
+
 // verify pin
 try {
     if (isset($_POST['verify_pin'])) {
         $pin = $_POST['pin'];
         $submitted_amount = $_POST['form_amount'] ?? 0;
+
         if (password_verify(
             $pin,
             $cache['pin']
@@ -111,10 +114,11 @@ try {
 
             $verify = true;
 
+            $d_send_amount = $submitted_amount;
+
             /* code to deduct offline money from cache  */
 
             /* code to restrict the sender to send offline money by qr after limit = 2 */
-            
         }
     }
 } catch (\Throwable $th) {
@@ -366,7 +370,6 @@ try {
                 <div id="qrcode"></div>
                 <div>
                     <strong>Amount:</strong> ₹<span id="displayAmount"></span><br>
-                    <div class="token-badge">Token ID: <span id="displayToken"></span></div>
                 </div>
             </div>
         </div>
@@ -411,21 +414,51 @@ try {
             document.getElementById('pinModal').style.display = 'none';
         }
 
+        function getFormattedDateTime(timestamp = Date.now()) {
+            const d = new Date(timestamp);
+
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+
+            let hours = d.getHours();
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            const seconds = String(d.getSeconds()).padStart(2, '0');
+
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // convert 0 to 12
+            const hoursStr = String(hours).padStart(2, '0');
+
+            return `${year}-${month}-${day} ${hoursStr}:${minutes}:${seconds} ${ampm}`;
+        }
+
         function generateQRCode(amount) {
             const qrcodeContainer = document.getElementById('qrcode');
             const timestamp = Date.now();
-            const formattedDateTime = new Date(timestamp).toLocaleString('en-US', {
-                dateStyle: 'medium', // e.g., "Sep 21, 2026"
-                timeStyle: 'short', // e.g., "1:55 PM"
-                hour12: true // Ensures 12-hour format (AM/PM)
-            });
-            const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-            const uniqueToken = `MBD-${timestamp}-${randomPart}`;
+            const formattedDateTime = getFormattedDateTime(timestamp);
+
+            <?php
+            // Generate the unique token in PHP
+            $timestamp = time();
+            $randomPart = rand(1000, 9000);
+            $uniqueToken = "MBD-" . $timestamp . "-" . $randomPart;
+
+            // Encrypt it in PHP
+            $token_id = encryptData($uniqueToken);
+
+            $trans_mode = 'offline';
+
+            $s_amount = $d_send_amount;
+
+            // $s_amount = $d_send_amount;
+
+            ?>
 
             const payload = {
-                pay_mode: "offline",
-                token_id: uniqueToken,
-                amount: parseFloat(amount).toFixed(2),
+                pay_mode: "<?php echo encryptData($trans_mode) ?>",
+                token_id: "<?php echo $token_id ?>",
+                amount: "<?php echo encryptData($s_amount) ?>",
                 sender_wallet_id: "<?php echo encryptData($u_wallet_id); ?>",
                 sender_mobile: "<?php echo encryptData($u_mob); ?>",
                 sender_account: "<?php echo encryptData($u_account); ?>",

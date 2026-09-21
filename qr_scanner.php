@@ -3,6 +3,12 @@ session_start();
 require_once 'conn.php';
 require_once 'currency_con.php';
 
+if (!$serverConnected) {
+
+    header("location:index.php");
+    exit;
+}
+
 date_default_timezone_set('Asia/Kolkata');
 
 $date_time = date("Y-m-d h:i:s A");
@@ -168,19 +174,19 @@ try {
             setQrFailure('Invalid QR code. The QR data format is not supported.');
         }
 
-        $pay_mode = trim((string)($data['pay_mode']));
+        $pay_mode = decryptData(trim((string)($data['pay_mode'])));
 
         // code for offline money qr code scanner
-
         if ($pay_mode == 'offline') {
 
-            $sen_token_id = $data['token_id'];
+            $sen_token_id = decryptData($data['token_id']);
             $sen_amount = $data['amount'];
             $sen_wallet_id = decryptData($data['sender_wallet_id']);
             $sen_sender_mobile = decryptData($data['sender_mobile']);
             $sen_sender_account = decryptData($data['sender_account']);
             $sen_timestamp = $data['timestamp'];
-            echo 'Enter in an offline money send using qr';
+            echo 'Enter in an offline money send using qr ' . $sen_amount;
+
         }
 
         // code for offline currency qr code scanner

@@ -3,12 +3,13 @@
 session_start();
 
 
-$conn = @mysqli_connect(
-    "localhost",
-    "root",
-    "",
-    "ram_pay"
-);
+require_once 'conn.php';
+
+if (!$serverConnected) {
+
+    header("location:index.php");
+    exit;
+}
 
 // secret key
 define("SECRET_KEY", "MBDPAY@2026_SUPER_SECRET_KEY_32");

@@ -6,6 +6,12 @@ date_default_timezone_set('Asia/Kolkata');
 require_once 'conn.php';
 require_once 'currency_con.php';
 
+if (!$serverConnected) {
+
+    header("location:index.php");
+    exit;
+}
+
 /*
 |--------------------------------------------------------------------------
 | LOGIN CHECK

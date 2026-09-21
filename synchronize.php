@@ -52,6 +52,11 @@ $u_wallet_id = $_SESSION['wallet_id'];
 require_once __DIR__ . '/currency_con.php';
 require_once 'conn.php';
 
+if (!$serverConnected) {
+
+    header("location:index.php");
+    exit;
+}
 
 /*
 |--------------------------------------------------------------------------

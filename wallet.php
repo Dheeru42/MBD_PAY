@@ -6,7 +6,6 @@ date_default_timezone_set('Asia/Kolkata');
 require_once 'conn.php';
 require_once 'bank_conn.php';
 
-
 $mess = "";
 $mess_f = "";
 

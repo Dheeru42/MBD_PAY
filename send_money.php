@@ -3,6 +3,12 @@ session_start();
 
 require_once 'conn.php';
 
+if (!$serverConnected) {
+
+    header("location:index.php");
+    exit;
+}
+
 /* =========================================================
    LOGIN CHECK
 ========================================================= */
