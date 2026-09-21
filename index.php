@@ -1260,18 +1260,18 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     <div class="wallet-stats">
 
                         <div class="stat-box">
-                            <small>Generated Today</small>
+                            <small>Currency Generated Today</small>
                             <h3>₹ <?php echo number_format($generatedToday, 2); ?></h3>
                         </div>
 
                         <div class="stat-box">
-                            <small>Received Today</small>
+                            <small>Currency Received Today</small>
                             <h3>₹ <?php echo number_format($receivedToday, 2); ?></h3>
                         </div>
 
                     </div>
 
-                    <!-- Offline Transactions -->
+                    <!-- Generated Currency -->
                     <div class="offline-card">
 
                         <div>
@@ -1286,8 +1286,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     </div>
 
                 <?php } else { ?>
-                    <br>
-                    <br>
                     <div class="wallet-actions-offline">
 
                         <a href="send_offline_money.php" class="action-btn">
@@ -1295,9 +1293,27 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                             <span>Send Money Offline</span>
                         </a>
                     </div>
+<br>
+                    <?php if (!$serverConnected) { ?>
+
+                        <!-- Offline Transactions -->
+                        <div class="offline-card">
+
+                            <div>
+                                <strong>Synchronization Pending</strong><br>
+                                <small>Awaiting Server Sync</small>
+                            </div>
+
+                            <div class="offline-count">
+                                <?php echo $pendingSync; ?>
+                            </div>
+
+                        </div>
+
+                    <?php } ?>
 
                     <br>
-                    <br>
+
                     <!-- Offline Mode -->
                     <div class="offline-card" style="text-align:center; display:block;">
 
