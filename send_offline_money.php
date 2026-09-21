@@ -110,6 +110,11 @@ try {
         )) {
 
             $verify = true;
+
+            /* code to deduct offline money from cache  */
+
+            /* code to restrict the sender to send offline money by qr after limit = 2 */
+            
         }
     }
 } catch (\Throwable $th) {
