@@ -156,7 +156,6 @@ function setQrFailure(string $reason, array $details = []): void
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
         $qrData = trim($_POST['qr_data'] ?? '');
 
         if ($qrData === '') {
@@ -169,19 +168,31 @@ try {
             setQrFailure('Invalid QR code. The QR data format is not supported.');
         }
 
-        $encrypted_currency_serial_no =
-            trim((string)($data['encrypted_currency_serial_no'] ?? ''));
+        $pay_mode = trim((string)($data['pay_mode']));
 
-        $currency_serial_no =
-            trim((string)($data['currency_serial_no'] ?? ''));
+        // code for offline money qr code scanner
 
-        if ($encrypted_currency_serial_no === '' || $currency_serial_no === '') {
-            setQrFailure('This QR code does not contain valid currency information.');
+        if ($pay_mode == 'offline') {
+
+            echo $data['pay_mode']." ".$data['amount'];
         }
 
-        $stmt = mysqli_prepare(
-            $c_conn,
-            "SELECT
+        // code for offline currency qr code scanner
+
+        else {
+            $encrypted_currency_serial_no =
+                trim((string)($data['encrypted_currency_serial_no'] ?? ''));
+
+            $currency_serial_no =
+                trim((string)($data['currency_serial_no'] ?? ''));
+
+            if ($encrypted_currency_serial_no === '' || $currency_serial_no === '') {
+                setQrFailure('This QR code does not contain valid currency information.');
+            }
+
+            $stmt = mysqli_prepare(
+                $c_conn,
+                "SELECT
                 id,
                 wallet_id,
                 serial_no,
@@ -196,152 +207,152 @@ try {
              AND serial_no = ?
              AND status = 'GENERATED'
              LIMIT 1"
-        );
+            );
 
-        if (!$stmt) {
-            throw new Exception('Database prepare failed.');
-        }
+            if (!$stmt) {
+                throw new Exception('Database prepare failed.');
+            }
 
-        mysqli_stmt_bind_param(
-            $stmt,
-            'ss',
-            $encrypted_currency_serial_no,
-            $currency_serial_no
-        );
+            mysqli_stmt_bind_param(
+                $stmt,
+                'ss',
+                $encrypted_currency_serial_no,
+                $currency_serial_no
+            );
 
-        if (!mysqli_stmt_execute($stmt)) {
-            throw new Exception('Database query failed.');
-        }
+            if (!mysqli_stmt_execute($stmt)) {
+                throw new Exception('Database query failed.');
+            }
 
-        $currency_result = mysqli_stmt_get_result($stmt);
+            $currency_result = mysqli_stmt_get_result($stmt);
 
-        if (!$currency_result) {
-            throw new Exception('Unable to read currency record.');
-        }
+            if (!$currency_result) {
+                throw new Exception('Unable to read currency record.');
+            }
 
-        $currency = mysqli_fetch_assoc($currency_result);
+            $currency = mysqli_fetch_assoc($currency_result);
 
-        if (!$currency) {
-            if ($currency['status'] != 'GENERATED') {
-                setQrFailure('Currency already scanned.', [
-                    'serial_no' => $currency_serial_no
-                ]);
-            } else {
-                setQrFailure('Currency not found, invalid, or already scanned.', [
-                    'serial_no' => $currency_serial_no
+            if (!$currency) {
+                if ($currency['status'] != 'GENERATED') {
+                    setQrFailure('Currency already scanned.', [
+                        'serial_no' => $currency_serial_no
+                    ]);
+                } else {
+                    setQrFailure('Currency not found, invalid, or already scanned.', [
+                        'serial_no' => $currency_serial_no
+                    ]);
+                }
+            }
+
+
+            $sen_mob = (string)($currency['sender_mobile'] ?? '');
+            $sen_amount = $currency['amount'] ?? '';
+            $sender_wallet_id = $currency['wallet_id'];
+
+            // A user cannot scan their own currency.
+            if ((string)$user_mob === $sen_mob) {
+                setQrFailure('You cannot scan your own currency.', [
+                    'amount'        => decryptData($currency['amount']) ?? null,
+                    'serial_no'     => $currency['serial_no'] ?? null,
+                    'sender_mobile' => $currency['sender_mobile'] ?? null,
+                    'generated_at'  => $currency['generated_at'] ?? null,
                 ]);
             }
-        }
 
+            $currency_id = (int)$currency['id'];
 
-        $sen_mob = (string)($currency['sender_mobile'] ?? '');
-        $sen_amount = $currency['amount'] ?? '';
-        $sender_wallet_id = $currency['wallet_id'];
-
-        // A user cannot scan their own currency.
-        if ((string)$user_mob === $sen_mob) {
-            setQrFailure('You cannot scan your own currency.', [
-                'amount'        => decryptData($currency['amount']) ?? null,
-                'serial_no'     => $currency['serial_no'] ?? null,
-                'sender_mobile' => $currency['sender_mobile'] ?? null,
-                'generated_at'  => $currency['generated_at'] ?? null,
-            ]);
-        }
-
-        $currency_id = (int)$currency['id'];
-
-        $updateStmt = mysqli_prepare(
-            $c_conn,
-            "UPDATE currency
+            $updateStmt = mysqli_prepare(
+                $c_conn,
+                "UPDATE currency
              SET status = 'SCANNED', receiver_mobile = ?,scanned_at = ?,completed_at = ?
              WHERE id = ?
              AND status = 'GENERATED'
              LIMIT 1"
-        );
+            );
 
-        if (!$updateStmt) {
-            throw new Exception('Status update could not be prepared.');
-        }
+            if (!$updateStmt) {
+                throw new Exception('Status update could not be prepared.');
+            }
 
-        mysqli_stmt_bind_param($updateStmt, 'sssi', $user_mob, $date_time, $date_time, $currency_id);
+            mysqli_stmt_bind_param($updateStmt, 'sssi', $user_mob, $date_time, $date_time, $currency_id);
 
-        if (!mysqli_stmt_execute($updateStmt)) {
-            throw new Exception('Transaction could not be completed.');
-        }
+            if (!mysqli_stmt_execute($updateStmt)) {
+                throw new Exception('Transaction could not be completed.');
+            }
 
-        // If another request scanned it first, do not report a false success.
-        if (mysqli_stmt_affected_rows($updateStmt) !== 1) {
-            setQrFailure('This currency has already been processed or is no longer available.', [
-                'amount'        => decryptData($currency['amount']) ?? null,
-                'serial_no'     => $currency['serial_no'] ?? null,
-                'sender_mobile' => $currency['sender_mobile'] ?? null,
+            // If another request scanned it first, do not report a false success.
+            if (mysqli_stmt_affected_rows($updateStmt) !== 1) {
+                setQrFailure('This currency has already been processed or is no longer available.', [
+                    'amount'        => decryptData($currency['amount']) ?? null,
+                    'serial_no'     => $currency['serial_no'] ?? null,
+                    'sender_mobile' => $currency['sender_mobile'] ?? null,
+                    'receiver_mobile' => $user_mob,
+                    'generated_at'  => $currency['generated_at'] ?? null,
+                ]);
+            }
+
+            $_SESSION['qr_result'] = [
+                'transaction_id' => createTransactionId(),
+                'status'         => 'SUCCESS',
+                'amount'         => decryptData($currency['amount']) ?? null,
+                'serial_no'      => $currency['serial_no'] ?? null,
+                'sender_mobile'  => $currency['sender_mobile'] ?? null,
                 'receiver_mobile' => $user_mob,
-                'generated_at'  => $currency['generated_at'] ?? null,
-            ]);
-        }
+                'generated_at'   => $currency['generated_at'] ?? null,
+                'completed_at'   => date("Y-m-d h:i:s A"),
+            ];
 
-        $_SESSION['qr_result'] = [
-            'transaction_id' => createTransactionId(),
-            'status'         => 'SUCCESS',
-            'amount'         => decryptData($currency['amount']) ?? null,
-            'serial_no'      => $currency['serial_no'] ?? null,
-            'sender_mobile'  => $currency['sender_mobile'] ?? null,
-            'receiver_mobile' => $user_mob,
-            'generated_at'   => $currency['generated_at'] ?? null,
-            'completed_at'   => date("Y-m-d h:i:s A"),
-        ];
-
-        $data = $_SESSION['qr_result'];
-        $transaction_id_cur =  $data['transaction_id'];
+            $data = $_SESSION['qr_result'];
+            $transaction_id_cur =  $data['transaction_id'];
 
 
-        // Update MBD Pay wallet
+            // Update MBD Pay wallet
 
-        $walletBalanceQuery = "
+            $walletBalanceQuery = "
         SELECT balance 
         FROM users 
         WHERE mobile='$user_mob'
     ";
 
-        $walletResult = mysqli_query($conn, $walletBalanceQuery);
+            $walletResult = mysqli_query($conn, $walletBalanceQuery);
 
-        $walletData = mysqli_fetch_assoc($walletResult);
+            $walletData = mysqli_fetch_assoc($walletResult);
 
-        $old_wallet_balance = $walletData['balance'];
+            $old_wallet_balance = $walletData['balance'];
 
-        $d_wallet_balance = decryptData($walletData['balance']);
+            $d_wallet_balance = decryptData($walletData['balance']);
 
-        $d_send_amount = decryptData($sen_amount);
+            $d_send_amount = decryptData($sen_amount);
 
-        $update_wallet_bal = $d_wallet_balance + $d_send_amount;
+            $update_wallet_bal = $d_wallet_balance + $d_send_amount;
 
-        $e_update_wallet_bal = encryptData($update_wallet_bal);
+            $e_update_wallet_bal = encryptData($update_wallet_bal);
 
-        // Credit to MBD Wallet
-        $walletQuery = "UPDATE users SET balance = ?, update_at = ? WHERE mobile = ?";
+            // Credit to MBD Wallet
+            $walletQuery = "UPDATE users SET balance = ?, update_at = ? WHERE mobile = ?";
 
-        $stmt2 = mysqli_prepare($conn, $walletQuery);
-        mysqli_stmt_bind_param($stmt2, "sss", $e_update_wallet_bal, $date_time, $user_mob);
-        mysqli_stmt_execute($stmt2);
+            $stmt2 = mysqli_prepare($conn, $walletQuery);
+            mysqli_stmt_bind_param($stmt2, "sss", $e_update_wallet_bal, $date_time, $user_mob);
+            mysqli_stmt_execute($stmt2);
 
 
-        // Update MBD Pay Transaction
+            // Update MBD Pay Transaction
 
-        //  fetch latest balance of user
+            //  fetch latest balance of user
 
-        $latest_walletBalanceQuery = "
+            $latest_walletBalanceQuery = "
         SELECT balance 
         FROM users 
         WHERE mobile='$user_mob'
     ";
 
-        $latest_walletResult = mysqli_query($conn, $latest_walletBalanceQuery);
+            $latest_walletResult = mysqli_query($conn, $latest_walletBalanceQuery);
 
-        $latest_walletData = mysqli_fetch_assoc($latest_walletResult);
+            $latest_walletData = mysqli_fetch_assoc($latest_walletResult);
 
-        $latest_wallet_balance = $latest_walletData['balance'];
+            $latest_wallet_balance = $latest_walletData['balance'];
 
-        $walletTransaction = "
+            $walletTransaction = "
             INSERT INTO transactions
             (
             transaction_id,
@@ -358,66 +369,67 @@ try {
         ";
 
 
-        $stmt1 = mysqli_prepare($conn, $walletTransaction);
+            $stmt1 = mysqli_prepare($conn, $walletTransaction);
 
 
-        $type = "Currency Received";
-        $st = 'Success';
-        $desc = "Digital Currency Recieved From " . $sen_mob . "/" . $sender_wallet_id;
+            $type = "Currency Received";
+            $st = 'Success';
+            $desc = "Digital Currency Recieved From " . $sen_mob . "/" . $sender_wallet_id;
 
 
-        mysqli_stmt_bind_param(
-            $stmt1,
-            "ssssssss",
-            $transaction_id_cur,
-            $user_mob,
-            $type,
-            $sen_amount,
-            $old_wallet_balance,
-            $latest_wallet_balance,
-            $desc,
-            $st
-        );
-
-
-        mysqli_stmt_execute($stmt1);
-
-        // update local cache
-
-        $userId = hash("sha256", $user_mob);
-
-        $file = "cache/users/$userId/profile.json";
-
-
-        if (file_exists($file)) {
-
-            $data = json_decode(
-                file_get_contents($file),
-                true
+            mysqli_stmt_bind_param(
+                $stmt1,
+                "ssssssss",
+                $transaction_id_cur,
+                $user_mob,
+                $type,
+                $sen_amount,
+                $old_wallet_balance,
+                $latest_wallet_balance,
+                $desc,
+                $st
             );
 
-            $U_balance = $latest_wallet_balance;
 
-            $data['balance'] = $U_balance;
+            mysqli_stmt_execute($stmt1);
 
-            $data['server_sync'] = true;
+            // update local cache
 
-            $data['update_at'] = date("Y-m-d h:i:s A");
+            $userId = hash("sha256", $user_mob);
 
-            $data['last_transaction'] = $transaction_id_cur;
+            $file = "cache/users/$userId/profile.json";
 
 
-            file_put_contents(
-                $file,
-                json_encode(
-                    $data,
-                    JSON_PRETTY_PRINT
-                )
-            );
+            if (file_exists($file)) {
+
+                $data = json_decode(
+                    file_get_contents($file),
+                    true
+                );
+
+                $U_balance = $latest_wallet_balance;
+
+                $data['balance'] = $U_balance;
+
+                $data['server_sync'] = true;
+
+                $data['update_at'] = date("Y-m-d h:i:s A");
+
+                $data['last_transaction'] = $transaction_id_cur;
+
+
+                file_put_contents(
+                    $file,
+                    json_encode(
+                        $data,
+                        JSON_PRETTY_PRINT
+                    )
+                );
+            }
+
+            header('Location: qr_success.php');
+            exit;
         }
-
-        header('Location: qr_success.php');
-        exit;
     }
 } catch (Throwable $e) {
     // Keep technical database errors out of the customer-facing page.

@@ -103,13 +103,13 @@ $verify = false;
 try {
     if (isset($_POST['verify_pin'])) {
         $pin = $_POST['pin'];
+        $submitted_amount = $_POST['form_amount'] ?? 0;
         if (password_verify(
             $pin,
             $cache['pin']
         )) {
 
             $verify = true;
-            echo 'Pin verified';
         }
     }
 } catch (\Throwable $th) {
@@ -126,11 +126,8 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MBD PAY | Offline Send Money</title>
     <link rel="icon" type="image/svg+xml"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' 
-viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext 
-x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' 
-fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
-    <!-- Include QRCode.js library -->
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
+    <!-- QRCode.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         * {
@@ -144,7 +141,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             background: #f3f4f6;
         }
 
-        /* Two-Column Layout */
         .offline-container {
             max-width: 950px;
             margin: 40px auto;
@@ -180,7 +176,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             margin-bottom: 20px;
         }
 
-        /* Left Side: Balance Card */
         .balance-box {
             margin-top: 20px;
             padding: 20px;
@@ -210,7 +205,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             opacity: 0.95;
         }
 
-        /* Right Side: Form */
         .form-group {
             margin-bottom: 18px;
         }
@@ -254,9 +248,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             opacity: 0.95;
         }
 
-        /* QR Output Section */
         .qr-wrapper {
-            display: none;
             text-align: center;
             margin-top: 25px;
             padding-top: 20px;
@@ -283,7 +275,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             margin-top: 8px;
         }
 
-        /* Modal Popup Styles */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -320,7 +311,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             border-radius: 8px;
             font-size: 13px;
             margin-bottom: 12px;
-            display: none;
         }
 
         @media(max-width: 768px) {
@@ -365,113 +355,99 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                 <button type="submit" class="btn-submit">Proceed to Send</button>
             </form>
-            <?php if ($verify) { ?>
-                <!-- QR Code Container -->
-                <div id="qrWrapper" class="qr-wrapper">
-                    <div id="qrcode"></div>
-                    <div>
-                        <strong>Amount:</strong> ₹<span id="displayAmount"></span><br>
-                        <div class="token-badge">Token ID: <span id="displayToken"></span></div>
-                    </div>
+
+            <!-- QR Container -->
+            <div id="qrWrapper" class="qr-wrapper" style="display: <?php echo $verify ? 'block' : 'none'; ?>;">
+                <div id="qrcode"></div>
+                <div>
+                    <strong>Amount:</strong> ₹<span id="displayAmount"></span><br>
+                    <div class="token-badge">Token ID: <span id="displayToken"></span></div>
                 </div>
+            </div>
         </div>
     </div>
-<?php } ?>
 
-<!-- PIN VERIFICATION MODAL -->
-<div id="pinModal" class="modal-overlay">
-    <div class="modal-card">
-        <form method="post">
-            <h3>Enter Offline PIN</h3>
-            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Please enter your 4-digit security PIN to authorize this offline transaction.</p>
+    <!-- PIN VERIFICATION MODAL -->
+    <div id="pinModal" class="modal-overlay" style="display: <?php echo !empty($pin_error) ? 'flex' : 'none'; ?>;">
+        <div class="modal-card">
+            <form method="post">
+                <h3>Enter Offline PIN</h3>
+                <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Please enter your 4-digit security PIN to authorize this offline transaction.</p>
 
-            <div id="modalAlert" class="alert-error"></div>
+                <?php if (!empty($pin_error)): ?>
+                    <div class="alert-error"><?php echo htmlspecialchars($pin_error); ?></div>
+                <?php endif; ?>
 
-            <div class="form-group">
-                <input type="password" name='pin' id="modalPin" class="form-control" style="text-align:center; font-size: 22px; letter-spacing: 5px;" maxlength="4" placeholder="••••" required>
-            </div>
+                <!-- Hidden Input to preserve amount across POST request -->
+                <input type="hidden" name="form_amount" id="modalHiddenAmount" value="<?php echo htmlspecialchars($submitted_amount); ?>">
 
-            <button onclick="verifyPinAndGenerateQR()" class="btn-submit" name='verify_pin' style="margin-bottom: 10px;">Verify & Generate QR</button>
-            <button onclick="closePinModal()" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size: 14px;">Cancel</button>
-        </form>
+                <div class="form-group">
+                    <input type="password" name="pin" id="modalPin" class="form-control" style="text-align:center; font-size: 22px; letter-spacing: 5px;" maxlength="4" placeholder="••••" required>
+                </div>
+
+                <button type="submit" name="verify_pin" class="btn-submit" style="margin-bottom: 10px;">Verify & Generate QR</button>
+                <button type="button" onclick="closePinModal()" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size: 14px;">Cancel</button>
+            </form>
+        </div>
     </div>
-</div>
 
-<?php require_once 'footer.php'; ?>
+    <?php require_once 'footer.php'; ?>
 
-<script>
-    let pendingAmount = 0;
-
-    function openPinModal(e) {
-        e.preventDefault();
-        pendingAmount = document.getElementById('amount').value;
-        document.getElementById('modalPin').value = '';
-        document.getElementById('modalAlert').style.display = 'none';
-        document.getElementById('pinModal').style.display = 'flex';
-    }
-
-    function closePinModal() {
-        document.getElementById('pinModal').style.display = 'none';
-    }
-
-    function verifyPinAndGenerateQR() {
-        const enteredPin = document.getElementById('modalPin').value;
-        const modalAlert = document.getElementById('modalAlert');
-
-        // Retrieve PIN cached locally during login/signup
-        const cachedPin = localStorage.getItem('user_pin') || localStorage.getItem('cached_pin');
-
-        if (!cachedPin) {
-            modalAlert.innerText = "No cached PIN found! Please login online first.";
-            modalAlert.style.display = 'block';
-            return;
+    <script>
+        function openPinModal(e) {
+            e.preventDefault();
+            const amt = document.getElementById('amount').value;
+            document.getElementById('modalHiddenAmount').value = amt;
+            document.getElementById('modalPin').value = '';
+            document.getElementById('pinModal').style.display = 'flex';
         }
 
-        // Verify PIN against local cache
-        if (enteredPin !== cachedPin) {
-            modalAlert.innerText = "Incorrect PIN! Please try again.";
-            modalAlert.style.display = 'block';
-            return;
+        function closePinModal() {
+            document.getElementById('pinModal').style.display = 'none';
         }
 
-        // PIN verified successfully: Close modal and generate QR
-        closePinModal();
-        generateQRCode(pendingAmount);
-    }
+        function generateQRCode(amount) {
+            const qrcodeContainer = document.getElementById('qrcode');
+            const timestamp = Date.now();
+            const formattedDateTime = new Date(timestamp).toLocaleString('en-US', {
+                dateStyle: 'medium', // e.g., "Sep 21, 2026"
+                timeStyle: 'short', // e.g., "1:55 PM"
+                hour12: true // Ensures 12-hour format (AM/PM)
+            });
+            const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const uniqueToken = `MBD-${timestamp}-${randomPart}`;
 
-    function generateQRCode(amount) {
-        const qrWrapper = document.getElementById('qrWrapper');
-        const qrcodeContainer = document.getElementById('qrcode');
+            const payload = {
+                pay_mode: "offline",
+                token_id: uniqueToken,
+                amount: parseFloat(amount).toFixed(2),
+                sender_wallet_id: "<?php echo encryptData($u_wallet_id); ?>",
+                sender_mobile: "<?php echo encryptData($u_mob); ?>",
+                sender_account: "<?php echo encryptData($u_account); ?>",
+                timestamp: formattedDateTime
+            };
 
-        // Generate Unique Token ID
-        const timestamp = Date.now();
-        const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-        const uniqueToken = `MBD-${timestamp}-${randomPart}`;
+            qrcodeContainer.innerHTML = '';
+            new QRCode(qrcodeContainer, {
+                text: JSON.stringify(payload),
+                width: 250,
+                height: 250,
+                colorDark: "#022c22",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
 
-        // Build payload
-        const payload = {
-            token_id: uniqueToken,
-            amount: parseFloat(amount).toFixed(2),
-            sender_wallet: "<?php echo $u_wallet_id; ?>",
-            timestamp: timestamp
-        };
+            document.getElementById('displayAmount').innerText = parseFloat(amount).toFixed(2);
+            document.getElementById('displayToken').innerText = uniqueToken;
+        }
 
-        // Render QR Code
-        qrcodeContainer.innerHTML = '';
-        new QRCode(qrcodeContainer, {
-            text: JSON.stringify(payload),
-            width: 180,
-            height: 180,
-            colorDark: "#022c22",
-            colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel.H
-        });
-
-        document.getElementById('displayAmount').innerText = parseFloat(amount).toFixed(2);
-        document.getElementById('displayToken').innerText = uniqueToken;
-        qrWrapper.style.display = 'block';
-    }
-</script>
+        // Auto-generate QR if verified via PHP form submission
+        <?php if ($verify && $submitted_amount > 0): ?>
+            window.addEventListener('DOMContentLoaded', () => {
+                generateQRCode(<?php echo json_encode($submitted_amount); ?>);
+            });
+        <?php endif; ?>
+    </script>
 </body>
 
 </html>
