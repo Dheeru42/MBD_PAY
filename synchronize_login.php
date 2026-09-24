@@ -573,7 +573,26 @@ try {
     echo 'aagyaa';
 }
 
+// synchronize transaction data at login time
 
+try {
+    $userId = hash("sha256", $u_mob);
+    $trx_folder = CACHE_DIR . $userId . "/transactions";
+
+    if (is_dir($trx_folder)) {
+        // Retrieve all .json files in the transactions directory
+        $files = glob($trx_folder . "/*.json");
+
+        // Loop through each file and delete it
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+    }
+} catch (\Throwable $th) {
+    //throw $th;
+}
 
 /*
 |--------------------------------------------------------------------------
