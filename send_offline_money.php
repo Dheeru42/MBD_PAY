@@ -53,6 +53,15 @@ function decryptData($text)
     );
 }
 
+// Generate the unique token in PHP
+$timestamp = time();
+$randomPart = rand(1000, 9000);
+$uniqueToken = "MBD-" . $timestamp . "-" . $randomPart;
+
+// Encrypt it in PHP
+$token_id = encryptData($uniqueToken);
+
+
 if (!isset($_SESSION['user'])) {
 
     header("location:login.php");
@@ -124,23 +133,94 @@ try {
 
                 /* code to deduct offline money from cache  */
 
-                /* code to restrict the sender to send offline money by qr after limit = 2 */
+                // code to deduct balance from cache
 
                 $profile = CACHE_DIR . $userId . "/profile.json";
 
-                $cache = json_decode(
+                $cache_bal = json_decode(
                     file_get_contents($profile),
                     true
                 );
 
-                $send_limit = $cache['send_limit'] - 1; // every qr generate
+                $offline_wallet_balance = decryptData($cache_bal['balance']);
 
-                $cache['send_limit'] = $send_limit;
+                $updated_offline_wallet_bal = $offline_wallet_balance - $submitted_amount;
+
+                $cache_bal['balance'] = encryptData($updated_offline_wallet_bal);
+
+                $cache_bal['update_at'] = date("Y-m-d h:i:s A");
 
                 file_put_contents(
                     $profile,
                     json_encode(
-                        $cache,
+                        $cache_bal,
+                        JSON_PRETTY_PRINT
+                    )
+                );
+
+                $u_balance = $updated_offline_wallet_bal; // display updated balance
+
+
+                /* code to insert offline transaction in transaction folder */
+
+                $trx_folder = CACHE_DIR . $userId . "/transactions";
+
+                // Create transactions cache folder if not exist
+                if (!is_dir($trx_folder)) {
+                    mkdir($trx_folder, 0777, true);
+                }
+
+                // insert trx in transaction
+
+                $trx_data = [
+
+                    "token_id" => $token_id,
+
+                    "wallet_id" => encryptData($u_wallet_id),
+
+                    "mobile" => encryptData($u_mob),
+
+                    "send_balance" => encryptData($submitted_amount),
+
+                    "status" => "pending",
+
+                    "created_at" => date("Y-m-d h:i:s A"),
+
+                    "update_at" => date("Y-m-d h:i:s A"),
+
+                    "server_sync" => false
+
+                ];
+
+                $trx_id = $token_id;
+
+                $trx_file = hash("sha256", $trx_id);
+                // Save currency in cache
+                $trx_cacheFile = $trx_folder . "/" . $trx_file . ".json";
+
+                file_put_contents(
+                    $trx_cacheFile,
+                    json_encode($trx_data, JSON_PRETTY_PRINT)
+                );
+
+
+                /* code to restrict the sender to send offline money by qr after limit = 2 */
+
+                $profile = CACHE_DIR . $userId . "/profile.json";
+
+                $cache_limit = json_decode(
+                    file_get_contents($profile),
+                    true
+                );
+
+                $send_limit = $cache_limit['send_limit'] - 1; // every qr generate
+
+                $cache_limit['send_limit'] = $send_limit;
+
+                file_put_contents(
+                    $profile,
+                    json_encode(
+                        $cache_limit,
                         JSON_PRETTY_PRINT
                     )
                 );
@@ -474,6 +554,10 @@ try {
         </div>
     </div>
 
+<!-- show all offline transaction pending -->
+
+
+
     <?php require_once 'footer.php'; ?>
 
     <script>
@@ -514,13 +598,6 @@ try {
             const formattedDateTime = getFormattedDateTime(timestamp);
 
             <?php
-            // Generate the unique token in PHP
-            $timestamp = time();
-            $randomPart = rand(1000, 9000);
-            $uniqueToken = "MBD-" . $timestamp . "-" . $randomPart;
-
-            // Encrypt it in PHP
-            $token_id = encryptData($uniqueToken);
 
             $trans_mode = 'offline';
 
