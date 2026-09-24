@@ -555,6 +555,8 @@ try {
 
             $data['update_at'] = date("Y-m-d h:i:s A");
 
+            $data['send_limit'] = 2;
+
 
 
             file_put_contents(

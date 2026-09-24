@@ -6,6 +6,9 @@ date_default_timezone_set('Asia/Kolkata');
 
 require_once "conn.php";
 
+$message = "";
+$message_f = "";
+
 // catch create logic
 
 define("CACHE_DIR", __DIR__ . "/cache/users/");
@@ -106,11 +109,12 @@ try {
     if (isset($_POST['verify_pin'])) {
         $pin = $_POST['pin'];
         $submitted_amount = $_POST['form_amount'] ?? 0;
-
+        // if($cache['send_limit'] == 2){
         if (password_verify(
             $pin,
             $cache['pin']
         )) {
+            $message = "Pin Verified & QR Generated";
 
             $verify = true;
 
@@ -119,6 +123,9 @@ try {
             /* code to deduct offline money from cache  */
 
             /* code to restrict the sender to send offline money by qr after limit = 2 */
+        }
+        else{
+            $message_f = "Pin Not Verified";
         }
     }
 } catch (\Throwable $th) {
@@ -322,6 +329,27 @@ try {
             margin-bottom: 12px;
         }
 
+        .message {
+
+
+            text-align: center;
+
+            color: #047857;
+
+            margin-bottom: 15px;
+
+        }
+        .message_f {
+
+
+            text-align: center;
+
+            color: #ec0707;
+
+            margin-bottom: 15px;
+
+        }
+
         @media(max-width: 768px) {
             .offline-container {
                 flex-direction: column;
@@ -354,6 +382,31 @@ try {
 
         <!-- RIGHT SIDE: Send Money Option -->
         <div class="right-panel">
+            <?php
+
+            if ($message != "") {
+
+                echo "
+
+        <div class='message'>
+        $message
+            </div>
+
+                ";
+            }
+            
+            if ($message_f != "") {
+
+                echo "
+
+        <div class='message_f'>
+        $message_f
+            </div>
+
+                ";
+            }
+
+            ?>
             <div class="panel-title" style="color:#022c22;">📲 Send Money Offline</div>
 
             <form id="offlineForm" onsubmit="openPinModal(event)">
