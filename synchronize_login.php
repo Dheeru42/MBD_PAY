@@ -577,11 +577,11 @@ try {
 
 try {
     $userId = hash("sha256", $u_mob);
-    $trx_folder = CACHE_DIR . $userId . "/transactions";
+    $trx_file = "cache/users/$userId/transactions";
 
-    if (is_dir($trx_folder)) {
+    if (is_dir($trx_file)) {
         // Retrieve all .json files in the transactions directory
-        $files = glob($trx_folder . "/*.json");
+        $files = glob($trx_file . "/*.json");
 
         // Loop through each file and delete it
         foreach ($files as $file) {
