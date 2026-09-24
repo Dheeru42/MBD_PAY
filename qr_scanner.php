@@ -178,14 +178,12 @@ try {
 
         // code for offline money qr code scanner
         if ($pay_mode == 'offline') {
-
             $sen_token_id = decryptData($data['token_id']);
-            $sen_amount = $data['amount'];
+            $sen_amount = decryptData($data['amount']);
             $sen_wallet_id = decryptData($data['sender_wallet_id']);
             $sen_sender_mobile = decryptData($data['sender_mobile']);
             $sen_sender_account = decryptData($data['sender_account']);
-            $sen_timestamp = $data['timestamp'];
-            echo 'Enter in an offline money send using qr ' . $sen_amount;
+            header('Location: success.php');
 
         }
 

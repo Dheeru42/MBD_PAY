@@ -451,18 +451,15 @@ try {
 
             $s_amount = $d_send_amount;
 
-            // $s_amount = $d_send_amount;
-
             ?>
 
             const payload = {
-                pay_mode: "<?php echo encryptData($trans_mode) ?>",
-                token_id: "<?php echo $token_id ?>",
-                amount: "<?php echo encryptData($s_amount) ?>",
+                pay_mode: "<?php echo encryptData($trans_mode); ?>",
+                token_id: "<?php echo $token_id; ?>",
+                amount: "<?php echo encryptData($s_amount); ?>",
                 sender_wallet_id: "<?php echo encryptData($u_wallet_id); ?>",
                 sender_mobile: "<?php echo encryptData($u_mob); ?>",
                 sender_account: "<?php echo encryptData($u_account); ?>",
-                timestamp: formattedDateTime
             };
 
             qrcodeContainer.innerHTML = '';
