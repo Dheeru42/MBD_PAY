@@ -20,15 +20,14 @@ function encryptData($text)
     $key = hash("sha256", SECRET_KEY, true);
     $iv  = random_bytes(16);
 
-    $cipher = openssl_encrypt(
-        $text,
+    $cipher = openssl_encrypt($text,
         "AES-256-CBC",
         $key,
         OPENSSL_RAW_DATA,
         $iv
     );
 
-    return base64_encode($iv . $cipher);
+    return base64_encode($iv .$cipher);
 }
 
 /* Decrypt Function */
@@ -55,12 +54,15 @@ function decryptData($text)
 
 // Generate the unique token in PHP
 $timestamp = time();
-$randomPart = rand(1000, 9000);
-$uniqueToken = "MBD-" . $timestamp . "-" . $randomPart;
+$randomPart = rand(1000, 9000);$uniqueToken = "MBD-" . $timestamp . "-" . $randomPart;
 
 // Encrypt it in PHP
 $token_id = encryptData($uniqueToken);
 
+if($serverConnected){
+    header("location:index.php");
+    exit;
+}
 
 if (!isset($_SESSION['user'])) {
 
@@ -75,7 +77,7 @@ if (!isset($_SESSION['wallet_id'])) {
 }
 
 if (!isset($_SESSION['user']) && isset($_COOKIE['remember_user'])) {
-    $_SESSION['user'] = $_COOKIE['remember_user'];
+    $_SESSION['user'] =$_COOKIE['remember_user'];
 }
 
 if (!isset($_SESSION['mobile'])) {
@@ -88,19 +90,19 @@ if (!isset($_SESSION['account'])) {
     exit;
 }
 
-$u_wallet_id = $_SESSION['wallet_id'];
+$u_wallet_id =$_SESSION['wallet_id'];
 
-$u_account = $_SESSION['account'];
+$u_account =$_SESSION['account'];
 
-$u_mob = $_SESSION['mobile'];
+$u_mob =$_SESSION['mobile'];
 
-$u_name = $_SESSION['user'];
+$u_name =$_SESSION['user'];
 
 // code to read cache data 
 
 $userId = hash("sha256", $u_mob);
 
-$profile = CACHE_DIR . $userId . "/profile.json";
+$profile = CACHE_DIR .$userId . "/profile.json";
 
 $cache = json_decode(
     file_get_contents($profile),
@@ -116,26 +118,24 @@ $d_send_amount = 0;
 // verify pin
 try {
     if (isset($_POST['verify_pin'])) {
-        $pin = $_POST['pin'];
-        $submitted_amount = $_POST['form_amount'] ?? 0;
-        if ($cache['send_limit'] == 0) {
-            $message_f = "You have exceeded your sending limit.Please synchronize your wallet to continue.";
+        $pin =$_POST['pin'];
+        $submitted_amount =$_POST['form_amount'] ?? 0;
+        if ($cache['send_limit'] == 0) {$message_f = "You have exceeded your sending limit.Please synchronize your wallet to continue.";
         } else {
             if (password_verify(
-                $pin,
-                $cache['pin']
+                $pin,$cache['pin']
             )) {
                 $message = "Pin Verified & QR Generated";
 
                 $verify = true;
 
-                $d_send_amount = $submitted_amount;
+                $d_send_amount =$submitted_amount;
 
                 /* code to deduct offline money from cache  */
 
                 // code to deduct balance from cache
 
-                $profile = CACHE_DIR . $userId . "/profile.json";
+                $profile = CACHE_DIR .$userId . "/profile.json";
 
                 $cache_bal = json_decode(
                     file_get_contents($profile),
@@ -144,7 +144,7 @@ try {
 
                 $offline_wallet_balance = decryptData($cache_bal['balance']);
 
-                $updated_offline_wallet_bal = $offline_wallet_balance - $submitted_amount;
+                $updated_offline_wallet_bal = $offline_wallet_balance -$submitted_amount;
 
                 $cache_bal['balance'] = encryptData($updated_offline_wallet_bal);
 
@@ -158,12 +158,12 @@ try {
                     )
                 );
 
-                $u_balance = $updated_offline_wallet_bal; // display updated balance
+                $u_balance =$updated_offline_wallet_bal; // display updated balance
 
 
                 /* code to insert offline transaction in transaction folder */
 
-                $trx_folder = CACHE_DIR . $userId . "/transactions";
+                $trx_folder = CACHE_DIR .$userId . "/transactions";
 
                 // Create transactions cache folder if not exist
                 if (!is_dir($trx_folder)) {
@@ -192,7 +192,7 @@ try {
 
                 ];
 
-                $trx_id = $token_id;
+                $trx_id =$token_id;
 
                 $trx_file = hash("sha256", $trx_id);
                 // Save currency in cache
@@ -206,16 +206,16 @@ try {
 
                 /* code to restrict the sender to send offline money by qr after limit = 2 */
 
-                $profile = CACHE_DIR . $userId . "/profile.json";
+                $profile = CACHE_DIR .$userId . "/profile.json";
 
                 $cache_limit = json_decode(
                     file_get_contents($profile),
                     true
                 );
 
-                $send_limit = $cache_limit['send_limit'] - 1; // every qr generate
+                $send_limit =$cache_limit['send_limit'] - 1; // every qr generate
 
-                $cache_limit['send_limit'] = $send_limit;
+                $cache_limit['send_limit'] =$send_limit;
 
                 file_put_contents(
                     $profile,
@@ -233,6 +233,30 @@ try {
     echo 'error';
 }
 
+
+// Fetch all offline transactions from the cache directory
+$transactionsList = [];
+$trxDir = CACHE_DIR .$userId . "/transactions";
+
+try{
+if (is_dir($trxDir)) {
+    $files = glob($trxDir . "/*.json");
+    foreach ($files as$file) {
+        $data = json_decode(file_get_contents($file), true);
+        if ($data) {$data['send_balance_decrypted'] = isset($data['send_balance']) ? decryptData($data['send_balance']) : 0;
+            $transactionsList[] =$data;
+        }
+    }
+    
+    // Sort transactions by created_at descending (latest first)
+    usort($transactionsList, function ($a,$b) {
+        return strtotime($b['created_at'] ?? 0) - strtotime($a['created_at'] ?? 0);
+    });
+}
+}catch(\Throwable $th)
+{
+    $transactionsList = [];
+}
 ?>
 
 <!DOCTYPE html>
@@ -431,25 +455,102 @@ try {
         }
 
         .message {
-
-
             text-align: center;
-
             color: #047857;
-
             margin-bottom: 15px;
-
         }
 
         .message_f {
-
-
             text-align: center;
-
             color: #ec0707;
-
             margin-bottom: 15px;
+        }
 
+        /* Full Width Table Section Styling */
+        .table-container {
+            max-width: 950px;
+            margin: 0 auto 40px auto;
+            padding: 0 20px;
+        }
+
+        .table-card {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .custom-table th,
+        .custom-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .custom-table th {
+            background-color: #f8fafc;
+            color: #022c22;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .custom-table tbody tr:hover {
+            background-color: #f9fafb;
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+            text-transform: capitalize;
+        }
+
+        .status-pending {
+            background-color: #fef3c7;
+            color: #d97706;
+        }
+
+        .status-completed, .status-success {
+            background-color: #d1fae5;
+            color: #059669;
+        }
+
+        .status-failed {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+
+        .sync-badge {
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .sync-yes {
+            background-color: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .sync-no {
+            background-color: #f3f4f6;
+            color: #4b5563;
         }
 
         @media(max-width: 768px) {
@@ -530,6 +631,57 @@ try {
         </div>
     </div>
 
+    <!-- BELOW SECTION: All Offline Transactions Data Table -->
+    <div class="table-container">
+        <div class="table-card">
+            <div class="panel-title" style="color:#022c22;">📊 Transaction History</div>
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>S No.</th>
+                            <th>Date & Time</th>
+                            <th>Amount (₹)</th>
+                            <th>Status</th>
+                            <th>Server Sync</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($transactionsList)): ?>
+                            <?php foreach ($transactionsList as $index =>$trx): ?>
+                                <tr>
+                                    <td><?php echo $index + 1; ?></td>
+                                    <td><?php echo htmlspecialchars($trx['created_at'] ?? 'N/A'); ?></td>
+                                    <td><strong>₹<?php echo number_format((float)($trx['send_balance_decrypted'] ?? 0), 2); ?></strong></td>
+                                    <td>
+                                        <?php 
+                                            $status = strtolower($trx['status'] ?? 'pending');
+                                            $statusClass = 'status-' .$status;
+                                        ?>
+                                        <span class="status-badge <?php echo $statusClass; ?>">
+                                            <?php echo htmlspecialchars($trx['status'] ?? 'pending'); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($trx['server_sync'])): ?>
+                                            <span class="sync-badge sync-yes">Synced</span>
+                                        <?php else: ?>
+                                            <span class="sync-badge sync-no">Pending Sync</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: #6b7280; padding: 20px;">No transaction records found.</td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- PIN VERIFICATION MODAL -->
     <div id="pinModal" class="modal-overlay" style="display: <?php echo !empty($pin_error) ? 'flex' : 'none'; ?>;">
         <div class="modal-card">
@@ -553,10 +705,6 @@ try {
             </form>
         </div>
     </div>
-
-<!-- show all offline transaction pending -->
-
-
 
     <?php require_once 'footer.php'; ?>
 
@@ -601,7 +749,7 @@ try {
 
             $trans_mode = 'offline';
 
-            $s_amount = $d_send_amount;
+            $s_amount =$d_send_amount;
 
             ?>
 
@@ -629,7 +777,7 @@ try {
         }
 
         // Auto-generate QR if verified via PHP form submission
-        <?php if ($verify && $submitted_amount > 0): ?>
+        <?php if ($verify &&$submitted_amount > 0): ?>
             window.addEventListener('DOMContentLoaded', () => {
                 generateQRCode(<?php echo json_encode($submitted_amount); ?>);
             });
