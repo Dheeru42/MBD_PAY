@@ -351,6 +351,30 @@ try {
 
     $total_currency = 0;
 }
+
+// fetch count of offline transaction pending
+
+try {
+
+    // Create same hash used when storing cache
+    $userId = hash("sha256", $u_mob);
+
+    // Make sure CACHE_DIR ends with /
+    $offline_trx_file = CACHE_DIR .$userId . "/transactions";
+
+    if (is_dir($offline_trx_file)) {
+
+        $files = glob($offline_trx_file . DIRECTORY_SEPARATOR . "*.json");
+
+        if ($files !== false) {
+            $pendingSync = count($files);
+        }
+    }
+} catch (\Throwable $th) {
+    //throw $th;
+}
+
+
 session_abort();
 ?>
 
@@ -1293,7 +1317,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                             <span>Send Money Offline</span>
                         </a>
                     </div>
-<br>
+                    <br>
                     <?php if (!$serverConnected) { ?>
 
                         <!-- Offline Transactions -->
