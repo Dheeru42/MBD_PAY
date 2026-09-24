@@ -109,23 +109,44 @@ try {
     if (isset($_POST['verify_pin'])) {
         $pin = $_POST['pin'];
         $submitted_amount = $_POST['form_amount'] ?? 0;
-        // if($cache['send_limit'] == 2){
-        if (password_verify(
-            $pin,
-            $cache['pin']
-        )) {
-            $message = "Pin Verified & QR Generated";
+        if ($cache['send_limit'] == 0) {
+            $message_f = "You have exceeded your sending limit.Please synchronize your wallet to continue.";
+        } else {
+            if (password_verify(
+                $pin,
+                $cache['pin']
+            )) {
+                $message = "Pin Verified & QR Generated";
 
-            $verify = true;
+                $verify = true;
 
-            $d_send_amount = $submitted_amount;
+                $d_send_amount = $submitted_amount;
 
-            /* code to deduct offline money from cache  */
+                /* code to deduct offline money from cache  */
 
-            /* code to restrict the sender to send offline money by qr after limit = 2 */
-        }
-        else{
-            $message_f = "Pin Not Verified";
+                /* code to restrict the sender to send offline money by qr after limit = 2 */
+
+                $profile = CACHE_DIR . $userId . "/profile.json";
+
+                $cache = json_decode(
+                    file_get_contents($profile),
+                    true
+                );
+
+                $send_limit = $cache['send_limit'] - 1; // every qr generate
+
+                $cache['send_limit'] = $send_limit;
+
+                file_put_contents(
+                    $profile,
+                    json_encode(
+                        $cache,
+                        JSON_PRETTY_PRINT
+                    )
+                );
+            } else {
+                $message_f = "Pin Not Verified";
+            }
         }
     }
 } catch (\Throwable $th) {
@@ -339,6 +360,7 @@ try {
             margin-bottom: 15px;
 
         }
+
         .message_f {
 
 
@@ -394,7 +416,7 @@ try {
 
                 ";
             }
-            
+
             if ($message_f != "") {
 
                 echo "
