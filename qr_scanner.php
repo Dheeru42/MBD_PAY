@@ -183,6 +183,8 @@ try {
             $sen_wallet_id = decryptData($data['sender_wallet_id']);
             $sen_sender_mobile = decryptData($data['sender_mobile']);
             $sen_sender_account = decryptData($data['sender_account']);
+            // add logic to update sender and reciever data
+            
             header('Location: success.php');
 
         }
