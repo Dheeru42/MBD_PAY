@@ -184,13 +184,98 @@ try {
             $sen_amount = decryptData($data['amount']);
             $sen_sender_mobile = decryptData($data['sender_mobile']);
             $sen_receiver_mobile = decryptData($data['receiver_mobile']);
-            // add logic to update sender and reciever data
+
+            /* add logic to update sender and reciever data */
+
+            // fetch data of qr sender
+            $sender_stmt = mysqli_prepare(
+                $conn,
+                "SELECT
+                * FROM users
+             WHERE mobile = ?
+             LIMIT 1"
+            );
+
+            if (!$sender_stmt) {
+                throw new Exception('Database prepare failed.');
+            }
+
+            mysqli_stmt_bind_param(
+                $sender_stmt,
+                's',
+                $sen_sender_mobile
+            );
+
+            if (!mysqli_stmt_execute($sender_stmt)) {
+                throw new Exception('Database query failed.');
+            }
+
+            $sender_result = mysqli_stmt_get_result($sender_stmt);
+
+            if (!$sender_result) {
+                throw new Exception('Unable to read currency record.');
+            }
+
+            $sender_data = mysqli_fetch_assoc($sender_result);
+
+            // 3. sender wallet update
+
+            // 4. sender transaction update
+
+
+            // fetch data of qr reciever
+            $reciever_stmt = mysqli_prepare(
+                $conn,
+                "SELECT
+                * FROM users
+             WHERE mobile = ?
+             LIMIT 1"
+            );
+
+            if (!$reciever_stmt) {
+                throw new Exception('Database prepare failed.');
+            }
+
+            mysqli_stmt_bind_param(
+                $reciever_stmt,
+                's',
+                $sen_receiver_mobile
+            );
+
+            if (!mysqli_stmt_execute($reciever_stmt)) {
+                throw new Exception('Database query failed.');
+            }
+
+            $reciever_result = mysqli_stmt_get_result($reciever_stmt);
+
+            if (!$reciever_result) {
+                throw new Exception('Unable to read currency record.');
+            }
+
+            $reciever_data = mysqli_fetch_assoc($reciever_result);
+
+            // 5. reciever transaction update
+
+            // 6. reciver wallet update
+
+            /* Create Transaction id */
+            $trx_id = createTransactionId();
+
+            $_SESSION['fail_transaction'] = [
+                'transaction_id' => $trx_id,
+                'token_id'        => $sen_token_id,
+                'amount'          => $sen_amount,
+                'sender_mobile'   => $sen_sender_mobile,
+                'receiver_mobile' => $sen_receiver_mobile,
+                'timestamp'       => date("Y-m-d h:i:s A")
+            ];
 
             if ($user_mob == $sen_sender_mobile) {
-                $mess_fail = "You Cannot Scan Your Own QR Money.";
+                $mess_fail = "You cannot scan your own QR payment.";
             } elseif ($user_mob == $sen_receiver_mobile) {
                 // Transaction data for success.php
                 $_SESSION['success_transaction'] = [
+                    'transaction_id' => $trx_id,
                     'token_id'        => $sen_token_id,
                     'amount'          => $sen_amount,
                     'sender_mobile'   => $sen_sender_mobile,
