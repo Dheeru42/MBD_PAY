@@ -189,6 +189,14 @@ try {
             if ($user_mob == $sen_sender_mobile) {
                 $mess_fail = "You Cannot Scan Your Own QR Money.";
             } elseif ($user_mob == $sen_receiver_mobile) {
+                // Transaction data for success.php
+                $_SESSION['success_transaction'] = [
+                    'token_id'        => $sen_token_id,
+                    'amount'          => $sen_amount,
+                    'sender_mobile'   => $sen_sender_mobile,
+                    'receiver_mobile' => $sen_receiver_mobile,
+                    'timestamp'       => date("Y-m-d h:i:s A")
+                ];
                 header('Location: success.php');
             }
         }
