@@ -3,6 +3,8 @@ session_start();
 require_once 'conn.php';
 require_once 'currency_con.php';
 
+$mess_fail = "";
+
 if (!$serverConnected) {
 
     header("location:index.php");
@@ -180,13 +182,15 @@ try {
         if ($pay_mode == 'offline') {
             $sen_token_id = decryptData($data['token_id']);
             $sen_amount = decryptData($data['amount']);
-            $sen_wallet_id = decryptData($data['sender_wallet_id']);
             $sen_sender_mobile = decryptData($data['sender_mobile']);
-            $sen_sender_account = decryptData($data['sender_account']);
+            $sen_receiver_mobile = decryptData($data['receiver_mobile']);
             // add logic to update sender and reciever data
-            
-            header('Location: success.php');
 
+            if ($user_mob == $sen_sender_mobile) {
+                $mess_fail = "You Cannot Scan Your Own QR Money.";
+            } elseif ($user_mob == $sen_receiver_mobile) {
+                header('Location: success.php');
+            }
         }
 
         // code for offline currency qr code scanner
@@ -982,13 +986,37 @@ try {
                 font-size: 13px;
             }
         }
+
+        .mess_fail {
+
+
+            text-align: center;
+
+            color: #e60404;
+
+            margin-bottom: 15px;
+
+        }
     </style>
 
 </head>
 
 <body>
     <?php require_once "navbar.php"; ?>
+    <?php
 
+    if ($mess_fail != "") {
+
+        echo "
+
+        <div class='mess_fail'>
+        $mess_fail
+            </div>
+
+                ";
+    }
+
+    ?>
     <div class="qr-wrapper">
 
         <!-- HEADER -->

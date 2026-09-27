@@ -20,14 +20,15 @@ function encryptData($text)
     $key = hash("sha256", SECRET_KEY, true);
     $iv  = random_bytes(16);
 
-    $cipher = openssl_encrypt($text,
+    $cipher = openssl_encrypt(
+        $text,
         "AES-256-CBC",
         $key,
         OPENSSL_RAW_DATA,
         $iv
     );
 
-    return base64_encode($iv .$cipher);
+    return base64_encode($iv . $cipher);
 }
 
 /* Decrypt Function */
@@ -54,12 +55,13 @@ function decryptData($text)
 
 // Generate the unique token in PHP
 $timestamp = time();
-$randomPart = rand(1000, 9000);$uniqueToken = "MBD-" . $timestamp . "-" . $randomPart;
+$randomPart = rand(1000, 9000);
+$uniqueToken = "MBD-" . $timestamp . "-" . $randomPart;
 
 // Encrypt it in PHP
 $token_id = encryptData($uniqueToken);
 
-if($serverConnected){
+if ($serverConnected) {
     header("location:index.php");
     exit;
 }
@@ -77,7 +79,7 @@ if (!isset($_SESSION['wallet_id'])) {
 }
 
 if (!isset($_SESSION['user']) && isset($_COOKIE['remember_user'])) {
-    $_SESSION['user'] =$_COOKIE['remember_user'];
+    $_SESSION['user'] = $_COOKIE['remember_user'];
 }
 
 if (!isset($_SESSION['mobile'])) {
@@ -90,19 +92,19 @@ if (!isset($_SESSION['account'])) {
     exit;
 }
 
-$u_wallet_id =$_SESSION['wallet_id'];
+$u_wallet_id = $_SESSION['wallet_id'];
 
-$u_account =$_SESSION['account'];
+$u_account = $_SESSION['account'];
 
-$u_mob =$_SESSION['mobile'];
+$u_mob = $_SESSION['mobile'];
 
-$u_name =$_SESSION['user'];
+$u_name = $_SESSION['user'];
 
 // code to read cache data 
 
 $userId = hash("sha256", $u_mob);
 
-$profile = CACHE_DIR .$userId . "/profile.json";
+$profile = CACHE_DIR . $userId . "/profile.json";
 
 $cache = json_decode(
     file_get_contents($profile),
@@ -114,28 +116,36 @@ $u_balance = decryptData($cache['balance']);
 $verify = false;
 
 $d_send_amount = 0;
+$receiver_mobile = "";
 
 // verify pin
 try {
     if (isset($_POST['verify_pin'])) {
-        $pin =$_POST['pin'];
-        $submitted_amount =$_POST['form_amount'] ?? 0;
-        if ($cache['send_limit'] == 0) {$message_f = "You have exceeded your sending limit.Please synchronize your wallet to continue.";
+        $pin = $_POST['pin'];
+        $submitted_amount = $_POST['form_amount'] ?? 0;
+        $receiver_mobile = trim($_POST['receiver_mobile'] ?? '');
+
+        // Validate receiver mobile before processing the transaction
+        if (!is_numeric($submitted_amount) || $submitted_amount <= 0 || $submitted_amount > $u_balance) {
+            $message_f = "Please enter a valid amount within your available wallet balance.";
+        } elseif ($cache['send_limit'] == 0) {
+            $message_f = "You have exceeded your sending limit.Please synchronize your wallet to continue.";
         } else {
             if (password_verify(
-                $pin,$cache['pin']
+                $pin,
+                $cache['pin']
             )) {
                 $message = "Pin Verified & QR Generated";
 
                 $verify = true;
 
-                $d_send_amount =$submitted_amount;
+                $d_send_amount = $submitted_amount;
 
                 /* code to deduct offline money from cache  */
 
                 // code to deduct balance from cache
 
-                $profile = CACHE_DIR .$userId . "/profile.json";
+                $profile = CACHE_DIR . $userId . "/profile.json";
 
                 $cache_bal = json_decode(
                     file_get_contents($profile),
@@ -144,7 +154,7 @@ try {
 
                 $offline_wallet_balance = decryptData($cache_bal['balance']);
 
-                $updated_offline_wallet_bal = $offline_wallet_balance -$submitted_amount;
+                $updated_offline_wallet_bal = $offline_wallet_balance - $submitted_amount;
 
                 $cache_bal['balance'] = encryptData($updated_offline_wallet_bal);
 
@@ -158,12 +168,12 @@ try {
                     )
                 );
 
-                $u_balance =$updated_offline_wallet_bal; // display updated balance
+                $u_balance = $updated_offline_wallet_bal; // display updated balance
 
 
                 /* code to insert offline transaction in transaction folder */
 
-                $trx_folder = CACHE_DIR .$userId . "/transactions";
+                $trx_folder = CACHE_DIR . $userId . "/transactions";
 
                 // Create transactions cache folder if not exist
                 if (!is_dir($trx_folder)) {
@@ -180,6 +190,8 @@ try {
 
                     "mobile" => encryptData($u_mob),
 
+                    "receiver_mobile" => encryptData($receiver_mobile),
+
                     "send_balance" => encryptData($submitted_amount),
 
                     "status" => "pending",
@@ -192,7 +204,7 @@ try {
 
                 ];
 
-                $trx_id =$token_id;
+                $trx_id = $token_id;
 
                 $trx_file = hash("sha256", $trx_id);
                 // Save currency in cache
@@ -206,16 +218,16 @@ try {
 
                 /* code to restrict the sender to send offline money by qr after limit = 2 */
 
-                $profile = CACHE_DIR .$userId . "/profile.json";
+                $profile = CACHE_DIR . $userId . "/profile.json";
 
                 $cache_limit = json_decode(
                     file_get_contents($profile),
                     true
                 );
 
-                $send_limit =$cache_limit['send_limit'] - 1; // every qr generate
+                $send_limit = $cache_limit['send_limit'] - 1; // every qr generate
 
-                $cache_limit['send_limit'] =$send_limit;
+                $cache_limit['send_limit'] = $send_limit;
 
                 file_put_contents(
                     $profile,
@@ -236,25 +248,25 @@ try {
 
 // Fetch all offline transactions from the cache directory
 $transactionsList = [];
-$trxDir = CACHE_DIR .$userId . "/transactions";
+$trxDir = CACHE_DIR . $userId . "/transactions";
 
-try{
-if (is_dir($trxDir)) {
-    $files = glob($trxDir . "/*.json");
-    foreach ($files as$file) {
-        $data = json_decode(file_get_contents($file), true);
-        if ($data) {$data['send_balance_decrypted'] = isset($data['send_balance']) ? decryptData($data['send_balance']) : 0;
-            $transactionsList[] =$data;
+try {
+    if (is_dir($trxDir)) {
+        $files = glob($trxDir . "/*.json");
+        foreach ($files as $file) {
+            $data = json_decode(file_get_contents($file), true);
+            if ($data) {
+                $data['send_balance_decrypted'] = isset($data['send_balance']) ? decryptData($data['send_balance']) : 0;
+                $transactionsList[] = $data;
+            }
         }
+
+        // Sort transactions by created_at descending (latest first)
+        usort($transactionsList, function ($a, $b) {
+            return strtotime($b['created_at'] ?? 0) - strtotime($a['created_at'] ?? 0);
+        });
     }
-    
-    // Sort transactions by created_at descending (latest first)
-    usort($transactionsList, function ($a,$b) {
-        return strtotime($b['created_at'] ?? 0) - strtotime($a['created_at'] ?? 0);
-    });
-}
-}catch(\Throwable $th)
-{
+} catch (\Throwable $th) {
     $transactionsList = [];
 }
 ?>
@@ -526,7 +538,8 @@ if (is_dir($trxDir)) {
             color: #d97706;
         }
 
-        .status-completed, .status-success {
+        .status-completed,
+        .status-success {
             background-color: #d1fae5;
             color: #059669;
         }
@@ -614,8 +627,28 @@ if (is_dir($trxDir)) {
 
             <form id="offlineForm" onsubmit="openPinModal(event)">
                 <div class="form-group">
+                    <label for="receiver_mobile">Enter Receiver Mobile No.</label>
+                    <input type="tel"
+                        id="receiver_mobile"
+                        class="form-control"
+                        placeholder="10-digit mobile number"
+                        inputmode="numeric"
+                        maxlength="10"
+                        pattern="[0-9]{10}"
+                        oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10);"
+                        required>
+                </div>
+
+                <div class="form-group">
                     <label for="amount">Enter Amount (₹)</label>
-                    <input type="number" id="amount" class="form-control" placeholder="0.00" min="1" max="<?php echo $u_balance; ?>" step="any" required>
+                    <input type="number"
+                        id="amount"
+                        class="form-control"
+                        placeholder="0.00"
+                        min="1"
+                        max="<?php echo $u_balance; ?>"
+                        step="any"
+                        required>
                 </div>
 
                 <button type="submit" class="btn-submit">Proceed to Send</button>
@@ -641,6 +674,7 @@ if (is_dir($trxDir)) {
                         <tr>
                             <th>S No.</th>
                             <th>Date & Time</th>
+                            <th>Receiver Mobile</th>
                             <th>Amount (₹)</th>
                             <th>Status</th>
                             <th>Server Sync</th>
@@ -648,15 +682,18 @@ if (is_dir($trxDir)) {
                     </thead>
                     <tbody>
                         <?php if (!empty($transactionsList)): ?>
-                            <?php foreach ($transactionsList as $index =>$trx): ?>
+                            <?php foreach ($transactionsList as $index => $trx): ?>
                                 <tr>
                                     <td><?php echo $index + 1; ?></td>
                                     <td><?php echo htmlspecialchars($trx['created_at'] ?? 'N/A'); ?></td>
+                                    <td><?php echo htmlspecialchars(
+                                            isset($trx['receiver_mobile']) ? decryptData($trx['receiver_mobile']) : 'N/A'
+                                        ); ?></td>
                                     <td><strong>₹<?php echo number_format((float)($trx['send_balance_decrypted'] ?? 0), 2); ?></strong></td>
                                     <td>
-                                        <?php 
-                                            $status = strtolower($trx['status'] ?? 'pending');
-                                            $statusClass = 'status-' .$status;
+                                        <?php
+                                        $status = strtolower($trx['status'] ?? 'pending');
+                                        $statusClass = 'status-' . $status;
                                         ?>
                                         <span class="status-badge <?php echo $statusClass; ?>">
                                             <?php echo htmlspecialchars($trx['status'] ?? 'pending'); ?>
@@ -673,7 +710,7 @@ if (is_dir($trxDir)) {
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="5" style="text-align: center; color: #6b7280; padding: 20px;">No transaction records found.</td>
+                                <td colspan="6" style="text-align: center; color: #6b7280; padding: 20px;">No transaction records found.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
@@ -693,8 +730,9 @@ if (is_dir($trxDir)) {
                     <div class="alert-error"><?php echo htmlspecialchars($pin_error); ?></div>
                 <?php endif; ?>
 
-                <!-- Hidden Input to preserve amount across POST request -->
-                <input type="hidden" name="form_amount" id="modalHiddenAmount" value="<?php echo htmlspecialchars($submitted_amount); ?>">
+                <!-- Hidden Inputs to preserve transaction details across POST request -->
+                <input type="hidden" name="form_amount" id="modalHiddenAmount" value="<?php echo htmlspecialchars($submitted_amount ?? ''); ?>">
+                <input type="hidden" name="receiver_mobile" id="modalReceiverMobile" value="<?php echo htmlspecialchars($receiver_mobile ?? ''); ?>">
 
                 <div class="form-group">
                     <input type="password" name="pin" id="modalPin" class="form-control" style="text-align:center; font-size: 22px; letter-spacing: 5px;" maxlength="4" placeholder="••••" required>
@@ -711,9 +749,35 @@ if (is_dir($trxDir)) {
     <script>
         function openPinModal(e) {
             e.preventDefault();
-            const amt = document.getElementById('amount').value;
-            document.getElementById('modalHiddenAmount').value = amt;
+
+            const receiverMobile = document.getElementById('receiver_mobile').value.trim();
+            const amount = document.getElementById('amount').value;
+
+            // Check receiver mobile
+            if (!/^[0-9]{10}$/.test(receiverMobile)) {
+                alert("Please enter a valid 10-digit receiver mobile number.");
+                return;
+            }
+
+            // Check if receiver is the sender
+            const senderMobile = "<?php echo htmlspecialchars($u_mob, ENT_QUOTES); ?>";
+
+            if (receiverMobile === senderMobile) {
+                alert("You cannot send money to your own mobile number.");
+                return; // Stop here — PIN modal and QR will NOT open
+            }
+
+            // Check amount
+            if (!amount || parseFloat(amount) <= 0) {
+                alert("Please enter a valid amount.");
+                return;
+            }
+
+            // Everything is valid, now open PIN modal
+            document.getElementById('modalReceiverMobile').value = receiverMobile;
+            document.getElementById('modalHiddenAmount').value = amount;
             document.getElementById('modalPin').value = '';
+
             document.getElementById('pinModal').style.display = 'flex';
         }
 
@@ -749,7 +813,7 @@ if (is_dir($trxDir)) {
 
             $trans_mode = 'offline';
 
-            $s_amount =$d_send_amount;
+            $s_amount = $d_send_amount;
 
             ?>
 
@@ -757,9 +821,8 @@ if (is_dir($trxDir)) {
                 pay_mode: "<?php echo encryptData($trans_mode); ?>",
                 token_id: "<?php echo $token_id; ?>",
                 amount: "<?php echo encryptData($s_amount); ?>",
-                sender_wallet_id: "<?php echo encryptData($u_wallet_id); ?>",
                 sender_mobile: "<?php echo encryptData($u_mob); ?>",
-                sender_account: "<?php echo encryptData($u_account); ?>",
+                receiver_mobile: "<?php echo $verify ? encryptData($receiver_mobile) : ''; ?>",
             };
 
             qrcodeContainer.innerHTML = '';
@@ -777,7 +840,7 @@ if (is_dir($trxDir)) {
         }
 
         // Auto-generate QR if verified via PHP form submission
-        <?php if ($verify &&$submitted_amount > 0): ?>
+        <?php if ($verify && $submitted_amount > 0): ?>
             window.addEventListener('DOMContentLoaded', () => {
                 generateQRCode(<?php echo json_encode($submitted_amount); ?>);
             });
