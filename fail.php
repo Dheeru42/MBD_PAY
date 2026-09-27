@@ -9,7 +9,8 @@ session_start();
 
 $transaction = $_SESSION['failed_transaction'];
 
-$tr_token_id         = $transaction['token_id'] ?? '';
+$trx_token_id         = $transaction['token_id'] ?? '';
+$trx_transaction_id   = $transaction['transaction_id'] ?? '';
 $trx_amount          = $transaction['amount'] ?? 0;
 $trx_sender_mobile   = $transaction['sender_mobile'] ?? '';
 $trx_receiver_mobile = $transaction['receiver_mobile'] ?? '';
@@ -59,7 +60,11 @@ session_abort();
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0">
 
-    <title>Payment Failed | MBD Pay</title>
+    <title>MBD PAY | Payment Failed</title>
+
+     <link rel="icon"
+        type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
     <style>
         /* =========================
@@ -847,7 +852,7 @@ session_abort();
 
             <div class="amount">
 
-                ₹ <?php echo e($formattedAmount); ?>
+                ₹<?php echo e($formattedAmount); ?>
 
             </div>
 
@@ -877,6 +882,21 @@ session_abort();
 
         <div class="details">
 
+            <div class="detail-row">
+
+                <span class="detail-label">
+
+                    Transaction ID
+
+                </span>
+
+                <span class="detail-value token">
+
+                    <?php echo e($trx_transaction_id); ?>
+
+                </span>
+
+            </div>
 
             <div class="detail-row">
 
@@ -922,24 +942,6 @@ session_abort();
                 </span>
 
             </div>
-
-
-            <div class="detail-row">
-
-                <span class="detail-label">
-
-                    Transaction ID
-
-                </span>
-
-                <span class="detail-value token">
-
-                    <?php echo e($tr_token_id); ?>
-
-                </span>
-
-            </div>
-
 
             <div class="detail-row">
 
@@ -1004,7 +1006,7 @@ session_abort();
 
 
             <a
-                href="payment.php"
+                href="qr_scanner.php"
                 class="btn btn-primary">
 
                 Try Again

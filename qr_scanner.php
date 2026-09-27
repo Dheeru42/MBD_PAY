@@ -218,6 +218,8 @@ try {
 
             $sender_data = mysqli_fetch_assoc($sender_result);
 
+            $decrypt_sender_bal = decryptData($sender_data['balance']);
+
             // 3. sender wallet update
 
             // 4. sender transaction update
@@ -254,6 +256,8 @@ try {
 
             $reciever_data = mysqli_fetch_assoc($reciever_result);
 
+            $decrypt_reciever_bal = decryptData($reciever_data['balance']);
+
             // 5. reciever transaction update
 
             // 6. reciver wallet update
@@ -261,17 +265,18 @@ try {
             /* Create Transaction id */
             $trx_id = createTransactionId();
 
-            $_SESSION['fail_transaction'] = [
-                'transaction_id' => $trx_id,
-                'token_id'        => $sen_token_id,
-                'amount'          => $sen_amount,
-                'sender_mobile'   => $sen_sender_mobile,
-                'receiver_mobile' => $sen_receiver_mobile,
-                'timestamp'       => date("Y-m-d h:i:s A")
-            ];
-
             if ($user_mob == $sen_sender_mobile) {
                 $mess_fail = "You cannot scan your own QR payment.";
+                $_SESSION['failed_transaction'] = [
+                    'transaction_id' => $trx_id,
+                    'token_id'        => $sen_token_id,
+                    'amount'          => $sen_amount,
+                    'sender_mobile'   => $sen_sender_mobile,
+                    'receiver_mobile' => $sen_receiver_mobile,
+                    'reason'          => $mess_fail,
+                    'timestamp'       => date("Y-m-d h:i:s A")
+                ];
+                header('Location: fail.php');
             } elseif ($user_mob == $sen_receiver_mobile) {
                 // Transaction data for success.php
                 $_SESSION['success_transaction'] = [
