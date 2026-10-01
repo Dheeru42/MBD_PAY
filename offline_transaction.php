@@ -323,7 +323,7 @@ require_once 'conn.php';
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Mobile</th>
+                            <th>Sent Mobile</th>
                             <th>Sent Balance</th>
                             <th>Status</th>
                             <th>Created At</th>
@@ -333,7 +333,7 @@ require_once 'conn.php';
                     </thead>
                     <tbody>
                         <?php
-                        $query = "SELECT id, mobile, send_balance, status, created_at, update_at, server_sync FROM offline_transactions ORDER BY id DESC";
+                        $query = "SELECT id, mobile, reciever_mobile ,send_balance, status, created_at, update_at, server_sync FROM offline_transactions ORDER BY id DESC";
                         $result = mysqli_query($conn, $query);
 
                         if ($result && mysqli_num_rows($result) > 0) {
@@ -341,12 +341,12 @@ require_once 'conn.php';
                                 $status = strtolower($row['status']);
                                 $statusClass = 'badge-pending';
                                 $statusDot = '🟡';
-                                if (in_array($status, ['completed', 'success'])) {
+                                if (in_array($status, ['scanned', 'success'])) {
                                     $statusClass = 'badge-success';
                                     $statusDot = '🟢';
-                                } elseif (in_array($status, ['failed', 'rejected'])) {
+                                } elseif (in_array($status, ['not scanned', 'rejected'])) {
                                     $statusClass = 'badge-failed';
-                                    $statusDot = '🔴';
+                                    $statusDot = '🟡';
                                 }
 
                                 $syncVal = $row['server_sync'];
@@ -356,8 +356,8 @@ require_once 'conn.php';
                                 $syncAttr = $isSynced ? 'synced' : 'pending';
 
                                 echo "<tr data-sync='{$syncAttr}'>";
-                                echo "<td><strong>#" . htmlspecialchars($row['id']) . "</strong></td>";
-                                echo "<td>" . htmlspecialchars($row['mobile']) . "</td>";
+                                echo "<td><strong>" . htmlspecialchars($row['id']) . "</strong></td>";
+                                echo "<td>" . htmlspecialchars($row['reciever_mobile']) . "</td>";
                                 echo "<td><strong>₹" . number_format((float)$row['send_balance'], 2) . "</strong></td>";
                                 echo "<td><span class='badge {$statusClass}'>{$statusDot} " . htmlspecialchars(ucfirst($row['status'])) . "</span></td>";
                                 echo "<td>" . htmlspecialchars($row['created_at']) . "</td>";

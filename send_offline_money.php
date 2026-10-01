@@ -242,13 +242,13 @@ try {
 
                     "send_balance" => encryptData($submitted_amount),
 
-                    "status" => "pending",
+                    "status" => "Not Scanned",
 
                     "created_at" => date("Y-m-d h:i:s A"),
 
                     "update_at" => date("Y-m-d h:i:s A"),
 
-                    "server_sync" => false
+                    "server_sync" => "Pending"
 
                 ];
 
@@ -900,18 +900,18 @@ try {
                                     <td><strong>₹<?php echo number_format((float)($trx['send_balance_decrypted'] ?? 0), 2); ?></strong></td>
                                     <td>
                                         <?php
-                                        $status = strtolower($trx['status'] ?? 'pending');
+                                        $status = strtolower($trx['status'] ?? 'Not Scanned');
                                         $statusClass = 'status-' . $status;
                                         ?>
                                         <span class="status-badge <?php echo $statusClass; ?>">
-                                            <?php echo htmlspecialchars($trx['status'] ?? 'pending'); ?>
+                                            <?php echo htmlspecialchars($trx['status'] ?? 'Not Scanned'); ?>
                                         </span>
                                     </td>
                                     <td>
                                         <?php if (!empty($trx['server_sync'])): ?>
-                                            <span class="sync-badge sync-yes">Synced</span>
+                                            <span class="sync-badge sync-yes"> <?php echo htmlspecialchars($trx['server_syn'] ?? 'Pending'); ?></span>
                                         <?php else: ?>
-                                            <span class="sync-badge sync-no">Pending Sync</span>
+                                            <span class="sync-badge sync-no">Pending</span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
