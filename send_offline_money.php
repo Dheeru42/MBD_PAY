@@ -53,7 +53,8 @@ function decryptData($text)
     );
 }
 
-// Generate the unique token in PHP
+// Generate a new unique token for a new transaction.
+// If a valid QR already exists in the session, it will be restored below.
 $timestamp = time();
 $randomPart = rand(1000, 9000);
 $uniqueToken = "MBD-" . $timestamp . "-" . $randomPart;
@@ -115,8 +116,55 @@ $u_balance = decryptData($cache['balance']);
 
 $verify = false;
 
+$submitted_amount = 0;
 $d_send_amount = 0;
 $receiver_mobile = "";
+
+/*
+ * Restore the last generated offline QR from the session.
+ *
+ * This makes the QR survive a normal browser refresh without
+ * creating another transaction or deducting the balance again.
+ *
+ * QR lifetime = 40 seconds.
+ */
+if (isset($_SESSION['offline_qr']) && is_array($_SESSION['offline_qr'])) {
+
+    $savedQr = $_SESSION['offline_qr'];
+
+    $qrCreatedAt = (int)($savedQr['created_at'] ?? 0);
+    $qrAge = time() - $qrCreatedAt;
+
+    if (
+        $qrCreatedAt > 0 &&
+        $qrAge < 40 &&
+        !empty($savedQr['token_id']) &&
+        isset($savedQr['amount']) &&
+        !empty($savedQr['receiver_mobile'])
+    ) {
+        $verify = true;
+
+        // Restore the exact transaction data used by the QR.
+        $token_id = $savedQr['token_id'];
+        $submitted_amount = $savedQr['amount'];
+        $d_send_amount = $savedQr['amount'];
+        $receiver_mobile = $savedQr['receiver_mobile'];
+    } else {
+        // QR has expired. It must not be displayed after refresh.
+        unset($_SESSION['offline_qr']);
+    }
+}
+
+// Restore one-time success/error message after POST -> redirect -> GET.
+if (!empty($_SESSION['offline_message'])) {
+    $message = $_SESSION['offline_message'];
+    unset($_SESSION['offline_message']);
+}
+
+if (!empty($_SESSION['offline_message_f'])) {
+    $message_f = $_SESSION['offline_message_f'];
+    unset($_SESSION['offline_message_f']);
+}
 
 // verify pin
 try {
@@ -236,6 +284,29 @@ try {
                         JSON_PRETTY_PRINT
                     )
                 );
+
+                /*
+                 * Save the exact QR data in the session.
+                 *
+                 * The next request (including a browser refresh) can
+                 * restore the same QR for the remaining 40 seconds.
+                 */
+                $_SESSION['offline_qr'] = [
+                    'token_id' => $token_id,
+                    'amount' => $submitted_amount,
+                    'receiver_mobile' => $receiver_mobile,
+                    'created_at' => time()
+                ];
+
+                /*
+                 * Store the success message before redirecting.
+                 * POST -> redirect -> GET prevents refresh from submitting
+                 * the PIN form again and deducting the amount twice.
+                 */
+                $_SESSION['offline_message'] = $message;
+
+                header("Location: " . $_SERVER['PHP_SELF']);
+                exit;
             } else {
                 $message_f = "Pin Not Verified";
             }
@@ -566,6 +637,124 @@ try {
             color: #4b5563;
         }
 
+        .info-btn {
+            width: 24px;
+            height: 24px;
+            border: none;
+            border-radius: 50%;
+            background: #e0f2fe;
+            color: #0369a1;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 6px;
+            font-size: 14px;
+        }
+
+        .info-btn:hover {
+            background: #bae6fd;
+        }
+
+        .info-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 50%;
+            background: #e0f2fe;
+            color: #0369a1;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        .info-btn:hover {
+            background: #bae6fd;
+            transform: scale(1.05);
+        }
+
+        .transaction-info-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(3px);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .transaction-info-modal.show {
+            display: flex;
+        }
+
+        .transaction-info-card {
+            background: #ffffff;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 18px;
+            padding: 24px;
+            text-align: center;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+            animation: infoPopup 0.2s ease-out;
+        }
+
+        @keyframes infoPopup {
+            from {
+                opacity: 0;
+                transform: scale(0.92) translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .transaction-info-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 14px;
+            border-radius: 50%;
+            background: #e0f2fe;
+            color: #0369a1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 25px;
+            font-weight: 700;
+        }
+
+        .transaction-info-card h3 {
+            color: #022c22;
+            margin-bottom: 12px;
+        }
+
+        .transaction-info-card p {
+            color: #4b5563;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .transaction-info-close {
+            width: 100%;
+            padding: 11px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #022c22, #059669);
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
         @media(max-width: 768px) {
             .offline-container {
                 flex-direction: column;
@@ -628,6 +817,8 @@ try {
             <form id="offlineForm" onsubmit="openPinModal(event)">
                 <div class="form-group">
                     <label for="receiver_mobile">Enter Receiver Mobile No.</label>
+                    <p style="color:#dc2626; font-size:13px; margin-top:6px; font-weight:600;">
+                        * Please fill this field carefully.</p>
                     <input type="tel"
                         id="receiver_mobile"
                         class="form-control"
@@ -636,6 +827,7 @@ try {
                         maxlength="10"
                         pattern="[0-9]{10}"
                         oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10);"
+                        value="<?php echo $verify ? htmlspecialchars($receiver_mobile, ENT_QUOTES) : ''; ?>"
                         required>
                 </div>
 
@@ -648,6 +840,7 @@ try {
                         min="1"
                         max="<?php echo $u_balance; ?>"
                         step="any"
+                        value="<?php echo $verify ? htmlspecialchars((string)$submitted_amount, ENT_QUOTES) : ''; ?>"
                         required>
                 </div>
 
@@ -657,6 +850,9 @@ try {
             <!-- QR Container -->
             <div id="qrWrapper" class="qr-wrapper" style="display: <?php echo $verify ? 'block' : 'none'; ?>;">
                 <div id="qrcode"></div>
+                <div style="margin: 8px 0 15px; font-size: 18px; font-weight: bold; color: #dc2626;">
+                    QR expires in <span id="qrTimer">40</span> seconds
+                </div>
                 <div>
                     <strong>Amount:</strong> ₹<span id="displayAmount"></span><br>
                 </div>
@@ -678,6 +874,7 @@ try {
                             <th>Amount (₹)</th>
                             <th>Status</th>
                             <th>Server Sync</th>
+                            <th>Info</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -686,9 +883,20 @@ try {
                                 <tr>
                                     <td><?php echo $index + 1; ?></td>
                                     <td><?php echo htmlspecialchars($trx['created_at'] ?? 'N/A'); ?></td>
-                                    <td><?php echo htmlspecialchars(
-                                            isset($trx['receiver_mobile']) ? decryptData($trx['receiver_mobile']) : 'N/A'
-                                        ); ?></td>
+                                    <td>
+                                        <?php
+                                        $receiverMobile = isset($trx['receiver_mobile'])
+                                            ? decryptData($trx['receiver_mobile'])
+                                            : 'N/A';
+
+                                        if (preg_match('/^[0-9]{10}$/', $receiverMobile)) {
+                                            $maskedMobile = substr($receiverMobile, 0, 2) . '******' . substr($receiverMobile, -2);
+                                        } else {
+                                            $maskedMobile = $receiverMobile;
+                                        }
+                                        ?>
+                                        <?php echo htmlspecialchars($maskedMobile); ?>
+                                    </td>
                                     <td><strong>₹<?php echo number_format((float)($trx['send_balance_decrypted'] ?? 0), 2); ?></strong></td>
                                     <td>
                                         <?php
@@ -706,16 +914,42 @@ try {
                                             <span class="sync-badge sync-no">Pending Sync</span>
                                         <?php endif; ?>
                                     </td>
+                                    <td>
+                                        <button type="button"
+                                            class="info-btn"
+                                            aria-label="Transaction information"
+                                            onclick="openTransactionInfo()"
+                                            title="Transaction information">i</button>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="6" style="text-align: center; color: #6b7280; padding: 20px;">No transaction records found.</td>
+                                <td colspan="7" style="text-align: center; color: #6b7280; padding: 20px;">No transaction records found.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <!-- TRANSACTION INFORMATION POPUP -->
+    <div id="transactionInfoModal"
+        class="transaction-info-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="transactionInfoTitle"
+        onclick="closeTransactionInfo(event)">
+        <div class="transaction-info-card" onclick="event.stopPropagation()">
+            <div class="transaction-info-icon">i</div>
+            <h3 id="transactionInfoTitle">Transaction Information</h3>
+            <p>
+                If the mobile number is wrong, the deducted amount will be settled after synchronization.
+            </p>
+            <button type="button"
+                class="transaction-info-close"
+                onclick="closeTransactionInfo()">Close</button>
         </div>
     </div>
 
@@ -785,6 +1019,23 @@ try {
             document.getElementById('pinModal').style.display = 'none';
         }
 
+        function openTransactionInfo() {
+            document.getElementById('transactionInfoModal').classList.add('show');
+        }
+
+        function closeTransactionInfo(event) {
+            // Close when the Close button is clicked or the dark backdrop is clicked.
+            if (!event || event.target.id === 'transactionInfoModal') {
+                document.getElementById('transactionInfoModal').classList.remove('show');
+            }
+        }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                document.getElementById('transactionInfoModal').classList.remove('show');
+            }
+        });
+
         function getFormattedDateTime(timestamp = Date.now()) {
             const d = new Date(timestamp);
 
@@ -836,13 +1087,66 @@ try {
             });
 
             document.getElementById('displayAmount').innerText = parseFloat(amount).toFixed(2);
-            document.getElementById('displayToken').innerText = uniqueToken;
         }
 
-        // Auto-generate QR if verified via PHP form submission
+        // Auto-generate QR if a valid QR exists in the PHP session.
+        // The original creation time is used so refreshing the page does
+        // not restart the 40-second countdown.
         <?php if ($verify && $submitted_amount > 0): ?>
             window.addEventListener('DOMContentLoaded', () => {
-                generateQRCode(<?php echo json_encode($submitted_amount); ?>);
+                const qrWrapper = document.getElementById('qrWrapper');
+                const qrContainer = document.getElementById('qrcode');
+                const timerElement = document.getElementById('qrTimer');
+
+                // Generate the same transaction QR from the restored session data.
+                generateQRCode(<?php echo json_encode((float)$submitted_amount); ?>);
+
+                // Use the server-side creation time, not the page-load time.
+                const qrCreatedAt = <?php
+                                    echo json_encode(
+                                        isset($_SESSION['offline_qr']['created_at'])
+                                            ? ((int)$_SESSION['offline_qr']['created_at'] * 1000)
+                                            : (time() * 1000)
+                                    );
+                                    ?>;
+
+                const qrExpiresAt = qrCreatedAt + 40000;
+
+                qrWrapper.style.display = 'block';
+
+                // Calculate remaining time immediately.
+                const initialRemainingMs = qrExpiresAt - Date.now();
+
+                if (initialRemainingMs <= 0) {
+                    qrContainer.innerHTML = '';
+                    qrWrapper.style.display = 'none';
+                    timerElement.innerText = '0';
+                    return;
+                }
+
+                timerElement.innerText = Math.ceil(initialRemainingMs / 1000);
+
+                const qrCountdown = setInterval(() => {
+                    const remainingMs = qrExpiresAt - Date.now();
+                    const remainingSeconds = Math.max(
+                        0,
+                        Math.ceil(remainingMs / 1000)
+                    );
+
+                    timerElement.innerText = remainingSeconds;
+
+                    if (remainingMs <= 0) {
+                        clearInterval(qrCountdown);
+
+                        // Remove the QR completely after 40 seconds.
+                        qrContainer.innerHTML = '';
+
+                        // Hide the complete QR area.
+                        qrWrapper.style.display = 'none';
+
+                        timerElement.innerText = '0';
+                    }
+                }, 100);
             });
         <?php endif; ?>
     </script>

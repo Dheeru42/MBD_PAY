@@ -360,7 +360,7 @@ try {
     $userId = hash("sha256", $u_mob);
 
     // Make sure CACHE_DIR ends with /
-    $offline_trx_file = CACHE_DIR .$userId . "/transactions";
+    $offline_trx_file = CACHE_DIR . $userId . "/transactions";
 
     if (is_dir($offline_trx_file)) {
 
@@ -514,6 +514,26 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
         .action-btn:hover {
+            transform: translateY(-5px);
+        }
+        .action-btn-off {
+            text-decoration: none;
+            background: #fff;
+            color: #09749b;
+            border-radius: 18px;
+            padding: 18px;
+            text-align: center;
+            font-weight: bold;
+            transition: .3s;
+        }
+
+        .action-btn-off span {
+            display: block;
+            margin-top: 8px;
+            font-size: 14px;
+        }
+
+        .action-btn-off:hover {
             transform: translateY(-5px);
         }
 
@@ -1309,6 +1329,12 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                     </div>
 
+                    <div class="wallet-actions-offline">
+
+                        <a href="offline_transaction.php" class="action-btn-off">
+                            <span>Offline Transaction Status</span>
+                        </a>
+                    </div>
                 <?php } else { ?>
                     <div class="wallet-actions-offline">
 
@@ -1333,7 +1359,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                             </div>
 
                         </div>
-
                     <?php } ?>
 
                     <br>
