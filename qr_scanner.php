@@ -180,10 +180,13 @@ try {
 
         // code for offline money qr code scanner
         if ($pay_mode == 'offline') {
-            $qr_token_id = decryptData($data['token_id']);
+            $qr_token_id = $data['token_id'];
             $qr_amount = decryptData($data['amount']);
+            $e_qr_amount = $data['amount'];
             $qr_sender_mobile = decryptData($data['sender_mobile']);
-            $qr_receiver_mobile = decryptData($data['receiver_mobile']);
+            $e_qr_sender_mobile = $data['sender_mobile'];
+            $qr_reciever_mobile = decryptData($data['receiver_mobile']);
+            $e_qr_reciever_mobile = $data['receiver_mobile'];
 
             /* add logic to update sender and reciever data */
 
@@ -203,7 +206,7 @@ try {
             mysqli_stmt_bind_param(
                 $sender_stmt,
                 's',
-                $sen_sender_mobile
+                $qr_sender_mobile
             );
 
             if (!mysqli_stmt_execute($sender_stmt)) {
@@ -241,7 +244,7 @@ try {
             mysqli_stmt_bind_param(
                 $reciever_stmt,
                 's',
-                $sen_receiver_mobile
+                $qr_reciever_mobile
             );
 
             if (!mysqli_stmt_execute($reciever_stmt)) {
@@ -277,18 +280,76 @@ try {
                     'timestamp'       => date("Y-m-d h:i:s A")
                 ];
                 header('Location: fail.php');
-            } elseif ($user_mob == $qr_receiver_mobile) {
-                // Transaction data for success.php
-                $_SESSION['success_transaction'] = [
-                    'transaction_id' => $trx_id,
-                    'token_id'        => $qr_token_id,
-                    'amount'          => $qr_amount,
-                    'sender_mobile'   => $qr_sender_mobile,
-                    'receiver_mobile' => $qr_receiver_mobile,
-                    'timestamp'       => date("Y-m-d h:i:s A")
-                ];
-                header('Location: success.php');
-            } elseif ($user_mob != $qr_receiver_mobile) {
+            } elseif ($user_mob == $qr_reciever_mobile) {
+                $stmt = mysqli_prepare($conn, "SELECT * FROM offline_transactions WHERE token_id = ? LIMIT 1");
+                mysqli_stmt_bind_param($stmt, "s", $qr_token_id);
+                mysqli_stmt_execute($stmt);
+                mysqli_stmt_store_result($stmt);
+
+                if (mysqli_stmt_num_rows($stmt) > 0) {
+                    $mess_fail = "This QR money is expired.";
+                    $_SESSION['failed_transaction'] = [
+                        'transaction_id' => $trx_id,
+                        'token_id'        => $qr_token_id,
+                        'amount'          => $qr_amount,
+                        'sender_mobile'   => $qr_sender_mobile,
+                        'receiver_mobile' => $user_mob,
+                        'reason'          => $mess_fail,
+                        'timestamp'       => date("Y-m-d h:i:s A")
+                    ];
+                    header('Location: fail.php');
+                } else {
+
+                    /* code store in db */
+
+                    $qr_status = 'scanned';
+                    $qr_server_sync = 'synced';
+                    $qr_reciever_check = 'Verified';
+                    $e_sender_wallet = encryptData($sender_data['wallet_id']);
+
+                    $insertStmt = $conn->prepare("
+                            INSERT INTO offline_transactions (
+                                token_id, 
+                                wallet_id, 
+                                sender_mobile, 
+                                reciever_mobile, 
+                                send_balance, 
+                                status, 
+                                server_sync, 
+                                reciever_check,
+                                created_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ");
+
+                    $insertStmt->bind_param(
+                        "sssssssss",
+                        $qr_token_id,
+                        $e_sender_wallet,
+                        $e_qr_sender_mobile,
+                        $e_qr_reciever_mobile,
+                        $e_qr_amount,
+                        $qr_status,
+                        $qr_server_sync,
+                        $qr_reciever_check,
+                        $date_time
+                    );
+
+                    $insertStmt->execute();
+                    $insertStmt->close();
+
+
+                    // Transaction data for success.php
+                    $_SESSION['success_transaction'] = [
+                        'transaction_id' => $trx_id,
+                        'token_id'        => $qr_token_id,
+                        'amount'          => $qr_amount,
+                        'sender_mobile'   => $qr_sender_mobile,
+                        'receiver_mobile' => $qr_reciever_mobile,
+                        'timestamp'       => date("Y-m-d h:i:s A")
+                    ];
+                    header('Location: success.php');
+                }
+            } elseif ($user_mob != $qr_reciever_mobile) {
                 $mess_fail = "You are not authorized to scan this QR money.";
                 $_SESSION['failed_transaction'] = [
                     'transaction_id' => $trx_id,

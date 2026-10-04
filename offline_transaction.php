@@ -487,7 +487,7 @@ function decryptData($text)
                     </div>
                     <button class="filter-btn active" onclick="filterSync('all', this)">All</button>
                     <button class="filter-btn" onclick="filterSync('synced', this)">Synced</button>
-                    <button class="filter-btn" onclick="filterSync('pending', this)">Pending</button>
+                    <button class="filter-btn" onclick="filterSync('failed', this)">Failed</button>
                 </div>
             </div>
 
@@ -513,7 +513,9 @@ function decryptData($text)
                         $result = mysqli_query($conn, $query);
 
                         if ($result && mysqli_num_rows($result) > 0) {
+                            $counter = 0;
                             while ($row = mysqli_fetch_assoc($result)) {
+                                $counter = $counter + 1;
                                 $status = strtolower($row['status']);
                                 $statusClass = 'badge-pending';
                                 $statusDot = '🟡';
@@ -569,7 +571,7 @@ function decryptData($text)
                                 $maskedMobile = substr($decryptedMobile, 0, 2) . '******' . substr($decryptedMobile, -2);
 
                                 echo "<tr data-sync='{$syncAttr}'>";
-                                echo "<td><strong>" . htmlspecialchars($row['id']) . "</strong></td>";
+                                echo "<td><strong>" . htmlspecialchars($counter) . "</strong></td>";
                                 echo "<td>" . htmlspecialchars($maskedMobile) . "</td>";
                                 echo "<td><strong>₹" . number_format((float)$send_bal, 2) . "</strong></td>";
                                 echo "<td><span class='badge {$statusClass}'>{$statusDot} " . htmlspecialchars(ucfirst($row['status'])) . "</span></td>";
