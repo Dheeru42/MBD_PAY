@@ -236,9 +236,9 @@ try {
 
                     "wallet_id" => encryptData($u_wallet_id),
 
-                    "mobile" => encryptData($u_mob),
+                    "sender_mobile" => encryptData($u_mob),
 
-                    "receiver_mobile" => encryptData($receiver_mobile),
+                    "reciever_mobile" => encryptData($receiver_mobile),
 
                     "send_balance" => encryptData($submitted_amount),
 
@@ -638,26 +638,6 @@ try {
         }
 
         .info-btn {
-            width: 24px;
-            height: 24px;
-            border: none;
-            border-radius: 50%;
-            background: #e0f2fe;
-            color: #0369a1;
-            font-weight: 700;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin-left: 6px;
-            font-size: 14px;
-        }
-
-        .info-btn:hover {
-            background: #bae6fd;
-        }
-
-        .info-btn {
             width: 28px;
             height: 28px;
             border: none;
@@ -792,27 +772,30 @@ try {
             if ($message != "") {
 
                 echo "
-
         <div class='message'>
         $message
-            </div>
-
+        </div>
                 ";
             }
 
             if ($message_f != "") {
 
                 echo "
-
         <div class='message_f'>
         $message_f
-            </div>
-
+        </div>
                 ";
             }
 
             ?>
             <div class="panel-title" style="color:#022c22;">📲 Send Money Offline</div>
+
+            <!-- Message banner displayed when QR is generated -->
+            <?php if ($verify): ?>
+                <div class="alert-error" id="qrActiveMsg" style="background-color: #fef3c7; color: #92400e; padding: 12px; border-radius: 10px; margin-bottom: 15px; font-weight: 600; text-align: center;">
+                    ⚠ A QR code has been generated. Please wait for the QR code to expire before initiating a new transaction.
+                </div>
+            <?php endif; ?>
 
             <form id="offlineForm" onsubmit="openPinModal(event)">
                 <div class="form-group">
@@ -828,6 +811,7 @@ try {
                         pattern="[0-9]{10}"
                         oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10);"
                         value="<?php echo $verify ? htmlspecialchars($receiver_mobile, ENT_QUOTES) : ''; ?>"
+                        <?php echo $verify ? 'readonly' : ''; ?>
                         required>
                 </div>
 
@@ -841,10 +825,14 @@ try {
                         max="<?php echo $u_balance; ?>"
                         step="any"
                         value="<?php echo $verify ? htmlspecialchars((string)$submitted_amount, ENT_QUOTES) : ''; ?>"
+                        <?php echo $verify ? 'readonly' : ''; ?>
                         required>
                 </div>
 
-                <button type="submit" class="btn-submit">Proceed to Send</button>
+                <!-- Hidden when QR is generated ($verify is true) -->
+                <button type="submit" id="btnProceed" class="btn-submit" style="display: <?php echo $verify ? 'none' : 'block'; ?>;">
+                    Proceed to Send
+                </button>
             </form>
 
             <!-- QR Container -->
@@ -870,7 +858,7 @@ try {
                         <tr>
                             <th>S No.</th>
                             <th>Date & Time</th>
-                            <th>Receiver Mobile</th>
+                            <th>Reciever Mobile</th>
                             <th>Amount (₹)</th>
                             <th>Status</th>
                             <th>Server Sync</th>
@@ -885,14 +873,14 @@ try {
                                     <td><?php echo htmlspecialchars($trx['created_at'] ?? 'N/A'); ?></td>
                                     <td>
                                         <?php
-                                        $receiverMobile = isset($trx['receiver_mobile'])
-                                            ? decryptData($trx['receiver_mobile'])
+                                        $recieverMobile = isset($trx['reciever_mobile'])
+                                            ? decryptData($trx['reciever_mobile'])
                                             : 'N/A';
 
-                                        if (preg_match('/^[0-9]{10}$/', $receiverMobile)) {
-                                            $maskedMobile = substr($receiverMobile, 0, 2) . '******' . substr($receiverMobile, -2);
+                                        if (preg_match('/^[0-9]{10}$/', $recieverMobile)) {
+                                            $maskedMobile = substr($recieverMobile, 0, 2) . '******' . substr($recieverMobile, -2);
                                         } else {
-                                            $maskedMobile = $receiverMobile;
+                                            $maskedMobile = $recieverMobile;
                                         }
                                         ?>
                                         <?php echo htmlspecialchars($maskedMobile); ?>
@@ -901,7 +889,7 @@ try {
                                     <td>
                                         <?php
                                         $status = strtolower($trx['status'] ?? 'Not Scanned');
-                                        $statusClass = 'status-' . $status;
+                                        $statusClass = 'status-' .$status;
                                         ?>
                                         <span class="status-badge <?php echo $statusClass; ?>">
                                             <?php echo htmlspecialchars($trx['status'] ?? 'Not Scanned'); ?>
@@ -1064,7 +1052,7 @@ try {
 
             $trans_mode = 'offline';
 
-            $s_amount = $d_send_amount;
+            $s_amount =$d_send_amount;
 
             ?>
 
@@ -1092,11 +1080,30 @@ try {
         // Auto-generate QR if a valid QR exists in the PHP session.
         // The original creation time is used so refreshing the page does
         // not restart the 40-second countdown.
-        <?php if ($verify && $submitted_amount > 0): ?>
+        <?php if ($verify &&$submitted_amount > 0): ?>
             window.addEventListener('DOMContentLoaded', () => {
                 const qrWrapper = document.getElementById('qrWrapper');
                 const qrContainer = document.getElementById('qrcode');
                 const timerElement = document.getElementById('qrTimer');
+                const btnProceed = document.getElementById('btnProceed');
+                const qrActiveMsg = document.getElementById('qrActiveMsg');
+                const receiverMobileInput = document.getElementById('receiver_mobile');
+                const amountInput = document.getElementById('amount');
+
+                // Function to restore form state when QR expires
+                function restoreFormOnExpire() {
+                    qrContainer.innerHTML = '';
+                    qrWrapper.style.display = 'none';
+                    timerElement.innerText = '0';
+
+                    // Display Proceed button and hide QR message
+                    if (btnProceed) btnProceed.style.display = 'block';
+                    if (qrActiveMsg) qrActiveMsg.style.display = 'none';
+
+                    // Make input fields editable again
+                    if (receiverMobileInput) receiverMobileInput.removeAttribute('readonly');
+                    if (amountInput) amountInput.removeAttribute('readonly');
+                }
 
                 // Generate the same transaction QR from the restored session data.
                 generateQRCode(<?php echo json_encode((float)$submitted_amount); ?>);
@@ -1118,9 +1125,7 @@ try {
                 const initialRemainingMs = qrExpiresAt - Date.now();
 
                 if (initialRemainingMs <= 0) {
-                    qrContainer.innerHTML = '';
-                    qrWrapper.style.display = 'none';
-                    timerElement.innerText = '0';
+                    restoreFormOnExpire();
                     return;
                 }
 
@@ -1137,14 +1142,7 @@ try {
 
                     if (remainingMs <= 0) {
                         clearInterval(qrCountdown);
-
-                        // Remove the QR completely after 40 seconds.
-                        qrContainer.innerHTML = '';
-
-                        // Hide the complete QR area.
-                        qrWrapper.style.display = 'none';
-
-                        timerElement.innerText = '0';
+                        restoreFormOnExpire();
                     }
                 }, 100);
             });

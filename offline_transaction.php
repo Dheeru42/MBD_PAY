@@ -1,10 +1,53 @@
 <?php
 // Include database connection
 require_once 'conn.php';
+
+define("SECRET_KEY", "MBDPAY@2026_SUPER_SECRET_KEY_32");
+
+/* Encrypt Function */
+function encryptData($text)
+{
+    $key = hash("sha256", SECRET_KEY, true);
+    $iv  = random_bytes(16);
+
+    $cipher = openssl_encrypt(
+        $text,
+        "AES-256-CBC",
+        $key,
+        OPENSSL_RAW_DATA,
+        $iv
+    );
+
+    return base64_encode($iv . $cipher);
+}
+
+/* Decrypt Function */
+
+function decryptData($text)
+{
+    $key = hash("sha256", SECRET_KEY, true);
+
+    $data = base64_decode($text);
+
+    $iv = substr($data, 0, 16);
+
+    $cipher = substr($data, 16);
+
+
+    return openssl_decrypt(
+        $cipher,
+        "AES-256-CBC",
+        $key,
+        OPENSSL_RAW_DATA,
+        $iv
+    );
+}
+
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -54,9 +97,17 @@ require_once 'conn.php';
             color: white;
         }
 
-        .icon-total { background: linear-gradient(135deg, #059669, #022c22); }
-        .icon-synced { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
-        .icon-pending { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .icon-total {
+            background: linear-gradient(135deg, #059669, #022c22);
+        }
+
+        .icon-synced {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        }
+
+        .icon-pending {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
 
         .stat-info h4 {
             font-size: 13px;
@@ -148,7 +199,8 @@ require_once 'conn.php';
             transition: all 0.3s ease;
         }
 
-        .filter-btn.active, .filter-btn:hover {
+        .filter-btn.active,
+        .filter-btn:hover {
             background: #059669;
             color: #ffffff;
             border-color: #059669;
@@ -176,8 +228,13 @@ require_once 'conn.php';
             letter-spacing: 0.5px;
         }
 
-        .transaction-table th:first-child { border-top-left-radius: 12px; }
-        .transaction-table th:last-child { border-top-right-radius: 12px; }
+        .transaction-table th:first-child {
+            border-top-left-radius: 12px;
+        }
+
+        .transaction-table th:last-child {
+            border-top-right-radius: 12px;
+        }
 
         .transaction-table td {
             padding: 14px 16px;
@@ -205,9 +262,20 @@ require_once 'conn.php';
             font-weight: 600;
         }
 
-        .badge-success { background: #d1fae5; color: #065f46; }
-        .badge-pending { background: #fef3c7; color: #92400e; }
-        .badge-failed { background: #fee2e2; color: #991b1b; }
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-failed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
 
         .sync-badge {
             display: inline-flex;
@@ -219,8 +287,15 @@ require_once 'conn.php';
             font-weight: 600;
         }
 
-        .sync-yes { background: #e0e7ff; color: #3730a3; }
-        .sync-no { background: #fef3c7; color: #92400e; }
+        .sync-yes {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .sync-no {
+            background: #fef3c7;
+            color: #92400e;
+        }
 
         .no-data {
             text-align: center;
@@ -237,7 +312,8 @@ require_once 'conn.php';
                 margin-bottom: 100px;
             }
 
-            .search-box input, .search-box input:focus {
+            .search-box input,
+            .search-box input:focus {
                 width: 100%;
             }
 
@@ -246,13 +322,15 @@ require_once 'conn.php';
                 justify-content: space-between;
             }
 
-            .transaction-table th, .transaction-table td {
+            .transaction-table th,
+            .transaction-table td {
                 padding: 10px 8px;
                 font-size: 12px;
             }
         }
     </style>
 </head>
+
 <body>
 
     <!-- INCLUDE NAVBAR HERE -->
@@ -267,10 +345,10 @@ require_once 'conn.php';
             SUM(CASE WHEN server_sync = 1 OR LOWER(server_sync) = 'yes' OR LOWER(server_sync) = 'synced' THEN 1 ELSE 0 END) as synced_count,
             SUM(CASE WHEN server_sync = 0 OR LOWER(server_sync) = 'no' OR LOWER(server_sync) = 'pending' THEN 1 ELSE 0 END) as pending_count
             FROM offline_transactions";
-        
+
         $stats_res = mysqli_query($conn, $total_query);
         $stats = mysqli_fetch_assoc($stats_res);
-        
+
         $totalTx = $stats['total_count'] ?? 0;
         $syncedTx = $stats['synced_count'] ?? 0;
         $pendingTx = $stats['pending_count'] ?? 0;
@@ -326,6 +404,7 @@ require_once 'conn.php';
                             <th>Sent Mobile</th>
                             <th>Sent Balance</th>
                             <th>Status</th>
+                            <th>Mobile Status</th>
                             <th>Created At</th>
                             <th>Updated At</th>
                             <th>Server Sync</th>
@@ -333,7 +412,7 @@ require_once 'conn.php';
                     </thead>
                     <tbody>
                         <?php
-                        $query = "SELECT id, mobile, reciever_mobile ,send_balance, status, created_at, update_at, server_sync FROM offline_transactions ORDER BY id DESC";
+                        $query = "SELECT id, sender_mobile, reciever_mobile ,send_balance, status,reciever_check ,created_at, update_at, server_sync FROM offline_transactions ORDER BY id DESC";
                         $result = mysqli_query($conn, $query);
 
                         if ($result && mysqli_num_rows($result) > 0) {
@@ -355,11 +434,29 @@ require_once 'conn.php';
                                 $syncClass = $isSynced ? 'sync-yes' : 'sync-no';
                                 $syncAttr = $isSynced ? 'synced' : 'pending';
 
+                                $res_check = $row['reciever_check'];
+                                if ($res_check == 'Verified') {
+                                    $res_yes = 1;
+                                    $resClass = 'sync-yes';
+                                } else {
+                                    $res_yes = 0;
+                                    $resClass = 'sync-no';
+                                }
+
+                                /* decrypted data to display in table */
+
+                                $send_bal = decryptData($row['send_balance']);
+
+                                $decryptedMobile = decryptData($row['reciever_mobile']);
+
+                                $maskedMobile = substr($decryptedMobile, 0, 2) . '******' . substr($decryptedMobile, -2);
+
                                 echo "<tr data-sync='{$syncAttr}'>";
                                 echo "<td><strong>" . htmlspecialchars($row['id']) . "</strong></td>";
-                                echo "<td>" . htmlspecialchars($row['reciever_mobile']) . "</td>";
-                                echo "<td><strong>₹" . number_format((float)$row['send_balance'], 2) . "</strong></td>";
+                                echo "<td>" . htmlspecialchars($maskedMobile) . "</td>";
+                                echo "<td><strong>₹" . number_format((float)$send_bal, 2) . "</strong></td>";
                                 echo "<td><span class='badge {$statusClass}'>{$statusDot} " . htmlspecialchars(ucfirst($row['status'])) . "</span></td>";
+                                echo "<td><span class='sync-badge {$resClass}'>" . ($res_yes ? '✓ ' : '❌') . htmlspecialchars($res_check) . "</span></td>";
                                 echo "<td>" . htmlspecialchars($row['created_at']) . "</td>";
                                 echo "<td>" . htmlspecialchars($row['update_at']) . "</td>";
                                 echo "<td><span class='sync-badge {$syncClass}'>" . ($isSynced ? '✓ ' : '🔄 ') . htmlspecialchars($syncText) . "</span></td>";
@@ -393,7 +490,7 @@ require_once 'conn.php';
                 const idCell = row.cells[0]?.textContent || "";
                 const mobileCell = row.cells[1]?.textContent || "";
                 const matchesSearch = idCell.toUpperCase().includes(input) || mobileCell.toUpperCase().includes(input);
-                
+
                 const syncAttr = row.getAttribute('data-sync');
                 const matchesSync = (currentSyncFilter === 'all' || syncAttr === currentSyncFilter);
 
@@ -412,4 +509,5 @@ require_once 'conn.php';
         }
     </script>
 </body>
+
 </html>

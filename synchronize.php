@@ -164,6 +164,27 @@ function encryptData($value)
     );
 }
 
+/* Decrypt Function */
+
+function decryptData($text)
+{
+    $key = hash("sha256", SECRET_KEY, true);
+
+    $data = base64_decode($text);
+
+    $iv = substr($data, 0, 16);
+
+    $cipher = substr($data, 16);
+
+
+    return openssl_decrypt(
+        $cipher,
+        "AES-256-CBC",
+        $key,
+        OPENSSL_RAW_DATA,
+        $iv
+    );
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -582,15 +603,77 @@ try {
         // Retrieve all .json files in the transactions directory
         $files = glob($trx_file . "/*.json");
 
-        // Loop through each file and delete it
-        foreach ($files as $file) {
-            if (is_file($file)) {
+        if ($files !== false) {
+            foreach ($files as $file) {
+                if (!is_file($file)) {
+                    continue;
+                }
+
+                // Read and decode the JSON file content
+                $jsonContent = file_get_contents($file);
+                $data = json_decode($jsonContent, true);
+
+                if (is_array($data) && isset($data['reciever_mobile'])) {
+                    $recieverMobile = decryptData($data['reciever_mobile']);
+
+                    // Check if reciever_mobile exists in the users table
+                    $userQuery = $conn->prepare("SELECT id FROM users WHERE mobile = ? LIMIT 1");
+                    $userQuery->bind_param("s", $recieverMobile);
+                    $userQuery->execute();
+                    $userResult = $userQuery->get_result();
+
+                    $receiverExists = ($userResult->num_rows > 0);
+                    $userQuery->close();
+
+                    // Insert into offline_transactions ONLY if receiver exists
+                    if ($receiverExists) {
+                        $recieverCheck = 'Verified';
+
+                        // Fallback values if missing from JSON
+                        $tokenId       = $data['token_id'] ?? bin2hex(random_bytes(16));
+                        $walletId      = $data['wallet_id'] ?? '';
+                        $senderMobile  = $data['sender_mobile'] ?? $u_mob;
+                        $sendBalance   = $data['send_balance'] ?? '0';
+                        $status        = $data['status'] ?? 'not scanned';
+                        $serverSync    = $data['server_sync'] ?? 'pending';
+
+                        $insertStmt = $conn->prepare("
+                            INSERT INTO offline_transactions (
+                                token_id, 
+                                wallet_id, 
+                                sender_mobile, 
+                                reciever_mobile, 
+                                send_balance, 
+                                status, 
+                                server_sync, 
+                                reciever_check
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        ");
+
+                        $insertStmt->bind_param(
+                            "ssssssss",
+                            $tokenId,
+                            $walletId,
+                            $senderMobile,
+                            $recieverMobile,
+                            $sendBalance,
+                            $status,
+                            $serverSync,
+                            $recieverCheck
+                        );
+
+                        $insertStmt->execute();
+                        $insertStmt->close();
+                    }
+                }
+
+                // Clear the JSON file from cache regardless of whether receiver was found
                 unlink($file);
             }
         }
     }
 } catch (\Throwable $th) {
-    //throw $th;
+    error_log("Offline Transaction Processing Error: " . $th->getMessage());
 }
 
 
