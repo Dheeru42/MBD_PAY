@@ -683,10 +683,8 @@ try {
 
 /* if qr money cross 24 hour */
 
-$date = date("Y-m-d h:i:s A");
-
 try {
-    // Mark entries as 'failed' if status is 'not scanned' after 24 hours
+    // Mark entries as 'failed' immediately for status 'not scanned'
     $updateStmt = $conn->prepare("
         UPDATE offline_transactions 
         SET server_sync = 'failed', 
@@ -694,9 +692,8 @@ try {
             update_at = ?
         WHERE status = 'not scanned' 
           AND server_sync = 'pending'
-          AND created_at < NOW() - INTERVAL 24 HOUR
     ");
-
+    
     $updateStmt->bind_param("s", $date);
     $updateStmt->execute();
     $updateStmt->close();
