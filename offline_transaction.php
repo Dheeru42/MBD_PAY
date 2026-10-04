@@ -595,7 +595,7 @@ function decryptData($text)
         <div class="modal-box">
             <div class="modal-icon">ℹ️</div>
             <div class="modal-title">Transaction Information</div>
-            <div class="modal-text">If you miss QR money then deducted amount will be settled after Sync</div>
+            <div class="modal-text">If your QR money is timeout then deducted amount will be settled after Sync</div>
             <button class="modal-close-btn" onclick="closeModal()">OK</button>
         </div>
     </div>

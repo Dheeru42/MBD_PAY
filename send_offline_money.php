@@ -59,8 +59,8 @@ $timestamp = time();
 $randomPart = rand(1000, 9000);
 $uniqueToken = "MBD-" . $timestamp . "-" . $randomPart;
 
-// Encrypt it in PHP
-$token_id = encryptData($uniqueToken);
+// hashing it in PHP
+$token_id = hash("sha256",$uniqueToken);
 
 if ($serverConnected) {
     header("location:index.php");
