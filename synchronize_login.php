@@ -5,6 +5,8 @@ session_start();
 // default time zone 
 date_default_timezone_set('Asia/Kolkata');
 
+$date = date("Y-m-d h:i:s A");
+
 // last syn
 $_SESSION['last_update'] = date("Y-m-d h:i:s A");
 
@@ -648,12 +650,13 @@ try {
                                 send_balance, 
                                 status, 
                                 server_sync, 
-                                reciever_check
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                reciever_check,
+                                created_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ");
 
                         $insertStmt->bind_param(
-                            "ssssssss",
+                            "sssssssss",
                             $tokenId,
                             $walletId,
                             $senderMobile,
@@ -661,7 +664,8 @@ try {
                             $sendBalance,
                             $status,
                             $serverSync,
-                            $recieverCheck
+                            $recieverCheck,
+                            $date
                         );
 
                         $insertStmt->execute();
@@ -676,6 +680,27 @@ try {
     }
 } catch (\Throwable $th) {
     error_log("Offline Transaction Processing Error: " . $th->getMessage());
+}
+
+/* if qr money cross 24 hour */
+
+try {
+    // Mark entries as 'failed' if status is 'not scanned' after 24 hours
+    $updateStmt = $conn->prepare("
+        UPDATE offline_transactions 
+        SET server_sync = 'failed', 
+            status = 'rejected',
+            update_at = ?
+        WHERE status = 'not scanned' 
+          AND server_sync = 'pending'
+          AND created_at < NOW() - INTERVAL 24 HOUR
+    ");
+    
+    $updateStmt->bind_param("s", $date);
+    $updateStmt->execute();
+    $updateStmt->close();
+} catch (\Throwable $th) {
+    error_log("Database Update Error: " . $th->getMessage());
 }
 
 /*

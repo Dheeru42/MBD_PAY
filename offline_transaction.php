@@ -251,6 +251,30 @@ function decryptData($text)
             background-color: #f0fdf4;
         }
 
+        /* Info Button Styling */
+        .info-btn {
+            background: #e0f2fe;
+            color: #0369a1;
+            border: 1px solid #bae6fd;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .info-btn:hover {
+            background: #0284c7;
+            color: #ffffff;
+            border-color: #0284c7;
+            transform: scale(1.1);
+        }
+
         /* Status Badges */
         .badge {
             display: inline-flex;
@@ -302,6 +326,78 @@ function decryptData($text)
             padding: 40px;
             color: #9ca3af;
             font-style: italic;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(3px);
+        }
+
+        .modal-box {
+            background: #ffffff;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 400px;
+            padding: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            text-align: center;
+            animation: modalFadeIn 0.25s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-icon {
+            font-size: 38px;
+            margin-bottom: 12px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 10px;
+        }
+
+        .modal-text {
+            font-size: 14px;
+            color: #4b5563;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+
+        .modal-close-btn {
+            background: #059669;
+            color: #ffffff;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .modal-close-btn:hover {
+            background: #047857;
         }
 
         /* Responsive Mobile Adjustments */
@@ -408,6 +504,7 @@ function decryptData($text)
                             <th>Created At</th>
                             <th>Updated At</th>
                             <th>Server Sync</th>
+                            <th>Info</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -423,16 +520,30 @@ function decryptData($text)
                                 if (in_array($status, ['scanned', 'success'])) {
                                     $statusClass = 'badge-success';
                                     $statusDot = '🟢';
-                                } elseif (in_array($status, ['not scanned', 'rejected'])) {
+                                } elseif (in_array($status, ['not scanned'])) {
                                     $statusClass = 'badge-failed';
                                     $statusDot = '🟡';
+                                } else {
+                                    $statusClass = 'badge-failed';
+                                    $statusDot = '🔴';
                                 }
 
                                 $syncVal = $row['server_sync'];
-                                $isSynced = ($syncVal == 1 || strtolower($syncVal) === 'yes' || strtolower($syncVal) === 'synced');
-                                $syncText = $isSynced ? 'Synced' : 'Pending';
-                                $syncClass = $isSynced ? 'sync-yes' : 'sync-no';
-                                $syncAttr = $isSynced ? 'synced' : 'pending';
+                                $syncValLower = strtolower($syncVal);
+
+                                if ($syncValLower === 'failed' || $syncVal === '0') {
+                                    $syncText  = 'Failed';
+                                    $syncClass = 'sync-failed';
+                                    $syncAttr  = 'failed';
+                                } elseif ($syncVal == 1 || $syncValLower === 'yes' || $syncValLower === 'synced') {
+                                    $syncText  = 'Synced';
+                                    $syncClass = 'sync-yes';
+                                    $syncAttr  = 'synced';
+                                } else {
+                                    $syncText  = 'Pending';
+                                    $syncClass = 'sync-no';
+                                    $syncAttr  = 'pending';
+                                }
 
                                 $res_check = $row['reciever_check'];
                                 if ($res_check == 'Verified') {
@@ -442,6 +553,12 @@ function decryptData($text)
                                     $res_yes = 0;
                                     $resClass = 'sync-no';
                                 }
+
+                                $syncIcon = match ($syncAttr) {
+                                    'synced' => '✓ ',
+                                    'failed' => '❌ ', // or '🔴 '
+                                    default  => '🔄 ',
+                                };
 
                                 /* decrypted data to display in table */
 
@@ -459,16 +576,27 @@ function decryptData($text)
                                 echo "<td><span class='sync-badge {$resClass}'>" . ($res_yes ? '✓ ' : '❌') . htmlspecialchars($res_check) . "</span></td>";
                                 echo "<td>" . htmlspecialchars($row['created_at']) . "</td>";
                                 echo "<td>" . htmlspecialchars($row['update_at']) . "</td>";
-                                echo "<td><span class='sync-badge {$syncClass}'>" . ($isSynced ? '✓ ' : '🔄 ') . htmlspecialchars($syncText) . "</span></td>";
+                                echo "<td><span class='sync-badge {$syncClass}'>" . $syncIcon . htmlspecialchars($syncText) . "</span></td>";
+                                echo "<td><button class='info-btn' onclick='openModal()' title='View Information'>i</button></td>";
                                 echo "</tr>";
                             }
                         } else {
-                            echo "<tr id='noDataRow'><td colspan='7' class='no-data'>No offline transactions found.</td></tr>";
+                            echo "<tr id='noDataRow'><td colspan='9' class='no-data'>No offline transactions found.</td></tr>";
                         }
                         ?>
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <!-- Info Text Message Modal -->
+    <div id="infoModal" class="modal-overlay" onclick="closeModalOnOverlay(event)">
+        <div class="modal-box">
+            <div class="modal-icon">ℹ️</div>
+            <div class="modal-title">Transaction Information</div>
+            <div class="modal-text">If you miss QR money then wait for 24 hour and Sync</div>
+            <button class="modal-close-btn" onclick="closeModal()">OK</button>
         </div>
     </div>
 
@@ -507,6 +635,28 @@ function decryptData($text)
 
             filterTable();
         }
+
+        // Modal Controls
+        function openModal() {
+            document.getElementById('infoModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('infoModal').style.display = 'none';
+        }
+
+        function closeModalOnOverlay(event) {
+            if (event.target.id === 'infoModal') {
+                closeModal();
+            }
+        }
+
+        // Close Modal on ESC key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
     </script>
 </body>
 
