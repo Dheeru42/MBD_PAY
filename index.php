@@ -515,6 +515,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         .action-btn:hover {
             transform: translateY(-5px);
         }
+
         .action-btn-off {
             text-decoration: none;
             background: #fff;
