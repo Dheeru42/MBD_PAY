@@ -824,7 +824,7 @@ try {
                         class="form-control"
                         placeholder="0.00"
                         min="1"
-                        max="<?php echo $u_balance; ?>"
+                        max="500"
                         step="any"
                         value="<?php echo $verify ? htmlspecialchars((string)$submitted_amount, ENT_QUOTES) : ''; ?>"
                         <?php echo $verify ? 'readonly' : ''; ?>
