@@ -4,6 +4,8 @@ session_start();
 
 date_default_timezone_set('Asia/Kolkata');
 
+$timestamp = time();
+
 require_once "conn.php";
 
 $message = "";
@@ -60,7 +62,7 @@ $randomPart = rand(1000, 9000);
 $uniqueToken = "MBD-" . $timestamp . "-" . $randomPart;
 
 // hashing it in PHP
-$token_id = hash("sha256",$uniqueToken);
+$token_id = hash("sha256", $uniqueToken);
 
 if ($serverConnected) {
     header("location:index.php");
@@ -889,7 +891,7 @@ try {
                                     <td>
                                         <?php
                                         $status = strtolower($trx['status'] ?? 'Not Scanned');
-                                        $statusClass = 'status-' .$status;
+                                        $statusClass = 'status-' . $status;
                                         ?>
                                         <span class="status-badge <?php echo $statusClass; ?>">
                                             <?php echo htmlspecialchars($trx['status'] ?? 'Not Scanned'); ?>
@@ -1050,18 +1052,19 @@ try {
 
             <?php
 
-            $trans_mode = 'offline';
+            $trans_mode = 'Offline';
 
-            $s_amount =$d_send_amount;
+            $s_amount = $d_send_amount;
 
             ?>
 
             const payload = {
-                pay_mode: "<?php echo encryptData($trans_mode); ?>",
+                pay_mode: "<?php echo $trans_mode; ?>",
                 token_id: "<?php echo $token_id; ?>",
                 amount: "<?php echo encryptData($s_amount); ?>",
                 sender_mobile: "<?php echo encryptData($u_mob); ?>",
                 receiver_mobile: "<?php echo $verify ? encryptData($receiver_mobile) : ''; ?>",
+                timestamp: "<?php echo $timestamp; ?>",
             };
 
             qrcodeContainer.innerHTML = '';
@@ -1080,7 +1083,7 @@ try {
         // Auto-generate QR if a valid QR exists in the PHP session.
         // The original creation time is used so refreshing the page does
         // not restart the 40-second countdown.
-        <?php if ($verify &&$submitted_amount > 0): ?>
+        <?php if ($verify && $submitted_amount > 0): ?>
             window.addEventListener('DOMContentLoaded', () => {
                 const qrWrapper = document.getElementById('qrWrapper');
                 const qrContainer = document.getElementById('qrcode');

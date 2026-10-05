@@ -5,6 +5,8 @@ require_once 'currency_con.php';
 
 $mess_fail = "";
 
+$timestamp = time();
+
 if (!$serverConnected) {
 
     header("location:index.php");
@@ -176,17 +178,24 @@ try {
             setQrFailure('Invalid QR code. The QR data format is not supported.');
         }
 
-        $pay_mode = decryptData(trim((string)($data['pay_mode'])));
+        $pay_mode = trim((string)($data['pay_mode']));
 
         // code for offline money qr code scanner
-        if ($pay_mode == 'offline') {
+        if ($pay_mode == 'Offline') {
             $qr_token_id = $data['token_id'];
+            $qr_timestamp = $data['timestamp'];
+            $expires_at = $qr_timestamp + 45;
             $qr_amount = decryptData($data['amount']);
             $e_qr_amount = $data['amount'];
             $qr_sender_mobile = decryptData($data['sender_mobile']);
             $e_qr_sender_mobile = $data['sender_mobile'];
             $qr_reciever_mobile = decryptData($data['receiver_mobile']);
             $e_qr_reciever_mobile = $data['receiver_mobile'];
+
+            // if($timestamp>$expires_at)
+            //     {
+            //         echo 'qr time is expire';
+            //     }
 
             /* add logic to update sender and reciever data */
 
@@ -270,6 +279,18 @@ try {
 
             if ($user_mob == $qr_sender_mobile) {
                 $mess_fail = "You cannot scan your own QR money.";
+                $_SESSION['failed_transaction'] = [
+                    'transaction_id' => $trx_id,
+                    'token_id'        => $qr_token_id,
+                    'amount'          => $qr_amount,
+                    'sender_mobile'   => $qr_sender_mobile,
+                    'receiver_mobile' => $user_mob,
+                    'reason'          => $mess_fail,
+                    'timestamp'       => date("Y-m-d h:i:s A")
+                ];
+                header('Location: fail.php');
+            } elseif ($timestamp > $expires_at) {
+                $mess_fail = "This QR money is expired.";
                 $_SESSION['failed_transaction'] = [
                     'transaction_id' => $trx_id,
                     'token_id'        => $qr_token_id,
