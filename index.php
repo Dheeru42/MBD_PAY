@@ -170,8 +170,7 @@ try {
                 status,
                 generated_at
             FROM currency
-            WHERE status = 'GENERATED'
-              AND sender_mobile = '$u_mob'
+            WHERE sender_mobile = '$u_mob'
               AND generated_at >= CURDATE()
               AND generated_at < CURDATE() + INTERVAL 1 DAY
             ORDER BY generated_at DESC";
