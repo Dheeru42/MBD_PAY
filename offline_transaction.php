@@ -155,7 +155,7 @@ session_abort();
         }
 
         .icon-pending {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
+            background: linear-gradient(135deg, #e3585d, #fffefe);
         }
 
         .stat-info h4 {
@@ -489,7 +489,7 @@ session_abort();
         $total_query = "SELECT 
             COUNT(*) as total_count,
             SUM(CASE WHEN server_sync = 1 OR LOWER(server_sync) = 'yes' OR LOWER(server_sync) = 'synced' THEN 1 ELSE 0 END) as synced_count,
-            SUM(CASE WHEN server_sync = 0 OR LOWER(server_sync) = 'no' OR LOWER(server_sync) = 'pending' THEN 1 ELSE 0 END) as pending_count
+            SUM(CASE WHEN server_sync = 0 OR LOWER(server_sync) = 'no' OR LOWER(server_sync) = 'failed' THEN 1 ELSE 0 END) as failed_count
             FROM offline_transactions WHERE wallet_id = '$hash_sender_wallet'";
 
         $stats_res = mysqli_query($conn, $total_query);
@@ -497,7 +497,7 @@ session_abort();
 
         $totalTx = $stats['total_count'] ?? 0;
         $syncedTx = $stats['synced_count'] ?? 0;
-        $pendingTx = $stats['pending_count'] ?? 0;
+        $failedTx = $stats['failed_count'] ?? 0;
         ?>
 
         <!-- Dynamic Summary Stats Cards -->
@@ -517,10 +517,10 @@ session_abort();
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon icon-pending">⏳</div>
+                <div class="stat-icon icon-pending">❌</div>
                 <div class="stat-info">
-                    <h4>Pending Sync</h4>
-                    <p><?php echo number_format($pendingTx); ?></p>
+                    <h4>Rejected</h4>
+                    <p><?php echo number_format($failedTx); ?></p>
                 </div>
             </div>
         </div>
@@ -536,8 +536,8 @@ session_abort();
                         <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Search ID or Mobile...">
                     </div>
                     <button class="filter-btn active" onclick="filterSync('all', this)">All</button>
-                    <button class="filter-btn" onclick="filterSync('synced', this)">Synced</button>
-                    <button class="filter-btn" onclick="filterSync('failed', this)">Failed</button>
+                    <button class="filter-btn" onclick="filterSync('synced', this)">Scanned</button>
+                    <button class="filter-btn" onclick="filterSync('failed', this)">Rejected</button>
                 </div>
             </div>
 

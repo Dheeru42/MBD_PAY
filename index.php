@@ -519,7 +519,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         .action-btn-off {
             text-decoration: none;
             background: #fff;
-            color: #09749b;
+            color: #065f46;
             border-radius: 18px;
             padding: 18px;
             text-align: center;
@@ -1300,6 +1300,13 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                     </div>
 
+                    <div class="wallet-actions-offline">
+
+                        <a href="offline_transaction.php" class="action-btn-off">
+                            <span>📴 Offline Transaction Status</span>
+                        </a>
+                    </div>
+
                     <!-- Statistics -->
                     <div class="wallet-stats">
 
@@ -1328,19 +1335,12 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                         </div>
 
                     </div>
-
-                    <div class="wallet-actions-offline">
-
-                        <a href="offline_transaction.php" class="action-btn-off">
-                            <span>Offline Transaction Status</span>
-                        </a>
-                    </div>
                 <?php } else { ?>
                     <div class="wallet-actions-offline">
 
                         <a href="send_offline_money.php" class="action-btn">
-                            ➤
-                            <span>Send Money Offline</span>
+
+                            <span>➤ Send Money Offline</span>
                         </a>
                     </div>
                     <br>
