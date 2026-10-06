@@ -44,6 +44,11 @@ function decryptData($text)
     );
 }
 
+if (!$serverConnected) {
+
+    header("location:index.php");
+    exit;
+}
 
 if (!isset($_SESSION['user'])) {
     header("location:login.php");
@@ -84,7 +89,7 @@ if (!isset($_SESSION['mode'])) {
     exit;
 }
 
-$hash_sender_mob = hash("sha256",$user_mob);
+$hash_sender_wallet = hash("sha256", $u_wallet_id);
 
 session_abort();
 ?>
@@ -403,6 +408,7 @@ session_abort();
                 opacity: 0;
                 transform: scale(0.95);
             }
+
             to {
                 opacity: 1;
                 transform: scale(1);
@@ -484,7 +490,7 @@ session_abort();
             COUNT(*) as total_count,
             SUM(CASE WHEN server_sync = 1 OR LOWER(server_sync) = 'yes' OR LOWER(server_sync) = 'synced' THEN 1 ELSE 0 END) as synced_count,
             SUM(CASE WHEN server_sync = 0 OR LOWER(server_sync) = 'no' OR LOWER(server_sync) = 'pending' THEN 1 ELSE 0 END) as pending_count
-            FROM offline_transactions WHERE sender_mobile = '$hash_sender_mob'";
+            FROM offline_transactions WHERE wallet_id = '$hash_sender_wallet'";
 
         $stats_res = mysqli_query($conn, $total_query);
         $stats = mysqli_fetch_assoc($stats_res);
@@ -553,7 +559,7 @@ session_abort();
                     </thead>
                     <tbody>
                         <?php
-                        $query = "SELECT id, reciever_mobile ,send_balance, status,reciever_check ,created_at, update_at, server_sync FROM offline_transactions WHERE sender_mobile = '$hash_sender_mob' ORDER BY id DESC";
+                        $query = "SELECT id, reciever_mobile ,send_balance, status,reciever_check ,created_at, update_at, server_sync FROM offline_transactions WHERE wallet_id = '$hash_sender_wallet' ORDER BY id DESC";
                         $result = mysqli_query($conn, $query);
                         if ($result && mysqli_num_rows($result) > 0) {
                             $counter = 0;

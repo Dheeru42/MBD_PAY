@@ -184,10 +184,11 @@ try {
         if ($pay_mode == 'Offline') {
             $qr_token_id = $data['token_id'];
             $qr_token_no = $data['token_no'];
-            $expires_at = $qr_token_no + 120;
+            $expires_at = $qr_token_no + 1200000000;
             $qr_amount = decryptData($data['amount']);
             $e_qr_amount = $data['amount'];
-            $h_qr_sender_mobile = $data['sender_mobile'];
+            $e_qr_sender_mobile = $data['sender_mobile'];
+            $qr_sender_mobile = decryptData($data['sender_mobile']);
             $qr_reciever_mobile = decryptData($data['receiver_mobile']);
             $e_qr_reciever_mobile = $data['receiver_mobile'];
 
@@ -277,7 +278,7 @@ try {
                     'transaction_id' => $trx_id,
                     'token_id'        => $qr_token_id,
                     'amount'          => $qr_amount,
-                    'sender_mobile'   => $h_qr_sender_mobile,
+                    'sender_mobile'   => $qr_sender_mobile,
                     'receiver_mobile' => $user_mob,
                     'reason'          => $mess_fail,
                     'timestamp'       => date("Y-m-d h:i:s A")
@@ -289,7 +290,7 @@ try {
                     'transaction_id' => $trx_id,
                     'token_id'        => $qr_token_id,
                     'amount'          => $qr_amount,
-                    'sender_mobile'   => $h_qr_sender_mobile,
+                    'sender_mobile'   => $qr_sender_mobile,
                     'receiver_mobile' => $user_mob,
                     'reason'          => $mess_fail,
                     'timestamp'       => date("Y-m-d h:i:s A")
@@ -307,7 +308,7 @@ try {
                         'transaction_id' => $trx_id,
                         'token_id'        => $qr_token_id,
                         'amount'          => $qr_amount,
-                        'sender_mobile'   => $h_qr_sender_mobile,
+                        'sender_mobile'   => $qr_sender_mobile,
                         'receiver_mobile' => $user_mob,
                         'reason'          => $mess_fail,
                         'timestamp'       => date("Y-m-d h:i:s A")
@@ -320,7 +321,7 @@ try {
                     $qr_status = 'scanned';
                     $qr_server_sync = 'synced';
                     $qr_reciever_check = 'Verified';
-                    $e_sender_wallet = encryptData($sender_data['wallet_id']);
+                    $h_sender_wallet = hash('sha256', $sender_data['wallet_id']);
 
                     $insertStmt = $conn->prepare("
                             INSERT INTO offline_transactions (
@@ -339,8 +340,8 @@ try {
                     $insertStmt->bind_param(
                         "sssssssss",
                         $qr_token_id,
-                        $e_sender_wallet,
-                        $h_qr_sender_mobile,
+                        $h_sender_wallet,
+                        $e_qr_sender_mobile,
                         $e_qr_reciever_mobile,
                         $e_qr_amount,
                         $qr_status,
