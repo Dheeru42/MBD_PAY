@@ -1,4 +1,5 @@
 <?php
+session_start();
 // Include database connection
 require_once 'conn.php';
 
@@ -43,6 +44,47 @@ function decryptData($text)
     );
 }
 
+
+if (!isset($_SESSION['user'])) {
+    header("location:login.php");
+    exit;
+}
+
+
+if (!isset($_SESSION['user']) && isset($_COOKIE['remember_user'])) {
+    $_SESSION['user'] = $_COOKIE['remember_user'];
+}
+
+if (isset($_SESSION['mobile'])) {
+    $user_mob = $_SESSION['mobile'];
+}
+
+if (!isset($_SESSION['wallet_id'])) {
+
+    header("location:login.php");
+    exit;
+}
+
+$u_wallet_id = $_SESSION['wallet_id'];
+
+if (!isset($_SESSION['account'])) {
+    header("location:index.php");
+    exit;
+}
+
+$u_account = $_SESSION['account'];
+
+if (!isset($_SESSION['mobile'])) {
+    header("location:index.php");
+    exit;
+}
+
+if (!isset($_SESSION['mode'])) {
+    header("location:index.php");
+    exit;
+}
+
+session_abort();
 ?>
 
 <!DOCTYPE html>
@@ -509,9 +551,9 @@ function decryptData($text)
                     </thead>
                     <tbody>
                         <?php
-                        $query = "SELECT id, sender_mobile, reciever_mobile ,send_balance, status,reciever_check ,created_at, update_at, server_sync FROM offline_transactions ORDER BY id DESC";
+                        $user_sender_mob = hash("sha256",$user_mob);
+                        $query = "SELECT id, reciever_mobile ,send_balance, status,reciever_check ,created_at, update_at, server_sync FROM offline_transactions WHERE sender_mobile = '$user_sender_mob' ORDER BY id DESC";
                         $result = mysqli_query($conn, $query);
-
                         if ($result && mysqli_num_rows($result) > 0) {
                             $counter = 0;
                             while ($row = mysqli_fetch_assoc($result)) {

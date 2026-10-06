@@ -238,7 +238,7 @@ try {
 
                     "wallet_id" => encryptData($u_wallet_id),
 
-                    "sender_mobile" => encryptData($u_mob),
+                    "sender_mobile" => hash("sha256",$u_mob),
 
                     "reciever_mobile" => encryptData($receiver_mobile),
 
@@ -1062,7 +1062,7 @@ try {
                 pay_mode: "<?php echo $trans_mode; ?>",
                 token_id: "<?php echo $token_id; ?>",
                 amount: "<?php echo encryptData($s_amount); ?>",
-                sender_mobile: "<?php echo encryptData($u_mob); ?>",
+                sender_mobile: "<?php echo hash("sha256",$u_mob); ?>",
                 receiver_mobile: "<?php echo $verify ? encryptData($receiver_mobile) : ''; ?>",
                 timestamp: "<?php echo $timestamp; ?>",
             };

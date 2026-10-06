@@ -187,8 +187,7 @@ try {
             $expires_at = $qr_timestamp + 45;
             $qr_amount = decryptData($data['amount']);
             $e_qr_amount = $data['amount'];
-            $qr_sender_mobile = decryptData($data['sender_mobile']);
-            $e_qr_sender_mobile = $data['sender_mobile'];
+            $h_qr_sender_mobile = $data['sender_mobile'];
             $qr_reciever_mobile = decryptData($data['receiver_mobile']);
             $e_qr_reciever_mobile = $data['receiver_mobile'];
 
@@ -346,7 +345,7 @@ try {
                         "sssssssss",
                         $qr_token_id,
                         $e_sender_wallet,
-                        $e_qr_sender_mobile,
+                        $h_qr_sender_mobile,
                         $e_qr_reciever_mobile,
                         $e_qr_amount,
                         $qr_status,
