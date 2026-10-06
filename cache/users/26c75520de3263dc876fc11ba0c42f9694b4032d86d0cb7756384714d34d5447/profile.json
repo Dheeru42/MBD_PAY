@@ -6,10 +6,10 @@
     "account": "s35NS6p1yJYuzq4qzUbs+JyTH70bNcJuK0YGXYHaZBA=",
     "password": "$2y$10$3lHUMd2\/gPb8rBm.nYCKh.Q8yCoBJoSmRB\/wKqv5Vn4\/3rjIYEwze",
     "pin": "$2y$10$O.ojN15ibObCeHriHF8KsuWYwnafbwAgUqFMkRcrpVVezARRdLdva",
-    "balance": "XwFNBzKf9AzJsGwiQersfWBkucOOyJrPmCvTqJN\/\/zo=",
+    "balance": "T7iqfoe+WNTC04cJ6hOZjbbf2eRgnnvnteuODZuVrrI=",
     "created_at": "2026-08-04 10:40:39",
     "server_sync": true,
     "last_transaction": "MBD20261006141527126132",
-    "update_at": "2026-10-06 02:22:20 PM",
-    "send_limit": 1
+    "update_at": "2026-10-06 02:29:50 PM",
+    "send_limit": 2
 }
