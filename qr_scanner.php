@@ -184,7 +184,7 @@ try {
         if ($pay_mode == 'Offline') {
             $qr_token_id = $data['token_id'];
             $qr_token_no = $data['token_no'];
-            $expires_at = $qr_token_no + 1200000000;
+            $expires_at = $qr_token_no + 1200000000; // after check correct to 40 sec
             $qr_amount = decryptData($data['amount']);
             $e_qr_amount = $data['amount'];
             $e_qr_sender_mobile = $data['sender_mobile'];
