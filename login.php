@@ -10,7 +10,7 @@ require_once 'conn.php';
 require_once 'bank_conn.php';
 
 // Check server connection early so it is available globally
-$serverConnected = ($conn && mysqli_ping($conn) && $bank_conn && mysqli_ping($bank_conn));
+$serverConnected = ($conn && $bank_conn);
 
 $message = "";
 $message1 = "";
