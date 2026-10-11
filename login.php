@@ -463,7 +463,7 @@ try {
     <nav class="mbd-navbar">
         <div class="mbd-brand">
             <div class="mbd-icon">₹</div>
-            MBD Pay
+            MBD PAY
         </div>
 
         <ul class="mbd-links">
@@ -485,7 +485,7 @@ try {
     <!-- LOGIN / SIGNUP -->
     <div class="auth-wrapper">
         <div class="container">
-            <div class="auth-logo">₹ MBD Pay</div>
+            <div class="auth-logo">₹ MBD PAY</div>
 
             <div id="clientMsg" class="message1" style="display: none;"></div>
 

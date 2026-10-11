@@ -1031,7 +1031,7 @@ try {
         content="width=device-width, initial-scale=1.0">
 
     <title>
-        MBDPAY | Generate Currency
+        MBD PAY | Generate Currency
     </title>
 
 

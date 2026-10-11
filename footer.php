@@ -9,7 +9,7 @@
 
         <div class="footer-text">
 
-            © <?php echo date("Y"); ?> MBD Pay. All Rights Reserved.
+            © <?php echo date("Y"); ?> MBD PAY. All Rights Reserved.
 
         </div>
 

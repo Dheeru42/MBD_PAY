@@ -388,7 +388,7 @@ session_abort();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 
-    <title>MBD Pay | Digital Currency</title>
+    <title>MBD PAY | Digital Currency</title>
 
 
 
@@ -1105,7 +1105,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                     <h1 class="mbd-title">
 
-                        MBD <span>Pay</span>
+                        MBD <span>PAY</span>
 
                     </h1>
 
@@ -1138,7 +1138,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                         </h2>
 
                         <p>
-                            Your MBD Pay wallet is ready
+                            Your MBD PAY wallet is ready
                         </p>
 
                     </div>

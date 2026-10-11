@@ -1215,7 +1215,7 @@ if (!$success) {
             content="width=device-width, initial-scale=1.0">
 
         <title>
-            MBD Pay | Synchronization Failed
+            MBD PAY | Synchronization Failed
         </title>
 
         <link rel="icon" type="image/svg+xml"
@@ -1390,7 +1390,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         content="width=device-width, initial-scale=1.0">
 
     <title>
-        MBD Pay | Synchronizing
+        MBD PAY | Synchronizing
     </title>
 
     <link rel="icon" type="image/svg+xml"
