@@ -14,10 +14,7 @@ if (!$serverConnected) {
     exit;
 }
 
-define(
-    "SECRET_KEY",
-    "MBDPAY@2026_SUPER_SECRET_KEY_32"
-);
+require_once 'config.php';
 
 define("CACHE_DIR", __DIR__ . "/cache/users/");
 

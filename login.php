@@ -17,7 +17,7 @@ $message1 = "";
 
 // cache create logic
 define("CACHE_DIR", __DIR__ . "/cache/users/");
-define("SECRET_KEY", "MBDPAY@2026_SUPER_SECRET_KEY_32");
+require_once 'config.php';
 
 /* Encrypt Function */
 function encryptData($text)
@@ -134,7 +134,7 @@ try {
                     (wallet_id,name,account_no,mobile,email,password,pin,balance)
                     VALUES
                     ('$wallet_id','$name',$acc,'$mobile','$email','$password','$pin','$e_s_balance')";
-                    
+
                     if (mysqli_query($conn, $insertSql)) {
                         $message = "Account Created. Now Log In";
                         // create cache file

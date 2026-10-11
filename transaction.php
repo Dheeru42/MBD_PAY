@@ -12,7 +12,7 @@ if (!$serverConnected) {
 }
 
 // secret key
-define("SECRET_KEY", "MBDPAY@2026_SUPER_SECRET_KEY_32");
+require_once 'config.php';
 
 /* Encrypt Function */
 function encryptData($text)

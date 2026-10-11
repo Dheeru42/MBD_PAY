@@ -3,7 +3,7 @@ session_start();
 require_once "conn.php";
 
 define("CACHE_DIR", __DIR__ . "/cache/users/");
-define("SECRET_KEY", "MBDPAY@2026_SUPER_SECRET_KEY_32");
+require_once 'config.php';
 
 /* Decrypt Function */
 

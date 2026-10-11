@@ -51,7 +51,7 @@ $u_wallet_id = $_SESSION['wallet_id'];
 | Same structure used by generated_currency.php
 |--------------------------------------------------------------------------
 */
-define("SECRET_KEY", "MBDPAY@2026_SUPER_SECRET_KEY_32");
+require_once 'config.php';
 define("CACHE_DIR", __DIR__ . "/cache/users/");
 
 function decryptData($text)
