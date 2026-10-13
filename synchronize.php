@@ -713,6 +713,66 @@ try {
     error_log("Database Update Error: " . $th->getMessage());
 }
 
+// synchronize log data at login time
+try {
+    $userId = hash("sha256", $u_mob);
+    $log_folder = "cache/users/$userId/logs";
+
+    // Create log cache folder if it does not exist
+    if (!is_dir($log_folder)) {
+        mkdir($log_folder, 0777, true);
+    }
+
+    // Count existing transaction log files
+    $existingLogs = glob($log_folder . "/*.json");
+    $logCount = count($existingLogs ?: []);
+
+    // Allow a maximum of 2 entries
+    while ($logCount < 2) {
+
+        $logCount += 1;
+
+        // Generate a unique token
+        $micro_timestamp = microtime(true);
+        $randomPart = bin2hex(random_bytes(4));
+        $uniqueToken = "MBD-" . $micro_timestamp . "-" . $randomPart;
+
+        $token_id = hash("sha256", $uniqueToken);
+
+        // Prepare transaction data
+        $trx_data = [
+            "token_id"        => $token_id,
+            "wallet_id"       => hash("sha256", $u_wallet_id),
+            "sender_mobile"   => encryptData($u_mob),
+            "receiver_mobile" => null,
+            "send_balance"    => null,
+            "status"          => "not assign",
+            "created_at"      => date("Y-m-d H:i:s"),
+            "update_at"       => date("Y-m-d H:i:s"),
+            "server_sync"     => "pending"
+        ];
+
+        $trx_file = hash("sha256", $token_id);
+        $trx_cacheFile = $log_folder . "/" . $trx_file . ".json";
+
+        // 1. Save transaction in cache file
+        file_put_contents(
+            $trx_cacheFile,
+            json_encode($trx_data, JSON_PRETTY_PRINT),
+            LOCK_EX
+        );
+
+        // 2. Insert transaction data using a simple SQL query
+        $sql = "INSERT INTO offline_transactions (token_id, wallet_id, sender_mobile,status, created_at, update_at, server_sync) 
+                VALUES ('{$trx_data['token_id']}', '{$trx_data['wallet_id']}', '{$trx_data['sender_mobile']}','{$trx_data['status']}',
+                 '{$trx_data['created_at']}', '{$trx_data['update_at']}', '{$trx_data['server_sync']}')";
+
+        mysqli_query($conn, $sql);
+    }
+} catch (\Throwable $th) {
+    error_log($th->getMessage());
+}
+
 /*
 |--------------------------------------------------------------------------
 | SYNCHRONIZATION

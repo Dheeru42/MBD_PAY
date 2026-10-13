@@ -1338,7 +1338,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                 <?php } else { ?>
                     <div class="wallet-actions-offline">
 
-                        <a href="send_offlin_money.php" class="action-btn">
+                        <a href="send_offline_money.php" class="action-btn">
 
                             <span>➤ Send Money Offline</span>
                         </a>

@@ -4,6 +4,8 @@ session_start();
 
 date_default_timezone_set('Asia/Kolkata');
 
+$timestamp = time();
+
 require_once "conn.php";
 
 $message = "";
@@ -52,15 +54,6 @@ function decryptData($text)
         $iv
     );
 }
-
-// Generate a new unique token for a new transaction.
-// If a valid QR already exists in the session, it will be restored below.
-$timestamp = time();
-$randomPart = rand(1000, 9000);
-$uniqueToken = "MBD-" . $timestamp . "-" . $randomPart;
-
-// hashing it in PHP
-$token_id = hash("sha256", $uniqueToken);
 
 if ($serverConnected) {
     header("location:index.php");
@@ -165,6 +158,40 @@ if (!empty($_SESSION['offline_message_f'])) {
     $message_f = $_SESSION['offline_message_f'];
     unset($_SESSION['offline_message_f']);
 }
+
+// fetch token_id from cache
+
+$log_folder = "cache/users/$userId/logs";
+$token_id = "N/A";
+
+try {
+    $full_log_path = __DIR__ . "/" . $log_folder;
+    if (is_dir($full_log_path)) {
+        $logFiles = glob($full_log_path . "/*.json");
+        $logsData = [];
+
+        foreach ($logFiles as $file) {
+            $logContent = json_decode(file_get_contents($file), true);
+            if ($logContent && isset($logContent['token_id'])) {
+                $logsData[] = [
+                    'token_id' => $logContent['token_id'],
+                    'timestamp' => strtotime($logContent['created_at'] ?? $logContent['time'] ?? filemtime($file))
+                ];
+            }
+        }
+
+        if (!empty($logsData)) {
+            usort($logsData, function ($a, $b) {
+                return $b['timestamp'] - $a['timestamp'];
+            });
+
+            $token_id = $logsData[0]['token_id'];
+        }
+    }
+} catch (\Throwable $th) {
+    // Fallback if logs directory scanning fails
+}
+
 
 // verify pin
 try {
@@ -798,6 +825,17 @@ try {
             <?php endif; ?>
 
             <form id="offlineForm" onsubmit="openPinModal(event)">
+                <!-- Token ID Form Field -->
+                <div class="form-group">
+                    <input type="hidden"
+                        id="token_id_display"
+                        class="form-control"
+                        value="<?php echo htmlspecialchars($token_id); ?>"
+                        readonly
+                        style="background-color: #f8fafc; font-family: monospace; font-size: 13px; color: #4b5563;"
+                        title="Token ID for the current transaction">
+                </div>
+
                 <div class="form-group">
                     <label for="receiver_mobile">Enter Receiver Mobile No.</label>
                     <p style="color:#dc2626; font-size:13px; margin-top:6px; font-weight:600;">
@@ -897,7 +935,7 @@ try {
                                     </td>
                                     <td>
                                         <?php if (!empty($trx['server_sync'])): ?>
-                                            <span class="sync-badge sync-yes"> <?php echo htmlspecialchars($trx['server_syn'] ?? 'Pending'); ?></span>
+                                            <span class="sync-badge sync-yes"> <?php echo htmlspecialchars($trx['server_sync'] ?? 'Pending'); ?></span>
                                         <?php else: ?>
                                             <span class="sync-badge sync-no">Pending</span>
                                         <?php endif; ?>
