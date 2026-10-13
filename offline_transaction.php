@@ -559,7 +559,7 @@ session_abort();
                     </thead>
                     <tbody>
                         <?php
-                        $query = "SELECT id, reciever_mobile ,send_balance, status,reciever_check ,created_at, update_at, server_sync FROM offline_transactions WHERE wallet_id = '$hash_sender_wallet' ORDER BY id DESC";
+                        $query = "SELECT id, receiver_mobile ,send_balance, status,reciever_check ,created_at, update_at, server_sync FROM offline_transactions WHERE wallet_id = '$hash_sender_wallet' ORDER BY id DESC";
                         $result = mysqli_query($conn, $query);
                         if ($result && mysqli_num_rows($result) > 0) {
                             $counter = 0;
@@ -615,10 +615,14 @@ session_abort();
 
                                 $send_bal = decryptData($row['send_balance']);
 
-                                $decryptedMobile = decryptData($row['reciever_mobile']);
+                                $decryptedMobile = decryptData($row['receiver_mobile']) ?? null;
 
-                                $maskedMobile = substr($decryptedMobile, 0, 2) . '******' . substr($decryptedMobile, -2);
+                                if ($decryptedMobile == null) {
+                                    $maskedMobile = 'null';
+                                } else {
 
+                                    $maskedMobile = substr($decryptedMobile, 0, 2) . '******' . substr($decryptedMobile, -2);
+                                }
                                 echo "<tr data-sync='{$syncAttr}'>";
                                 echo "<td><strong>" . htmlspecialchars($counter) . "</strong></td>";
                                 echo "<td>" . htmlspecialchars($maskedMobile) . "</td>";
