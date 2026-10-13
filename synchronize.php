@@ -597,6 +597,7 @@ try {
 try {
     $userId = hash("sha256", $u_mob);
     $trx_file = "cache/users/$userId/transactions";
+    $date = date('Y-m-d H:i:s'); // Ensure timestamp is defined
 
     if (is_dir($trx_file)) {
         // Retrieve all .json files in the transactions directory
@@ -617,75 +618,85 @@ try {
                     $e_recieverMobile = $data['reciever_mobile'];
                     $tokenId          = $data['token_id'] ?? null;
 
-                    // 1. Check if token_id already exists in offline_transactions table
-                    $tokenExists = false;
                     if (!empty($tokenId)) {
+                        // 1. Check if token_id exists in offline_transactions table
                         $tokenQuery = $conn->prepare("SELECT id FROM offline_transactions WHERE token_id = ? LIMIT 1");
                         $tokenQuery->bind_param("s", $tokenId);
                         $tokenQuery->execute();
                         $tokenResult = $tokenQuery->get_result();
                         $tokenExists = ($tokenResult->num_rows > 0);
                         $tokenQuery->close();
-                    }
 
-                    // 2. If token DOES NOT exist, proceed with receiver check and database insert
-                    if (!$tokenExists) {
-                        // Check if reciever_mobile exists in the users table
+                        // 2. Check if reciever_mobile exists (is verified) in the users table
                         $userQuery = $conn->prepare("SELECT id FROM users WHERE mobile = ? LIMIT 1");
                         $userQuery->bind_param("s", $d_recieverMobile);
                         $userQuery->execute();
                         $userResult = $userQuery->get_result();
-
                         $receiverExists = ($userResult->num_rows > 0);
                         $userQuery->close();
 
-                        // Insert into offline_transactions ONLY if receiver exists
-                        if ($receiverExists) {
+                        // 3. If token exists AND receiver is verified, update DB with latest data and unlink cache
+                        if ($tokenExists && $receiverExists) {
                             $recieverCheck = 'Verified';
-
-                            // Fallback values if missing from JSON
-                            $tokenId       = $tokenId ?? bin2hex(random_bytes(16));
-                            $walletId      = $data['wallet_id'] ?? '';
-                            $senderMobile  = $data['sender_mobile'] ?? $u_mob;
                             $sendBalance   = $data['send_balance'] ?? '0';
                             $status        = $data['status'] ?? 'not scanned';
                             $serverSync    = $data['server_sync'] ?? 'pending';
 
-                            $insertStmt = $conn->prepare("
-                                INSERT INTO offline_transactions (
-                                    token_id, 
-                                    wallet_id, 
-                                    sender_mobile, 
-                                    reciever_mobile, 
-                                    send_balance, 
-                                    status, 
-                                    server_sync, 
-                                    reciever_check,
-                                    created_at
-                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            $updateStmt = $conn->prepare("
+                                UPDATE offline_transactions 
+                                SET receiver_mobile = ?, 
+                                    send_balance = ?, 
+                                    status = ?,  
+                                    reciever_check = ?,
+                                    update_at = ?
+                                WHERE token_id = ?
                             ");
 
-                            $insertStmt->bind_param(
-                                "sssssssss",
-                                $tokenId,
-                                $walletId,
-                                $senderMobile,
+                            $updateStmt->bind_param(
+                                "ssssss",
                                 $e_recieverMobile,
                                 $sendBalance,
                                 $status,
-                                $serverSync,
                                 $recieverCheck,
-                                $date
+                                $date,
+                                $tokenId
                             );
 
-                            $insertStmt->execute();
-                            $insertStmt->close();
+                            $updateStmt->execute();
+                            $updateStmt->close();
+                        } elseif (!$receiverExists) {
+                            $recieverCheck = 'Not Verified';
+                            $sendBalance   = $data['send_balance'] ?? '0';
+                            $status        = $data['status'] ?? 'not scanned';
+                            $serverSync    = $data['server_sync'] ?? 'pending';
+
+                            $updateStmt = $conn->prepare("
+                                UPDATE offline_transactions 
+                                SET receiver_mobile = ?, 
+                                    send_balance = ?, 
+                                    status = ?,  
+                                    reciever_check = ?,
+                                    update_at = ?
+                                WHERE token_id = ?
+                            ");
+
+                            $updateStmt->bind_param(
+                                "ssssss",
+                                $e_recieverMobile,
+                                $sendBalance,
+                                $status,
+                                $recieverCheck,
+                                $date,
+                                $tokenId
+                            );
+
+                            $updateStmt->execute();
+                            $updateStmt->close();
                         }
+                        // Unlink the cache file only after a successful update
+                        unlink($file);
                     }
                 }
-
-                // Clear the JSON file from cache in all scenarios (exists, inserted, or invalid receiver)
-                unlink($file);
             }
         }
     }

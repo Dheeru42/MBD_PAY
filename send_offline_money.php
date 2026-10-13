@@ -112,14 +112,20 @@ $verify = false;
 $submitted_amount = 0;
 $d_send_amount = 0;
 $receiver_mobile = "";
+$token_id = "";
+$matched_log_file = "";
+
+// Define logs cache folder path
+$logs_dir = CACHE_DIR . $userId . "/logs/";
+
+// Handle AJAX request from JS to clear expired session QR immediately
+if (isset($_GET['clear_qr_session'])) {
+    unset($_SESSION['offline_qr']);
+    exit('OK');
+}
 
 /*
  * Restore the last generated offline QR from the session.
- *
- * This makes the QR survive a normal browser refresh without
- * creating another transaction or deducting the balance again.
- *
- * QR lifetime = 40 seconds.
  */
 if (isset($_SESSION['offline_qr']) && is_array($_SESSION['offline_qr'])) {
 
@@ -143,8 +149,25 @@ if (isset($_SESSION['offline_qr']) && is_array($_SESSION['offline_qr'])) {
         $d_send_amount = $savedQr['amount'];
         $receiver_mobile = $savedQr['receiver_mobile'];
     } else {
-        // QR has expired. It must not be displayed after refresh.
+        // QR has expired. Unset session immediately so next available token can load.
         unset($_SESSION['offline_qr']);
+    }
+}
+
+// If not verified via session, fetch the next available token_id from JSON files in the logs cache folder
+if (!$verify) {
+    if (is_dir($logs_dir)) {
+        $log_files = glob($logs_dir . "*.json");
+        if (!empty($log_files)) {
+            usort($log_files, function ($a, $b) {
+                return filemtime($a) - filemtime($b);
+            });
+            $matched_log_file = $log_files[0];
+            $log_data = json_decode(file_get_contents($matched_log_file), true);
+            if ($log_data && isset($log_data['token_id'])) {
+                $token_id = $log_data['token_id'];
+            }
+        }
     }
 }
 
@@ -159,40 +182,6 @@ if (!empty($_SESSION['offline_message_f'])) {
     unset($_SESSION['offline_message_f']);
 }
 
-// fetch token_id from cache
-
-$log_folder = "cache/users/$userId/logs";
-$token_id = "N/A";
-
-try {
-    $full_log_path = __DIR__ . "/" . $log_folder;
-    if (is_dir($full_log_path)) {
-        $logFiles = glob($full_log_path . "/*.json");
-        $logsData = [];
-
-        foreach ($logFiles as $file) {
-            $logContent = json_decode(file_get_contents($file), true);
-            if ($logContent && isset($logContent['token_id'])) {
-                $logsData[] = [
-                    'token_id' => $logContent['token_id'],
-                    'timestamp' => strtotime($logContent['created_at'] ?? $logContent['time'] ?? filemtime($file))
-                ];
-            }
-        }
-
-        if (!empty($logsData)) {
-            usort($logsData, function ($a, $b) {
-                return $b['timestamp'] - $a['timestamp'];
-            });
-
-            $token_id = $logsData[0]['token_id'];
-        }
-    }
-} catch (\Throwable $th) {
-    // Fallback if logs directory scanning fails
-}
-
-
 // verify pin
 try {
     if (isset($_POST['verify_pin'])) {
@@ -200,8 +189,22 @@ try {
         $submitted_amount = $_POST['form_amount'] ?? 0;
         $receiver_mobile = trim($_POST['receiver_mobile'] ?? '');
 
-        // Validate receiver mobile before processing the transaction
-        if (!is_numeric($submitted_amount) || $submitted_amount <= 0 || $submitted_amount > $u_balance) {
+        // Re-check logs to fetch token_id if not already bound
+        if (empty($token_id) && is_dir($logs_dir)) {
+            $log_files = glob($logs_dir . "*.json");
+            if (!empty($log_files)) {
+                $matched_log_file = $log_files[0];
+                $log_data = json_decode(file_get_contents($matched_log_file), true);
+                if ($log_data && isset($log_data['token_id'])) {
+                    $token_id = $log_data['token_id'];
+                }
+            }
+        }
+
+        // Validate token_id exists
+        if (empty($token_id)) {
+            $message_f = "You have exceeded your sending limit.Please synchronize your wallet to continue.";
+        } elseif (!is_numeric($submitted_amount) || $submitted_amount <= 0 || $submitted_amount > $u_balance) {
             $message_f = "Please enter a valid amount within your available wallet balance.";
         } elseif ($cache['send_limit'] == 0) {
             $message_f = "You have exceeded your sending limit.Please synchronize your wallet to continue.";
@@ -217,8 +220,6 @@ try {
                 $d_send_amount = $submitted_amount;
 
                 /* code to deduct offline money from cache  */
-
-                // code to deduct balance from cache
 
                 $profile = CACHE_DIR . $userId . "/profile.json";
 
@@ -255,8 +256,6 @@ try {
                     mkdir($trx_folder, 0777, true);
                 }
 
-                // insert trx in transaction
-
                 $trx_data = [
 
                     "token_id" => $token_id,
@@ -282,13 +281,28 @@ try {
                 $trx_id = $token_id;
 
                 $trx_file = hash("sha256", $trx_id);
-                // Save currency in cache
                 $trx_cacheFile = $trx_folder . "/" . $trx_file . ".json";
 
                 file_put_contents(
                     $trx_cacheFile,
                     json_encode($trx_data, JSON_PRETTY_PRINT)
                 );
+
+
+                /* Clear token_id JSON file from logs folder after QR generation */
+                if (!empty($matched_log_file) && file_exists($matched_log_file)) {
+                    unlink($matched_log_file);
+                } else {
+                    if (is_dir($logs_dir)) {
+                        foreach (glob($logs_dir . "*.json") as $file) {
+                            $l_data = json_decode(file_get_contents($file), true);
+                            if ($l_data && isset($l_data['token_id']) && $l_data['token_id'] === $token_id) {
+                                unlink($file);
+                                break;
+                            }
+                        }
+                    }
+                }
 
 
                 /* code to restrict the sender to send offline money by qr after limit = 2 */
@@ -314,9 +328,6 @@ try {
 
                 /*
                  * Save the exact QR data in the session.
-                 *
-                 * The next request (including a browser refresh) can
-                 * restore the same QR for the remaining 40 seconds.
                  */
                 $_SESSION['offline_qr'] = [
                     'token_id' => $token_id,
@@ -325,11 +336,6 @@ try {
                     'created_at' => time()
                 ];
 
-                /*
-                 * Store the success message before redirecting.
-                 * POST -> redirect -> GET prevents refresh from submitting
-                 * the PIN form again and deducting the amount twice.
-                 */
                 $_SESSION['offline_message'] = $message;
 
                 header("Location: " . $_SERVER['PHP_SELF']);
@@ -340,7 +346,7 @@ try {
         }
     }
 } catch (\Throwable $th) {
-    echo 'error';
+    error_log($th->getMessage());
 }
 
 
@@ -359,7 +365,6 @@ try {
             }
         }
 
-        // Sort transactions by created_at descending (latest first)
         usort($transactionsList, function ($a, $b) {
             return strtotime($b['created_at'] ?? 0) - strtotime($a['created_at'] ?? 0);
         });
@@ -515,17 +520,6 @@ try {
             margin-bottom: 15px;
         }
 
-        .token-badge {
-            display: inline-block;
-            background: #fef3c7;
-            color: #92400e;
-            padding: 5px 12px;
-            border-radius: 6px;
-            font-weight: bold;
-            font-family: monospace;
-            margin-top: 8px;
-        }
-
         .modal-overlay {
             display: none;
             position: fixed;
@@ -576,7 +570,6 @@ try {
             margin-bottom: 15px;
         }
 
-        /* Full Width Table Section Styling */
         .table-container {
             max-width: 950px;
             margin: 0 auto 40px auto;
@@ -833,7 +826,7 @@ try {
                         value="<?php echo htmlspecialchars($token_id); ?>"
                         readonly
                         style="background-color: #f8fafc; font-family: monospace; font-size: 13px; color: #4b5563;"
-                        title="Token ID for the current transaction">
+                        title="Token ID fetched from logs JSON cache">
                 </div>
 
                 <div class="form-group">
@@ -990,7 +983,6 @@ try {
                     <div class="alert-error"><?php echo htmlspecialchars($pin_error); ?></div>
                 <?php endif; ?>
 
-                <!-- Hidden Inputs to preserve transaction details across POST request -->
                 <input type="hidden" name="form_amount" id="modalHiddenAmount" value="<?php echo htmlspecialchars($submitted_amount ?? ''); ?>">
                 <input type="hidden" name="receiver_mobile" id="modalReceiverMobile" value="<?php echo htmlspecialchars($receiver_mobile ?? ''); ?>">
 
@@ -1010,30 +1002,32 @@ try {
         function openPinModal(e) {
             e.preventDefault();
 
+            const token_id_val = document.getElementById('token_id_display').value.trim();
+            if (!token_id_val) {
+                alert("You have exceeded your sending limit.Please synchronize your wallet to continue.");
+                return;
+            }
+
             const receiverMobile = document.getElementById('receiver_mobile').value.trim();
             const amount = document.getElementById('amount').value;
 
-            // Check receiver mobile
             if (!/^[0-9]{10}$/.test(receiverMobile)) {
                 alert("Please enter a valid 10-digit receiver mobile number.");
                 return;
             }
 
-            // Check if receiver is the sender
             const senderMobile = "<?php echo htmlspecialchars($u_mob, ENT_QUOTES); ?>";
 
             if (receiverMobile === senderMobile) {
                 alert("You cannot send money to your own mobile number.");
-                return; // Stop here — PIN modal and QR will NOT open
+                return;
             }
 
-            // Check amount
             if (!amount || parseFloat(amount) <= 0) {
                 alert("Please enter a valid amount.");
                 return;
             }
 
-            // Everything is valid, now open PIN modal
             document.getElementById('modalReceiverMobile').value = receiverMobile;
             document.getElementById('modalHiddenAmount').value = amount;
             document.getElementById('modalPin').value = '';
@@ -1050,7 +1044,6 @@ try {
         }
 
         function closeTransactionInfo(event) {
-            // Close when the Close button is clicked or the dark backdrop is clicked.
             if (!event || event.target.id === 'transactionInfoModal') {
                 document.getElementById('transactionInfoModal').classList.remove('show');
             }
@@ -1075,7 +1068,7 @@ try {
 
             const ampm = hours >= 12 ? 'PM' : 'AM';
             hours = hours % 12;
-            hours = hours ? hours : 12; // convert 0 to 12
+            hours = hours ? hours : 12;
             const hoursStr = String(hours).padStart(2, '0');
 
             return `${year}-${month}-${day} ${hoursStr}:${minutes}:${seconds} ${ampm}`;
@@ -1084,14 +1077,10 @@ try {
         function generateQRCode(amount) {
             const qrcodeContainer = document.getElementById('qrcode');
             const timestamp = Date.now();
-            const formattedDateTime = getFormattedDateTime(timestamp);
 
             <?php
-
             $trans_mode = 'Offline';
-
             $s_amount = $d_send_amount;
-
             ?>
 
             const payload = {
@@ -1116,9 +1105,6 @@ try {
             document.getElementById('displayAmount').innerText = parseFloat(amount).toFixed(2);
         }
 
-        // Auto-generate QR if a valid QR exists in the PHP session.
-        // The original creation time is used so refreshing the page does
-        // not restart the 40-second countdown.
         <?php if ($verify && $submitted_amount > 0): ?>
             window.addEventListener('DOMContentLoaded', () => {
                 const qrWrapper = document.getElementById('qrWrapper');
@@ -1129,25 +1115,19 @@ try {
                 const receiverMobileInput = document.getElementById('receiver_mobile');
                 const amountInput = document.getElementById('amount');
 
-                // Function to restore form state when QR expires
-                function restoreFormOnExpire() {
-                    qrContainer.innerHTML = '';
-                    qrWrapper.style.display = 'none';
-                    timerElement.innerText = '0';
-
-                    // Display Proceed button and hide QR message
-                    if (btnProceed) btnProceed.style.display = 'block';
-                    if (qrActiveMsg) qrActiveMsg.style.display = 'none';
-
-                    // Make input fields editable again
-                    if (receiverMobileInput) receiverMobileInput.removeAttribute('readonly');
-                    if (amountInput) amountInput.removeAttribute('readonly');
+                function handleQrExpire() {
+                    // Clear the session via a quick background request so next load grabs the new token
+                    fetch('?clear_qr_session=1')
+                        .then(() => {
+                            window.location.reload();
+                        })
+                        .catch(() => {
+                            window.location.reload();
+                        });
                 }
 
-                // Generate the same transaction QR from the restored session data.
                 generateQRCode(<?php echo json_encode((float)$submitted_amount); ?>);
 
-                // Use the server-side creation time, not the page-load time.
                 const qrCreatedAt = <?php
                                     echo json_encode(
                                         isset($_SESSION['offline_qr']['created_at'])
@@ -1160,11 +1140,10 @@ try {
 
                 qrWrapper.style.display = 'block';
 
-                // Calculate remaining time immediately.
                 const initialRemainingMs = qrExpiresAt - Date.now();
 
                 if (initialRemainingMs <= 0) {
-                    restoreFormOnExpire();
+                    handleQrExpire();
                     return;
                 }
 
@@ -1181,7 +1160,7 @@ try {
 
                     if (remainingMs <= 0) {
                         clearInterval(qrCountdown);
-                        restoreFormOnExpire();
+                        handleQrExpire();
                     }
                 }, 100);
             });

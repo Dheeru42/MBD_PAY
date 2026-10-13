@@ -314,7 +314,8 @@ try {
                         'reason'          => $mess_fail,
                         'timestamp'       => date("Y-m-d h:i:s A")
                     ];
-                    header('Location: fail.php');
+                    // header('Location: fail.php');
+                    echo 'yes';
                 } else {
 
                     // sender wallet update
