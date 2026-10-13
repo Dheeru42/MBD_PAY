@@ -750,7 +750,7 @@ try {
             "status"          => "not assign",
             "created_at"      => date("Y-m-d H:i:s"),
             "update_at"       => date("Y-m-d H:i:s"),
-            "server_sync"     => "Synced"
+            "server_sync"     => "pending"
         ];
 
         $trx_file = hash("sha256", $token_id);
@@ -764,9 +764,8 @@ try {
         );
 
         // 2. Insert transaction data using a simple SQL query
-        $sql = "INSERT INTO offline_transactions (token_id, wallet_id, sender_mobile, receiver_mobile, send_balance,status, created_at, update_at, server_sync) 
-                VALUES ('{$trx_data['token_id']}', '{$trx_data['wallet_id']}', '{$trx_data['sender_mobile']}',
-                 '{$trx_data['receiver_mobile']}', '{$trx_data['send_balance']}', '{$trx_data['status']}',
+        $sql = "INSERT INTO offline_transactions (token_id, wallet_id, sender_mobile,status, created_at, update_at, server_sync) 
+                VALUES ('{$trx_data['token_id']}', '{$trx_data['wallet_id']}', '{$trx_data['sender_mobile']}','{$trx_data['status']}',
                  '{$trx_data['created_at']}', '{$trx_data['update_at']}', '{$trx_data['server_sync']}')";
 
         mysqli_query($conn, $sql);
