@@ -1085,10 +1085,9 @@ try {
 
             const payload = {
                 pay_mode: "<?php echo $trans_mode; ?>",
-                token_no: "<?php echo $timestamp; ?>",
+                token_no: "<?php echo encryptData($timestamp); ?>",
                 token_id: "<?php echo $token_id; ?>",
                 amount: "<?php echo encryptData($s_amount); ?>",
-                sender_mobile: "<?php echo encryptData($u_mob); ?>",
                 receiver_mobile: "<?php echo $verify ? encryptData($receiver_mobile) : ''; ?>",
             };
 

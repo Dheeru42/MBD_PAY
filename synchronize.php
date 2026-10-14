@@ -758,8 +758,8 @@ try {
             "receiver_mobile" => null,
             "send_balance"    => null,
             "status"          => "not assign",
-            "created_at"      => date("Y-m-d H:i:s"),
-            "update_at"       => date("Y-m-d H:i:s"),
+            "created_at"      => date("Y-m-d h:i:s A"),
+            "update_at"       => date("Y-m-d h:i:s A"),
             "server_sync"     => "pending"
         ];
 
