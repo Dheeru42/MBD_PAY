@@ -184,7 +184,7 @@ try {
         if ($pay_mode == 'Offline') {
             $qr_token_id = $data['token_id'];
             $qr_token_no = decryptData($data['token_no']);
-            $expires_at = $qr_token_no + 1200000000; // after check correct to 40 sec
+            $expires_at = $qr_token_no + 12000; // after check correct to 40 sec
             $qr_amount = decryptData($data['amount']);
             $e_qr_amount = $data['amount'];
             $qr_reciever_mobile = decryptData($data['receiver_mobile']);
@@ -301,18 +301,68 @@ try {
                 $old_encrypt_reciever_bal = $reciever_data['balance'];
 
                 $e_rec_update_bal = encryptData($old_decrypt_reciever_bal + $qr_amount);
-                
+
+                // check owner scan own qr money
+
+                if ($user_mob == $d_qr_sender_mobile) {
+
+                    $mess_fail = "You cannot scan your own QR money.";
+
+                    $_SESSION['failed_transaction'] = [
+                        'transaction_id' => $trx_id,
+                        'amount'          => $qr_amount,
+                        'sender_mobile'   => $d_qr_sender_mobile,
+                        'receiver_mobile' => $user_mob,
+                        'reason'          => $mess_fail,
+                        'timestamp'       => date("Y-m-d h:i:s A")
+                    ];
+                    header('Location: fail.php');
+                }
+
+                // check qr timeout or not
+
+                elseif ($timestamp > $expires_at) {
+
+                    $mess_fail = "This QR money is expired.";
+
+                    $_SESSION['failed_transaction'] = [
+                        'transaction_id' => $trx_id,
+                        'amount'          => $qr_amount,
+                        'sender_mobile'   => $d_qr_sender_mobile,
+                        'receiver_mobile' => $user_mob,
+                        'reason'          => $mess_fail,
+                        'timestamp'       => date("Y-m-d h:i:s A")
+                    ];
+                    header('Location: fail.php');
+                }
+
+                // check only receiver scanner is scan or not 
+
+                elseif ($user_mob != $qr_reciever_mobile) {
+
+                    $mess_fail = "You are not authorized to scan this QR money.";
+
+                    $_SESSION['failed_transaction'] = [
+                        'transaction_id' => $trx_id,
+                        'amount'          => $qr_amount,
+                        'sender_mobile'   => $d_qr_sender_mobile,
+                        'receiver_mobile' => $user_mob,
+                        'reason'          => $mess_fail,
+                        'timestamp'       => date("Y-m-d h:i:s A")
+                    ];
+                    header('Location: fail.php');
+                }
+
                 // all check work properly
 
-
-
-
-
-
-
+                elseif ($user_mob == $qr_reciever_mobile) {
+                    // code for update wallet of both users
+                } else {
+                    setQrFailure('We could not complete this transaction. Please try again.');
+                }
             } else {
                 // code if token not found
-                $mess_fail = "You are Scanning Un-Authorized Token.";
+                $mess_fail = "You are Scanning Un-Authorized Token.Please do not try to re-scan again.";
 
                 $_SESSION['failed_transaction'] = [
                     'transaction_id' => $trx_id,
@@ -583,7 +633,7 @@ try {
     }
 } catch (Throwable $e) {
     // Keep technical database errors out of the customer-facing page.
-    setQrFailure('We could not complete the transaction. Please try again.');
+    setQrFailure('We could not complete this transaction. Please try again.');
 }
 
 ?>
