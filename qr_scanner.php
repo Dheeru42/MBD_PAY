@@ -357,12 +357,13 @@ try {
 
                 elseif ($user_mob == $qr_reciever_mobile) {
                     // code for update wallet of both users
+                    echo 'work laadle';
                 } else {
                     setQrFailure('We could not complete this transaction. Please try again.');
                 }
             } else {
                 // code if token not found
-                $mess_fail = "You are Scanning Un-Authorized Token.Please do not try to re-scan again.";
+                $mess_fail = "You are Scanning an Un-Authorized Token.Please do not try to Scan again.";
 
                 $_SESSION['failed_transaction'] = [
                     'transaction_id' => $trx_id,
