@@ -1,0 +1,11 @@
+{
+    "token_id": "e602f5d2ef6b0ce6e943d8fff4699b74c85200e7dd94244bf38d4b389e9d4a12",
+    "wallet_id": "b6893d2e1b06fc7314372a26a86598ed74a4ca29f67ccd82a21f1ef3bf1b2f16",
+    "sender_mobile": "HCuYC0Jq\/sHG1uozEpXjUV2m+2kHQx1jW+2wQrWFhTw=",
+    "receiver_mobile": null,
+    "send_balance": null,
+    "status": "not assign",
+    "created_at": "2026-10-14 05:26:25 PM",
+    "update_at": "2026-10-14 05:26:25 PM",
+    "server_sync": "pending"
+}

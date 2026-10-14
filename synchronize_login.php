@@ -597,8 +597,8 @@ try {
 
 try {
     $userId = hash("sha256", $u_mob);
+
     $trx_file = "cache/users/$userId/transactions";
-    $date = date('Y-m-d H:i:s'); // Ensure timestamp is defined
 
     if (is_dir($trx_file)) {
         // Retrieve all .json files in the transactions directory
@@ -640,24 +640,21 @@ try {
                         if ($tokenExists && $receiverExists) {
                             $recieverCheck = 'Verified';
                             $sendBalance   = $data['send_balance'] ?? '0';
-                            $status        = $data['status'] ?? 'not scanned';
                             $serverSync    = $data['server_sync'] ?? 'pending';
 
                             $updateStmt = $conn->prepare("
                                 UPDATE offline_transactions 
                                 SET receiver_mobile = ?, 
                                     send_balance = ?, 
-                                    status = ?,  
                                     reciever_check = ?,
                                     update_at = ?
                                 WHERE token_id = ?
                             ");
 
                             $updateStmt->bind_param(
-                                "ssssss",
+                                "sssss",
                                 $e_recieverMobile,
                                 $sendBalance,
-                                $status,
                                 $recieverCheck,
                                 $date,
                                 $tokenId
@@ -668,24 +665,21 @@ try {
                         } elseif (!$receiverExists) {
                             $recieverCheck = 'Not Verified';
                             $sendBalance   = $data['send_balance'] ?? '0';
-                            $status        = $data['status'] ?? 'not scanned';
                             $serverSync    = $data['server_sync'] ?? 'pending';
 
                             $updateStmt = $conn->prepare("
                                 UPDATE offline_transactions 
                                 SET receiver_mobile = ?, 
                                     send_balance = ?, 
-                                    status = ?,  
                                     reciever_check = ?,
                                     update_at = ?
                                 WHERE token_id = ?
                             ");
 
                             $updateStmt->bind_param(
-                                "ssssss",
+                                "sssss",
                                 $e_recieverMobile,
                                 $sendBalance,
-                                $status,
                                 $recieverCheck,
                                 $date,
                                 $tokenId
@@ -705,16 +699,16 @@ try {
     error_log("Offline Transaction Processing Error: " . $th->getMessage());
 }
 
-/* if qr money cross 24 hour */
 
+// Mark entries as 'failed' immediately for status 'not assign' after syn
 try {
-    // Mark entries as 'failed' immediately for status 'not scanned'
+
     $updateStmt = $conn->prepare("
         UPDATE offline_transactions 
         SET server_sync = 'failed', 
             status = 'rejected',
             update_at = ?
-        WHERE status = 'not scanned' 
+        WHERE status = 'not assign' 
           AND server_sync = 'pending'
     ");
 
