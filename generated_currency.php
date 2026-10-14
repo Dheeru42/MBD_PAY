@@ -3346,7 +3346,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
 
 
             <p>
-                Enter your MBD Pay PIN to display
+                Enter your MBD PAY PIN to display
                 the QR code.
             </p>
 
