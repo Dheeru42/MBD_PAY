@@ -516,7 +516,7 @@ session_abort();
             COUNT(*) as total_count,
             SUM(CASE WHEN server_sync = 1 OR LOWER(server_sync) = 'yes' OR LOWER(server_sync) = 'synced' THEN 1 ELSE 0 END) as synced_count,
             SUM(CASE WHEN server_sync = 0 OR LOWER(server_sync) = 'no' OR LOWER(server_sync) = 'failed' THEN 1 ELSE 0 END) as failed_count
-            FROM offline_transactions WHERE wallet_id = '$hash_sender_wallet'";
+            FROM offline_transactions WHERE wallet_id = '$hash_sender_wallet' AND (reciever_check = 'Verified' OR reciever_check = 'Not Verified')";
 
         $stats_res = mysqli_query($conn, $total_query);
         $stats = mysqli_fetch_assoc($stats_res);
@@ -563,7 +563,6 @@ session_abort();
                     </div>
                     <button class="filter-btn active" onclick="filterSync('all', this)">All</button>
                     <button class="filter-btn" onclick="filterSync('synced', this)">Scanned</button>
-                    <button class="filter-btn" onclick="filterSync('pending', this)">Not Assign</button>
                     <button class="filter-btn" onclick="filterSync('failed', this)">Rejected</button>
                 </div>
             </div>
@@ -586,7 +585,7 @@ session_abort();
                     </thead>
                     <tbody>
                         <?php
-                        $query = "SELECT id, receiver_mobile ,send_balance, status,reciever_check ,created_at, update_at, server_sync FROM offline_transactions WHERE wallet_id = '$hash_sender_wallet' ORDER BY id DESC";
+                        $query = "SELECT id, receiver_mobile, send_balance, status, reciever_check, created_at, update_at, server_sync FROM offline_transactions WHERE wallet_id = '$hash_sender_wallet' AND (reciever_check = 'Verified' OR reciever_check = 'Not Verified') ORDER BY id DESC";
                         $result = mysqli_query($conn, $query);
                         if ($result && mysqli_num_rows($result) > 0) {
                             $counter = 0;
