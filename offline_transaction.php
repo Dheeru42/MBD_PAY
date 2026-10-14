@@ -300,6 +300,22 @@ session_abort();
             background-color: #f0fdf4;
         }
 
+        /* Centered dash badge for null/empty values */
+        .empty-dash-m {
+            display: inline-block;
+            width: 100%;
+            font-weight: arial;
+            color: #9ca3af;
+        }
+
+        .empty-dash-b {
+            display: inline-block;
+            width: 100%;
+            /* padding-left:30px; */
+            font-weight: arial;
+            color: #9ca3af;
+        }
+
         /* Info Button Styling */
         .info-btn {
             background: #e0f2fe;
@@ -368,6 +384,16 @@ session_abort();
         .sync-no {
             background: #fef3c7;
             color: #92400e;
+        }
+
+        .sync-failed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .sync-not {
+            background: #fee2e2;
+            color: #991b1b;
         }
 
         .no-data {
@@ -537,6 +563,7 @@ session_abort();
                     </div>
                     <button class="filter-btn active" onclick="filterSync('all', this)">All</button>
                     <button class="filter-btn" onclick="filterSync('synced', this)">Scanned</button>
+                    <button class="filter-btn" onclick="filterSync('pending', this)">Not Assign</button>
                     <button class="filter-btn" onclick="filterSync('failed', this)">Rejected</button>
                 </div>
             </div>
@@ -571,8 +598,8 @@ session_abort();
                                 if (in_array($status, ['scanned', 'success'])) {
                                     $statusClass = 'badge-success';
                                     $statusDot = '🟢';
-                                } elseif (in_array($status, ['not scanned'])) {
-                                    $statusClass = 'badge-failed';
+                                } elseif (in_array($status, ['not assign'])) {
+                                    $statusClass = 'badge-pending';
                                     $statusDot = '🟡';
                                 } else {
                                     $statusClass = 'badge-failed';
@@ -600,6 +627,9 @@ session_abort();
                                 if ($res_check == 'Verified') {
                                     $res_yes = 1;
                                     $resClass = 'sync-yes';
+                                } elseif ($res_check == 'Not Verified') {
+                                    $res_yes = 0;
+                                    $resClass = 'sync-not';
                                 } else {
                                     $res_yes = 0;
                                     $resClass = 'sync-no';
@@ -607,28 +637,47 @@ session_abort();
 
                                 $syncIcon = match ($syncAttr) {
                                     'synced' => '✓ ',
-                                    'failed' => '❌ ', // or '🔴 '
+                                    'failed' => '❌ ',
                                     default  => '🔄 ',
                                 };
 
-                                /* decrypted data to display in table */
-
-                                $send_bal = decryptData($row['send_balance']);
-
-                                $decryptedMobile = decryptData($row['receiver_mobile']) ?? null;
-
-                                if ($decryptedMobile == null) {
-                                    $maskedMobile = 'null';
+                                /* Balance processing with null/empty check */
+                                $raw_balance = $row['send_balance'];
+                                if (!empty($raw_balance)) {
+                                    $decrypted_bal = decryptData($raw_balance);
+                                    $send_bal = ($decrypted_bal !== false && trim($decrypted_bal) !== '') ? (float)$decrypted_bal : null;
                                 } else {
+                                    $send_bal = null;
+                                }
 
+                                /* Mobile processing with null/empty check */
+                                $raw_mobile = $row['receiver_mobile'];
+                                $decryptedMobile = !empty($raw_mobile) ? decryptData($raw_mobile) : null;
+
+                                if (empty($decryptedMobile)) {
+                                    $maskedMobile = '<span class="empty-dash-m">Not available</span>';
+                                } else {
                                     $maskedMobile = substr($decryptedMobile, 0, 2) . '******' . substr($decryptedMobile, -2);
                                 }
+
                                 echo "<tr data-sync='{$syncAttr}'>";
                                 echo "<td><strong>" . htmlspecialchars($counter) . "</strong></td>";
-                                echo "<td>" . htmlspecialchars($maskedMobile) . "</td>";
-                                echo "<td><strong>₹" . number_format((float)$send_bal, 2) . "</strong></td>";
+                                echo "<td>" . $maskedMobile . "</td>";
+
+                                // Centered dash display for null or empty send_balance
+                                if ($send_bal === null || $send_bal <= 0) {
+                                    echo "<td><span class='empty-dash-m'>Not available</span></td>";
+                                } else {
+                                    echo "<td><strong>₹" . number_format($send_bal, 2) . "</strong></td>";
+                                }
+
                                 echo "<td><span class='badge {$statusClass}'>{$statusDot} " . htmlspecialchars(ucfirst($row['status'])) . "</span></td>";
-                                echo "<td><span class='sync-badge {$resClass}'>" . ($res_yes ? '✓ ' : '❌') . htmlspecialchars($res_check) . "</span></td>";
+
+                                if ($res_check == null) {
+                                    echo "<td><span class='sync-badge {$resClass}'>" . htmlspecialchars('Not available') . "</span></td>";
+                                } else {
+                                    echo "<td><span class='sync-badge {$resClass}'>" . ($res_yes ? '✓ ' : '❌ ') . htmlspecialchars($res_check) . "</span></td>";
+                                }
                                 echo "<td>" . htmlspecialchars($row['created_at']) . "</td>";
                                 echo "<td>" . htmlspecialchars($row['update_at']) . "</td>";
                                 echo "<td><span class='sync-badge {$syncClass}'>" . $syncIcon . htmlspecialchars($syncText) . "</span></td>";

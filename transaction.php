@@ -860,7 +860,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 
                                     <td>
-                                        #<?php echo $row['transaction_id']; ?>
+                                        <?php echo $row['transaction_id']; ?>
                                     </td>
 
 
