@@ -640,23 +640,29 @@ try {
                             $recieverCheck = 'Verified';
                             $sendBalance   = $data['send_balance'] ?? '0';
                             $serverSync    = $data['server_sync'] ?? 'pending';
+                            $status = $data['status'] ?? 'not scanned';
+                            $pr_status = 'not assign';
 
                             $updateStmt = $conn->prepare("
                                 UPDATE offline_transactions 
                                 SET receiver_mobile = ?, 
-                                    send_balance = ?,   
+                                    send_balance = ?, 
+                                    status = ?,
                                     reciever_check = ?,
                                     update_at = ?
                                 WHERE token_id = ?
+                                AND status = ? 
                             ");
 
                             $updateStmt->bind_param(
-                                "sssss",
+                                "sssssss",
                                 $e_recieverMobile,
                                 $sendBalance,
+                                $status,
                                 $recieverCheck,
                                 $date,
-                                $tokenId
+                                $tokenId,
+                                $pr_status
                             );
 
                             $updateStmt->execute();
@@ -665,23 +671,29 @@ try {
                             $recieverCheck = 'Not Verified';
                             $sendBalance   = $data['send_balance'] ?? '0';
                             $serverSync    = $data['server_sync'] ?? 'pending';
+                            $status = $data['status'] ?? 'not scanned';
+                            $pr_status = 'not assign';
 
                             $updateStmt = $conn->prepare("
                                 UPDATE offline_transactions 
                                 SET receiver_mobile = ?, 
-                                    send_balance = ?,  
+                                    send_balance = ?, 
+                                    status = ?,
                                     reciever_check = ?,
                                     update_at = ?
                                 WHERE token_id = ?
+                                AND status = ?
                             ");
 
                             $updateStmt->bind_param(
-                                "sssss",
+                                "sssssss",
                                 $e_recieverMobile,
                                 $sendBalance,
+                                $status,
                                 $recieverCheck,
                                 $date,
-                                $tokenId
+                                $tokenId,
+                                $pr_status
                             );
 
                             $updateStmt->execute();
@@ -707,7 +719,7 @@ try {
         SET server_sync = 'failed', 
             status = 'rejected',
             update_at = ?
-        WHERE status = 'not assign' 
+        WHERE status = 'not scanned' 
           AND server_sync = 'pending'
     ");
 
