@@ -192,6 +192,138 @@ try {
 
             /* Create Transaction id */
             $trx_id = createTransactionId();
+
+            /* check token id exist or not */
+
+            $token_stmt = mysqli_prepare(
+                $conn,
+                "SELECT
+                * FROM offline_transactions
+             WHERE token_id = ?
+             LIMIT 1"
+            );
+
+            if (!$token_stmt) {
+                throw new Exception('Database prepare failed.');
+            }
+
+            mysqli_stmt_bind_param(
+                $token_stmt,
+                's',
+                $qr_token_id
+            );
+
+            if (!mysqli_stmt_execute($token_stmt)) {
+                throw new Exception('Database query failed.');
+            }
+
+            $token_result = mysqli_stmt_get_result($token_stmt);
+
+            if (!$token_result) {
+                throw new Exception("Unable to read token's record.");
+            }
+
+            $token_data = mysqli_fetch_assoc($token_result);
+
+            $e_qr_sender_mobile = $token_data['sender_mobile'];
+
+            $d_qr_sender_mobile = decryptData($token_data['sender_mobile']);
+
+            if ($token_data) {
+
+                // fetch data of qr sender
+                $sender_stmt = mysqli_prepare(
+                    $conn,
+                    "SELECT * FROM users WHERE mobile = ? LIMIT 1"
+                );
+
+                if (!$sender_stmt) {
+                    throw new Exception('Database prepare failed.');
+                }
+
+                mysqli_stmt_bind_param(
+                    $sender_stmt,
+                    's',
+                    $d_qr_sender_mobile
+                );
+
+                if (!mysqli_stmt_execute($sender_stmt)) {
+                    throw new Exception('Database query failed.');
+                }
+
+                $sender_result = mysqli_stmt_get_result($sender_stmt);
+
+                if (!$sender_result) {
+                    throw new Exception('Unable to read currency record.');
+                }
+
+                $sender_data = mysqli_fetch_assoc($sender_result);
+
+                $decrypt_sender_bal = decryptData($sender_data['balance']);
+
+
+                $encrypt_sender_bal = $sender_data['balance'];
+
+                $decrypt_sender_wallet = $sender_data['wallet_id'];
+
+                $e_qr_sender_update_bal = encryptData($decrypt_sender_bal - $qr_amount);
+
+                // fetch data of qr reciever
+                $reciever_stmt = mysqli_prepare(
+                    $conn,
+                    "SELECT * FROM users WHERE mobile = ? LIMIT 1"
+                );
+
+                if (!$reciever_stmt) {
+                    throw new Exception('Database prepare failed.');
+                }
+
+                mysqli_stmt_bind_param(
+                    $reciever_stmt,
+                    's',
+                    $qr_reciever_mobile
+                );
+
+                if (!mysqli_stmt_execute($reciever_stmt)) {
+                    throw new Exception('Database query failed.');
+                }
+
+                $reciever_result = mysqli_stmt_get_result($reciever_stmt);
+
+                if (!$reciever_result) {
+                    throw new Exception('Unable to read currency record.');
+                }
+
+                $reciever_data = mysqli_fetch_assoc($reciever_result);
+
+                $old_decrypt_reciever_bal = decryptData($reciever_data['balance']);
+
+                $old_encrypt_reciever_bal = $reciever_data['balance'];
+
+                $e_rec_update_bal = encryptData($old_decrypt_reciever_bal + $qr_amount);
+                
+                // all check work properly
+
+
+
+
+
+
+
+            } else {
+                // code if token not found
+                $mess_fail = "You are Scanning Un-Authorized Token.";
+
+                $_SESSION['failed_transaction'] = [
+                    'transaction_id' => $trx_id,
+                    'amount'          => $qr_amount,
+                    'sender_mobile'   => $d_qr_sender_mobile,
+                    'receiver_mobile' => $user_mob,
+                    'reason'          => $mess_fail,
+                    'timestamp'       => date("Y-m-d h:i:s A")
+                ];
+                header('Location: fail.php');
+            }
         }
 
 
