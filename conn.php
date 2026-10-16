@@ -1,5 +1,6 @@
 <?php
 
+// intialize users server
 $serverConnected = false;
 
 try {
@@ -12,9 +13,12 @@ try {
     );
 
     if ($conn) {
+
         $serverConnected = true;
     }
 } catch (\Throwable $th) {
+
     $conn = false;
+
     $message1 = "Please connect to the Internet.";
 }

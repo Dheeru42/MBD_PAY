@@ -1,3 +1,5 @@
+<!-- code for footer -->
+
 <footer class="mbd-footer">
 
     <div class="footer-content">

@@ -1,5 +1,6 @@
 <?php
 
+// intialize currency server
 $serverConnected = false;
 
 try {
@@ -12,9 +13,12 @@ try {
     );
 
     if ($c_conn) {
+
         $serverConnected = true;
+
     }
 } catch (\Throwable $th) {
     $c_conn = false;
+    
     $message1 = "Please connect to the Internet.";
 }

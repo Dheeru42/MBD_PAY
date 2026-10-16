@@ -1,5 +1,6 @@
 <?php
 
+// intialize bank server
 $serverConnected = false;
 
 try {
@@ -12,9 +13,12 @@ try {
     );
 
     if ($bank_conn) {
+
         $serverConnected = true;
     }
 } catch (\Throwable $th) {
+
     $bank_conn = false;
+
     $message1 = "Please connect to the Internet.";
 }

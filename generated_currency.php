@@ -8,16 +8,22 @@ $message = "";
 
 $message1 = "";
 
+// include server's
+
 require_once 'conn.php';
+
 require_once 'bank_conn.php';
+
 require_once 'currency_con.php';
 
 // catch logic
 
 define("CACHE_DIR", __DIR__ . "/cache/users/");
+
 require_once 'keys/config.php';
 
 /* Encrypt Function */
+
 function encryptData($text)
 {
     $key = hash("sha256", SECRET_KEY, true);

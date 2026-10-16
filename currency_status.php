@@ -1,22 +1,24 @@
 <?php
+
 session_start();
 
+// assign indian time standard
 date_default_timezone_set('Asia/Kolkata');
 
+// include server's
 require_once 'conn.php';
+
 require_once 'currency_con.php';
 
+// check server connected or not
 if (!$serverConnected) {
 
     header("location:index.php");
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| LOGIN CHECK
-|--------------------------------------------------------------------------
-*/
+/* LOGIN CHECK */
+
 if (!isset($_SESSION['user'])) {
     header("location:login.php");
     exit;
@@ -45,14 +47,13 @@ if (!isset($_SESSION['wallet_id'])) {
 
 $u_wallet_id = $_SESSION['wallet_id'];
 
-/*
-|--------------------------------------------------------------------------
-| ENCRYPT / DECRYPT
-| Same structure used by generated_currency.php
-|--------------------------------------------------------------------------
-*/
 require_once 'keys/config.php';
+
+/* assign cache directory*/
+
 define("CACHE_DIR", __DIR__ . "/cache/users/");
+
+/* decrypt function*/
 
 function decryptData($text)
 {
@@ -156,9 +157,8 @@ try {
 
         $status = strtoupper(trim($row['status'] ?? 'UNKNOWN'));
 
-        /*
-        | Amount follows the same encrypted structure as generated_currency.php.
-        */
+        /* Amount follows the same encrypted structure as generated_currency.php. */
+
         $amount = (float) decryptData($row['amount'] ?? '');
 
         $row['_amount'] = $amount;
@@ -188,11 +188,8 @@ try {
     $status_counts = [];
 }
 
-/*
-|--------------------------------------------------------------------------
-| STATUS COLORS / LABELS
-|--------------------------------------------------------------------------
-*/
+/* STATUS COLORS / LABELS */
+
 function statusClass($status)
 {
     $status = strtoupper($status);
@@ -295,10 +292,6 @@ function statusIcon($status)
             margin: auto;
             padding: 30px 25px 120px;
         }
-
-        /* NAVBAR
-           navbar.php owns the navbar styling. Do not override it here.
-        */
 
         /* HERO */
 

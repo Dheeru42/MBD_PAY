@@ -2,11 +2,6 @@
 
 session_start();
 
-// if (!isset($_SESSION['failed_transaction'])) {
-//     header("Location: index.php");
-//     exit;
-// }
-
 $transaction = $_SESSION['failed_transaction'];
 
 $trx_token_id         = $transaction['token_id'] ?? '';
@@ -67,9 +62,7 @@ session_abort();
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
     <style>
-        /* =========================
-   BASIC RESET
-========================= */
+        /* BASIC RESET */
 
         * {
             margin: 0;
@@ -111,9 +104,7 @@ session_abort();
         }
 
 
-        /* =========================
-   BACKGROUND GLOW
-========================= */
+        /* BACKGROUND GLOW */
 
         .glow {
 
@@ -151,9 +142,7 @@ session_abort();
         }
 
 
-        /* =========================
-   MAIN CARD
-========================= */
+        /* MAIN CARD */
 
         .failed-card {
 
@@ -214,9 +203,7 @@ session_abort();
         }
 
 
-        /* =========================
-   LOGO
-========================= */
+        /* LOGO */
 
         .logo {
 
@@ -239,9 +226,7 @@ session_abort();
         }
 
 
-        /* =========================
-   FAILED ICON
-========================= */
+        /* FAILED ICON */
 
         .failed-icon {
 
@@ -339,9 +324,7 @@ session_abort();
         }
 
 
-        /* =========================
-   CROSS
-========================= */
+        /* CROSS */
 
         .cross {
 
@@ -390,9 +373,7 @@ session_abort();
         }
 
 
-        /* =========================
-   HEADING
-========================= */
+        /* HEADING */
 
         .title {
 
@@ -415,9 +396,7 @@ session_abort();
         }
 
 
-        /* =========================
-   AMOUNT
-========================= */
+        /* AMOUNT */
 
         .amount-box {
 
@@ -463,9 +442,7 @@ session_abort();
         }
 
 
-        /* =========================
-   FAILURE REASON
-========================= */
+        /* FAILURE REASON */
 
         .reason-box {
 
@@ -511,9 +488,7 @@ session_abort();
         }
 
 
-        /* =========================
-   DETAILS
-========================= */
+        /* DETAILS */
 
         .details {
 
@@ -589,9 +564,7 @@ session_abort();
         }
 
 
-        /* =========================
-   STATUS
-========================= */
+        /* STATUS */
 
         .status {
 
@@ -638,9 +611,7 @@ session_abort();
         }
 
 
-        /* =========================
-   BUTTONS
-========================= */
+        /* BUTTONS */
 
         .buttons {
 
@@ -730,9 +701,7 @@ session_abort();
         }
 
 
-        /* =========================
-   FOOTER
-========================= */
+        /* FOOTER */
 
         .footer {
 
@@ -748,9 +717,7 @@ session_abort();
         }
 
 
-        /* =========================
-   MOBILE
-========================= */
+        /* MOBILE */
 
         @media(max-width: 500px) {
 
