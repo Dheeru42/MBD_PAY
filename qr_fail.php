@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 
 date_default_timezone_set('Asia/Kolkata');
@@ -6,7 +7,9 @@ date_default_timezone_set('Asia/Kolkata');
 $result = $_SESSION['qr_result'] ?? null;
 
 if (!is_array($result) || ($result['status'] ?? '') !== 'FAILED') {
+
     $result = [
+
         'transaction_id' => '—',
         'status' => 'FAILED',
         'reason' => 'Unable to process the QR code.',
@@ -22,33 +25,51 @@ function e($value): string
 {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 }
+
 function maskMobile($mobile): string
 {
     $mobile = preg_replace('/\D+/', '', (string)$mobile);
+
     if ($mobile === '') return 'Not available';
+
     if (strlen($mobile) <= 4) return str_repeat('*', strlen($mobile));
+
     return str_repeat('*', max(0, strlen($mobile) - 4)) . substr($mobile, -4);
 }
+
 function money($amount): string
 {
+
     if ($amount === null || $amount === '') return '₹—';
+
     return '₹' . number_format((float)$amount, 2);
 }
 function formatDateTime($value): string
 {
+
     if (!$value) return date('d M Y, h:i A');
+
     $time = strtotime((string)$value);
+
     return $time ? date('d M Y, h:i A', $time) : e($value);
 }
 
 $transactionId = $result['transaction_id'] ?? '—';
+
 $reason = $result['reason'] ?? 'Unable to process the QR code.';
+
 $amount = money($result['amount'] ?? null);
+
 $serial = $result['serial_no'] ?? '—';
+
 $sender = maskMobile($result['sender_mobile'] ?? '');
+
 $receiver = maskMobile($result['receiver_mobile'] ?? '');
+
 $completed = formatDateTime($result['completed_at'] ?? null);
+
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -56,10 +77,15 @@ $completed = formatDateTime($result['completed_at'] ?? null);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="theme-color" content="#7f1d1d">
+
     <title>MBD PAY | Payment Failed</title>
+
     <link rel="icon"
         type="image/svg+xml"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' 
+        height='100' rx='20' fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' 
+        font-weight='bold' fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
+
     <style>
         * {
             box-sizing: border-box
@@ -525,70 +551,122 @@ $completed = formatDateTime($result['completed_at'] ?? null);
             }
         }
     </style>
+
 </head>
 
 <body>
+
     <div class="app">
+
         <header class="topbar">
+
             <a class="back" href="qr_scanner.php" aria-label="Back">‹</a>
+
             <div class="brand">MBD <span>PAY</span></div>
+
             <div class="live">SECURE</div>
+
         </header>
+
         <main class="content">
+
             <div class="status-orbit">
+
                 <div class="fail-icon">×</div>
+
             </div>
+
             <h1>Payment Unsuccessful</h1>
+
             <p class="subtitle">Your transaction could not be completed.</p>
 
             <div class="alert">
+
                 <div class="alert-icon">!</div>
+
                 <div><b>WHAT HAPPENED?</b><span><?= e($reason) ?></span></div>
+
             </div>
 
             <section class="card">
+
                 <div class="amount-head">
+
                     <div>
+
                         <div class="caption">Transaction Amount</div>
+
                         <div class="amount"><?= e($amount) ?></div>
+
                     </div>
+
                     <div class="badge">FAILED</div>
+
                 </div>
 
                 <div class="section">Transaction details</div>
+
                 <div class="row"><span class="key">Transaction ID</span><span class="value"><?= e($transactionId) ?></span></div>
+
                 <div class="row"><span class="key">Currency Serial No.</span><span class="value"><?= e($serial) ?></span></div>
+
                 <div class="row"><span class="key">From (Sender)</span><span class="value"><?= e($sender) ?></span></div>
+
                 <div class="row"><span class="key">To (Receiver)</span><span class="value"><?= e($receiver) ?></span></div>
+
                 <div class="row"><span class="key">Date &amp; Time</span><span class="value"><?= e($completed) ?></span></div>
+
                 <div class="row"><span class="key">Status</span><span class="value" style="color:#dc2626">Payment Failed</span></div>
+
             </section>
 
             <div class="actions professional-actions">
+
                 <a class="action-btn primary-action" href="qr_scanner.php">
+
                     <span class="action-icon">↻</span>
+
                     <span><b>Scan Again</b><small>Try another QR code</small></span>
+
                 </a>
+
                 <a class="action-btn secondary-action" href="index.php">
+
                     <span class="action-icon">⌂</span>
+
                     <span><b>Back to Home</b><small>Return to dashboard</small></span>
+
                 </a>
+
                 <button type="button" class="action-btn secondary-action" onclick="shareReceipt()">
+
                     <span class="action-icon">↗</span>
+
                     <span><b>Share Receipt</b><small>Send transaction details</small></span>
+
                 </button>
+
                 <button type="button" class="action-btn primary-action" onclick="printReceipt()">
+
                     <span class="action-icon">▣</span>
+
                     <span><b>Print Receipt</b><small>Print or save as PDF</small></span>
+
                 </button>
+
             </div>
+
             <p id="utilityMessage" class="utility-message"></p>
+
             <p class="footer-note">Keep your Transaction ID if you need support.</p>
+
         </main>
+
     </div>
 
     <script>
         const receiptData = {
+
             title: "MBD PAY - Failed Transaction Receipt",
             status: "Payment Failed",
             amount: <?= json_encode($amount) ?>,
@@ -598,9 +676,11 @@ $completed = formatDateTime($result['completed_at'] ?? null);
             receiver: <?= json_encode((string)$receiver) ?>,
             dateTime: <?= json_encode((string)$completed) ?>,
             reason: <?= json_encode((string)$reason) ?>
+
         };
 
         function receiptText() {
+
             return [
                 "MBD PAY - TRANSACTION RECEIPT",
                 "-----------------------------",
@@ -613,10 +693,13 @@ $completed = formatDateTime($result['completed_at'] ?? null);
                 "To (Receiver): " + receiptData.receiver,
                 "Date & Time: " + receiptData.dateTime
             ].join("\n");
+
         }
 
         async function shareReceipt() {
+
             const text = receiptText();
+
             const message = document.getElementById("utilityMessage");
 
             if (navigator.share) {
@@ -625,23 +708,36 @@ $completed = formatDateTime($result['completed_at'] ?? null);
                         title: receiptData.title,
                         text: text
                     });
+
                     message.textContent = "Receipt shared successfully.";
+
                     return;
+
                 } catch (error) {
+
                     if (error && error.name === "AbortError") return;
+
                 }
             }
 
             try {
+
                 await navigator.clipboard.writeText(text);
+
                 message.textContent = "Receipt copied. Paste it into WhatsApp, SMS or email.";
+
             } catch (error) {
+
                 window.prompt("Copy this receipt:", text);
+
             }
+
         }
 
         function printReceipt() {
+
             window.print();
+
         }
     </script>
 

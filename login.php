@@ -4,22 +4,28 @@ session_start();
 
 date_default_timezone_set('Asia/Kolkata');
 
+/* include server's */
+
 require_once 'conn.php';
 
-// bank conn
 require_once 'bank_conn.php';
 
 // Check server connection early so it is available globally
+
 $serverConnected = ($conn && $bank_conn);
 
 $message = "";
+
 $message1 = "";
 
 // cache create logic
+
 define("CACHE_DIR", __DIR__ . "/cache/users/");
+
 require_once 'keys/config.php';
 
 /* Encrypt Function */
+
 function encryptData($text)
 {
     $key = hash("sha256", SECRET_KEY, true);
@@ -37,6 +43,7 @@ function encryptData($text)
 }
 
 /* Decrypt Function */
+
 function decryptData($text)
 {
     $key = hash("sha256", SECRET_KEY, true);
@@ -54,12 +61,15 @@ function decryptData($text)
 }
 
 /* Save User Data */
+
 function saveUserCache($name, $wallet_id, $account, $mobile, $email, $password, $pin, $balance = 0)
 {
     $userId = hash("sha256", $mobile);
+
     $folder = CACHE_DIR . $userId;
 
     // Create folders
+
     if (!is_dir($folder)) {
         mkdir($folder . "/currency", 0777, true);
         mkdir($folder . "/transactions", 0777, true);
@@ -90,44 +100,66 @@ function saveUserCache($name, $wallet_id, $account, $mobile, $email, $password, 
 }
 
 // SIGNUP
+
 try {
     if (isset($_POST['signup'])) {
+
         $name   = $_POST['name'];
+
         $mobile = $_POST['mobile'];
+
         $email  = $_POST['email'];
+
         $acc1   = $_POST['account'];
+
         $_SESSION['account'] = $acc1;
+
         $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+
         $pin      = password_hash($_POST['pin'], PASSWORD_DEFAULT);
 
         if ($serverConnected) {
+
             // Verify account on Bank Server
+
             $bankSql = "SELECT * FROM users
                         WHERE account_number='$acc1'
                         AND name='$name'
                         AND mobile='$mobile'";
+
             $b_result = mysqli_query($bank_conn, $bankSql);
 
             if (mysqli_num_rows($b_result) > 0) {
+
                 // Check if already registered in MBD Pay
+
                 $checkSql = "SELECT id FROM users WHERE account_no='$acc1'";
+
                 $result = mysqli_query($conn, $checkSql);
                 if (mysqli_num_rows($result) > 0) {
                     $message1 = "Already Exist Account in MBD PAY.";
                 } else {
+
                     // Store user in MBD Pay Server
+
                     $acc = $_POST['account'];
 
                     // fetch id from bank server
+
                     $bankUser = mysqli_fetch_assoc($b_result);
+
                     $bank_user_id = $bankUser['id'];
 
                     // initial MBD PAY Balance
+
                     $s_balance = 0;
+
                     $e_s_balance = encryptData($s_balance);
 
                     // create unique wallet id for user
+
                     $year = date("y");
+
                     $wallet_id = "MBD" . $year . str_pad($bank_user_id, 2, "0", STR_PAD_LEFT);
 
                     $insertSql = "INSERT INTO users
@@ -136,47 +168,68 @@ try {
                     ('$wallet_id','$name',$acc,'$mobile','$email','$password','$pin','$e_s_balance')";
 
                     if (mysqli_query($conn, $insertSql)) {
+
                         $message = "Account Created. Now Log In";
+
                         // create cache file
+
                         saveUserCache($name, $wallet_id, $acc, $mobile, $email, $password, $pin, 0);
                     } else {
+
                         $message1 = "Account Not Created.";
                     }
                 }
             } else {
+
                 $message1 = "Enter Correct Details.";
             }
         } else {
+
             $message1 = "Please connect to the Internet.";
         }
     }
 } catch (\Throwable $th) {
+
     $message1 = "Something went wrong.";
 }
 
 // LOGIN
+
 try {
     if (isset($_POST['login'])) {
+
         $mobile   = $_POST['mobile'];
+
         $password = $_POST['password'];
 
         // user cache path
+
         $userId  = hash("sha256", $mobile);
+
         $profile = CACHE_DIR . $userId . "/profile.json";
 
         if ($serverConnected) {
-            // -------- ONLINE LOGIN --------
+
+            /* ONLINE LOGIN */
+
             $stmt = mysqli_prepare($conn, "SELECT * FROM users WHERE mobile=?");
+
             mysqli_stmt_bind_param($stmt, "s", $mobile);
+
             mysqli_stmt_execute($stmt);
+
             $result = mysqli_stmt_get_result($stmt);
 
             if (mysqli_num_rows($result) > 0) {
+
                 $user = mysqli_fetch_assoc($result);
 
                 if (password_verify($password, $user['password'])) {
+
                     // recreate cache if deleted
+
                     if (!file_exists($profile)) {
+
                         saveUserCache(
                             $user['name'],
                             $user['wallet_id'],
@@ -190,54 +243,79 @@ try {
                     }
 
                     $_SESSION['user']      = $user['name'];
+
                     $_SESSION['mobile']    = $user['mobile'];
+
                     $_SESSION['wallet_id'] = $user['wallet_id'];
+
                     $_SESSION['balance']   = decryptData($user['balance']);
+
                     $_SESSION['account']   = $user['account_no'];
+
                     $_SESSION['mode']      = "ONLINE";
 
                     header("location:synchronize_login.php");
+
                     exit;
                 } else {
+
                     $message1 = "Invalid Password";
                 }
             } else {
+
                 $message1 = "User Not Found";
             }
         } else {
-            // -------- OFFLINE LOGIN --------
+
+            /* OFFLINE LOGIN */
+
             if (!file_exists($profile)) {
+
                 $message1 = "No local cache found. Connect internet first.";
             } else {
+
                 $cache = json_decode(file_get_contents($profile), true);
 
                 if (password_verify($password, $cache['password'])) {
+
                     $_SESSION['user']      = decryptData($cache['name']);
+
                     $_SESSION['mobile']    = decryptData($cache['mobile']);
+
                     $_SESSION['wallet_id'] = decryptData($cache['wallet_id']);
+
                     $_SESSION['email']     = decryptData($cache['email']);
+
                     $_SESSION['account']   = decryptData($cache['account']);
+
                     $_SESSION['balance']   = decryptData($cache['balance']);
+
                     $_SESSION['mode']      = "OFFLINE";
 
                     header("location:index.php");
+
                     exit;
                 } else {
+
                     $message1 = "Invalid Password";
                 }
             }
         }
     }
 } catch (\Throwable $th) {
+
     $message1 = "Login Error. Please try again.";
 }
 
 ?>
+
 <!DOCTYPE html>
 <html>
 
 <head>
-    <title>MBD Pay | Login</title>
+
+    <title>MBD PAY | Login</title>
+
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
     <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -255,7 +333,7 @@ try {
             background: radial-gradient(circle at top, #bbf7d0, #ecfdf5, #d1fae5);
         }
 
-        /* ================= NAVBAR ================= */
+        /* NAVBAR */
         .mbd-navbar {
             width: 95%;
             margin: 20px auto;
@@ -338,7 +416,7 @@ try {
             }
         }
 
-        /* ================= LOGIN AREA ================= */
+        /* LOGIN AREA */
         .auth-wrapper {
             min-height: calc(100vh - 120px);
             display: flex;
@@ -455,49 +533,73 @@ try {
             }
         }
     </style>
+
 </head>
 
 <body>
 
     <!-- NAVBAR -->
+
     <nav class="mbd-navbar">
+
         <div class="mbd-brand">
+
             <div class="mbd-icon">₹</div>
+
             MBD PAY
+
         </div>
 
         <ul class="mbd-links">
+
             <li><a href="login.php">🏠 Home</a></li>
+
         </ul>
 
         <div class="server-status">
+
             <span class="status <?php echo $serverConnected ? 'connected' : 'disconnected'; ?>"></span>
+
             <?php
+
             if ($serverConnected) {
+
                 echo "🟢 Online - Sync Ready";
             } else {
+
                 echo "🔴 Offline - Local Cache";
             }
+
             ?>
+
         </div>
+
     </nav>
 
     <!-- LOGIN / SIGNUP -->
+
     <div class="auth-wrapper">
+
         <div class="container">
+
             <div class="auth-logo">₹ MBD PAY</div>
 
             <div id="clientMsg" class="message1" style="display: none;"></div>
 
             <?php if ($message != ""): ?>
+
                 <div class='message'><?php echo $message; ?></div>
+
             <?php endif; ?>
 
             <?php if ($message1 != ""): ?>
+
                 <div class='message1'><?php echo $message1; ?></div>
+
             <?php endif; ?>
 
             <div class="tabs">
+
                 <button onclick="showLogin()" id="loginBtn" class="active">
                     Login
                 </button>
@@ -505,74 +607,119 @@ try {
                 <button onclick="showSignup()" id="signupBtn">
                     Signup
                 </button>
+
             </div>
 
             <!-- LOGIN FORM -->
+
             <form method="post" class="form active" id="login">
+
                 <input type="tel" name="mobile" placeholder="Enter 10 digit mobile number" pattern="[6-9][0-9]{9}" maxlength="10" required>
+
                 <input type="password" name="password" placeholder="Password" required>
+
                 <button class="submit" name="login">Login</button>
+
             </form>
 
             <!-- SIGNUP FORM -->
+
             <?php if ($serverConnected): ?>
+
                 <form method="post" class="form" id="signup">
+
                     <input name="name" placeholder="Full Name" required>
+
                     <input type="tel" name="mobile" placeholder="Enter mobile number" pattern="[6-9][0-9]{9}" maxlength="10" required>
+
                     <input type="email" name="email" placeholder="email" required>
+
                     <input type="tel" name="account" placeholder="Enter Account Number" maxlength="12" pattern="[0-9]{10,12}" inputmode="numeric" required>
+
                     <input type="password" name="password" placeholder="Password" required>
+
                     <input type="password" name="pin" placeholder="4 Digit Offline PIN" maxlength="4" required>
+
                     <small>PIN required to show offline QR currency</small>
+
                     <br><br>
+
                     <button class="submit" name="signup">Create Account</button>
+
                 </form>
+
             <?php endif; ?>
 
         </div>
+
     </div>
 
     <script>
         const isServerConnected = <?php echo json_encode($serverConnected); ?>;
 
         function showLogin() {
+
             const clientMsg = document.getElementById("clientMsg");
+
             if (clientMsg) clientMsg.style.display = "none";
 
             const login = document.getElementById("login");
+
             const signup = document.getElementById("signup");
+
             const loginBtn = document.getElementById("loginBtn");
+
             const signupBtn = document.getElementById("signupBtn");
 
             if (login) login.classList.add("active");
+
             if (signup) signup.classList.remove("active");
+
             if (loginBtn) loginBtn.classList.add("active");
+
             if (signupBtn) signupBtn.classList.remove("active");
+
         }
 
         function showSignup() {
+
             if (!isServerConnected) {
+
                 const clientMsg = document.getElementById("clientMsg");
+
                 if (clientMsg) {
+
                     clientMsg.innerText = "Server is not connected. Connect to the internet to sign up.";
+
                     clientMsg.style.display = "block";
                 }
+
                 return;
             }
 
             const login = document.getElementById("login");
+
             const signup = document.getElementById("signup");
+
             const loginBtn = document.getElementById("loginBtn");
+
             const signupBtn = document.getElementById("signupBtn");
 
             if (signup) signup.classList.add("active");
+
             if (login) login.classList.remove("active");
+
             if (signupBtn) signupBtn.classList.add("active");
+
             if (loginBtn) loginBtn.classList.remove("active");
+
         }
     </script>
 
+    /* include footer */
+
     <?php require_once "footer.php"; ?>
+
 </body>
 
 </html>

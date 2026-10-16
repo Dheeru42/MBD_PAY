@@ -1,11 +1,15 @@
 <?php
+
 session_start();
+
 // Include database connection
+
 require_once 'conn.php';
 
 require_once 'config.php';
 
 /* Encrypt Function */
+
 function encryptData($text)
 {
     $key = hash("sha256", SECRET_KEY, true);
@@ -92,6 +96,7 @@ if (!isset($_SESSION['mode'])) {
 $hash_sender_wallet = hash("sha256", $u_wallet_id);
 
 session_abort();
+
 ?>
 
 <!DOCTYPE html>
@@ -99,10 +104,14 @@ session_abort();
 
 <head>
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>MBD PAY | Offline Transactions</title>
+
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
+
     <style>
         /* Container Layout */
         .page-container {
@@ -501,17 +510,21 @@ session_abort();
             }
         }
     </style>
+
 </head>
 
 <body>
 
     <!-- INCLUDE NAVBAR HERE -->
+
     <?php include 'navbar.php'; ?>
 
     <div class="page-container">
 
         <?php
+
         // Fetch counters for stats cards
+
         $total_query = "SELECT 
             COUNT(*) as total_count,
             SUM(CASE WHEN server_sync = 1 OR LOWER(server_sync) = 'yes' OR LOWER(server_sync) = 'synced' THEN 1 ELSE 0 END) as synced_count,
@@ -519,248 +532,404 @@ session_abort();
             FROM offline_transactions WHERE wallet_id = '$hash_sender_wallet' AND (reciever_check = 'Verified' OR reciever_check = 'Not Verified')";
 
         $stats_res = mysqli_query($conn, $total_query);
+
         $stats = mysqli_fetch_assoc($stats_res);
 
         $totalTx = $stats['total_count'] ?? 0;
+
         $syncedTx = $stats['synced_count'] ?? 0;
+
         $failedTx = $stats['failed_count'] ?? 0;
+
         ?>
 
         <!-- Dynamic Summary Stats Cards -->
+
         <div class="stats-grid">
+
             <div class="stat-card">
+
                 <div class="stat-icon icon-total">📊</div>
+
                 <div class="stat-info">
+
                     <h4>Total Transactions</h4>
+
                     <p><?php echo number_format($totalTx); ?></p>
+
                 </div>
+
             </div>
+
             <div class="stat-card">
+
                 <div class="stat-icon icon-synced">☁️</div>
+
                 <div class="stat-info">
+
                     <h4>Synced to Server</h4>
+
                     <p><?php echo number_format($syncedTx); ?></p>
+
                 </div>
+
             </div>
+
             <div class="stat-card">
+
                 <div class="stat-icon icon-pending">❌</div>
+
                 <div class="stat-info">
+
                     <h4>Rejected</h4>
+
                     <p><?php echo number_format($failedTx); ?></p>
+
                 </div>
+
             </div>
+
         </div>
 
         <!-- Main Content Box -->
+
         <div class="content-card">
+
             <div class="card-header">
+
                 <h2>📲 Offline Transactions Log</h2>
 
                 <!-- Interactive Filters & Search -->
+
                 <div class="controls">
+
                     <div class="search-box">
+
                         <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Search ID or Mobile...">
+
                     </div>
+
                     <button class="filter-btn active" onclick="filterSync('all', this)">All</button>
+
                     <button class="filter-btn" onclick="filterSync('synced', this)">Scanned</button>
+
                     <button class="filter-btn" onclick="filterSync('failed', this)">Rejected</button>
+
                 </div>
+
             </div>
 
             <!-- Responsive Table -->
+
             <div class="table-responsive">
+
                 <table class="transaction-table" id="txTable">
+
                     <thead>
+
                         <tr>
+
                             <th>ID</th>
+
                             <th>Sent Mobile</th>
+
                             <th>Sent Balance</th>
+
                             <th>Status</th>
+
                             <th>Mobile Status</th>
+
                             <th>Created At</th>
+
                             <th>Updated At</th>
+
                             <th>Server Sync</th>
+
                             <th>Info</th>
+
                         </tr>
+
                     </thead>
+
                     <tbody>
+
                         <?php
+
                         $query = "SELECT id, receiver_mobile, send_balance, status, reciever_check, created_at, update_at, server_sync FROM offline_transactions WHERE wallet_id = '$hash_sender_wallet' AND (reciever_check = 'Verified' OR reciever_check = 'Not Verified') ORDER BY id DESC";
+
                         $result = mysqli_query($conn, $query);
+
                         if ($result && mysqli_num_rows($result) > 0) {
+
                             $counter = 0;
+
                             while ($row = mysqli_fetch_assoc($result)) {
+
                                 $counter = $counter + 1;
+
                                 $status = strtolower($row['status']);
+
                                 $statusClass = 'badge-pending';
+
                                 $statusDot = '🟡';
+
                                 if (in_array($status, ['scanned', 'success'])) {
+
                                     $statusClass = 'badge-success';
+
                                     $statusDot = '🟢';
                                 } elseif (in_array($status, ['not assign'])) {
+
                                     $statusClass = 'badge-pending';
+
                                     $statusDot = '🟡';
                                 } else {
+
                                     $statusClass = 'badge-failed';
+
                                     $statusDot = '🔴';
                                 }
 
                                 $syncVal = $row['server_sync'];
+
                                 $syncValLower = strtolower($syncVal);
 
                                 if ($syncValLower === 'failed' || $syncVal === '0') {
+
                                     $syncText  = 'Failed';
+
                                     $syncClass = 'sync-failed';
+
                                     $syncAttr  = 'failed';
                                 } elseif ($syncVal == 1 || $syncValLower === 'yes' || $syncValLower === 'synced') {
+
                                     $syncText  = 'Synced';
+
                                     $syncClass = 'sync-yes';
+
                                     $syncAttr  = 'synced';
                                 } else {
+
                                     $syncText  = 'Pending';
+
                                     $syncClass = 'sync-no';
+
                                     $syncAttr  = 'pending';
                                 }
 
                                 $res_check = $row['reciever_check'];
+
                                 if ($res_check == 'Verified') {
+
                                     $res_yes = 1;
+
                                     $resClass = 'sync-yes';
                                 } elseif ($res_check == 'Not Verified') {
+
                                     $res_yes = 0;
+
                                     $resClass = 'sync-not';
                                 } else {
+
                                     $res_yes = 0;
+
                                     $resClass = 'sync-no';
                                 }
 
                                 $syncIcon = match ($syncAttr) {
+
                                     'synced' => '✓ ',
+
                                     'failed' => '❌ ',
+
                                     default  => '🔄 ',
                                 };
 
                                 /* Balance processing with null/empty check */
+
                                 $raw_balance = $row['send_balance'];
+
                                 if (!empty($raw_balance)) {
+
                                     $decrypted_bal = decryptData($raw_balance);
+
                                     $send_bal = ($decrypted_bal !== false && trim($decrypted_bal) !== '') ? (float)$decrypted_bal : null;
                                 } else {
+
                                     $send_bal = null;
                                 }
 
                                 /* Mobile processing with null/empty check */
+
                                 $raw_mobile = $row['receiver_mobile'];
+
                                 $decryptedMobile = !empty($raw_mobile) ? decryptData($raw_mobile) : null;
 
                                 if (empty($decryptedMobile)) {
+
                                     $maskedMobile = '<span class="empty-dash-m">Not available</span>';
                                 } else {
+
                                     $maskedMobile = substr($decryptedMobile, 0, 2) . '******' . substr($decryptedMobile, -2);
                                 }
 
                                 echo "<tr data-sync='{$syncAttr}'>";
+
                                 echo "<td><strong>" . htmlspecialchars($counter) . "</strong></td>";
+
                                 echo "<td>" . $maskedMobile . "</td>";
 
                                 // Centered dash display for null or empty send_balance
+
                                 if ($send_bal === null || $send_bal <= 0) {
+
                                     echo "<td><span class='empty-dash-m'>Not available</span></td>";
                                 } else {
+
                                     echo "<td><strong>₹" . number_format($send_bal, 2) . "</strong></td>";
                                 }
 
                                 echo "<td><span class='badge {$statusClass}'>{$statusDot} " . htmlspecialchars(ucfirst($row['status'])) . "</span></td>";
 
                                 if ($res_check == null) {
+
                                     echo "<td><span class='sync-badge {$resClass}'>" . htmlspecialchars('Not available') . "</span></td>";
                                 } else {
+
                                     echo "<td><span class='sync-badge {$resClass}'>" . ($res_yes ? '✓ ' : '❌ ') . htmlspecialchars($res_check) . "</span></td>";
                                 }
+
                                 echo "<td>" . htmlspecialchars($row['created_at']) . "</td>";
+
                                 echo "<td>" . htmlspecialchars($row['update_at']) . "</td>";
+
                                 echo "<td><span class='sync-badge {$syncClass}'>" . $syncIcon . htmlspecialchars($syncText) . "</span></td>";
+
                                 echo "<td><button class='info-btn' onclick='openModal()' title='View Information'>i</button></td>";
+
                                 echo "</tr>";
                             }
                         } else {
+
                             echo "<tr id='noDataRow'><td colspan='9' class='no-data'>No offline transactions found.</td></tr>";
                         }
+
                         ?>
+
                     </tbody>
+
                 </table>
+
             </div>
+
         </div>
+
     </div>
 
     <!-- Info Text Message Modal -->
+
     <div id="infoModal" class="modal-overlay" onclick="closeModalOnOverlay(event)">
+
         <div class="modal-box">
+
             <div class="modal-icon">ℹ️</div>
+
             <div class="modal-title">Transaction Information</div>
+
             <div class="modal-text">If your QR money is timeout then deducted amount will be settled after Sync</div>
+
             <button class="modal-close-btn" onclick="closeModal()">OK</button>
+
         </div>
+
     </div>
 
     <!-- INCLUDE FOOTER HERE -->
+
     <?php include 'footer.php'; ?>
 
     <!-- Interactive Client-Side Features -->
+
     <script>
         let currentSyncFilter = 'all';
 
         // Filter Table by Search Input (Mobile or ID)
+
         function filterTable() {
+
             const input = document.getElementById("searchInput").value.toUpperCase();
+
             const rows = document.querySelectorAll("#txTable tbody tr");
 
             rows.forEach(row => {
+
                 if (row.id === 'noDataRow') return;
 
                 const idCell = row.cells[0]?.textContent || "";
+
                 const mobileCell = row.cells[1]?.textContent || "";
+
                 const matchesSearch = idCell.toUpperCase().includes(input) || mobileCell.toUpperCase().includes(input);
 
                 const syncAttr = row.getAttribute('data-sync');
+
                 const matchesSync = (currentSyncFilter === 'all' || syncAttr === currentSyncFilter);
 
                 row.style.display = (matchesSearch && matchesSync) ? "" : "none";
+
             });
         }
 
         // Filter Table by Sync Status Tabs
+
         function filterSync(type, btnElement) {
+
             currentSyncFilter = type;
 
             document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+
             btnElement.classList.add('active');
 
             filterTable();
         }
 
         // Modal Controls
+
         function openModal() {
+
             document.getElementById('infoModal').style.display = 'flex';
+
         }
 
         function closeModal() {
+
             document.getElementById('infoModal').style.display = 'none';
+
         }
 
         function closeModalOnOverlay(event) {
+
             if (event.target.id === 'infoModal') {
+
                 closeModal();
+
             }
+
         }
 
         // Close Modal on ESC key
+
         document.addEventListener('keydown', function(event) {
+
             if (event.key === 'Escape') {
+
                 closeModal();
+
             }
+
         });
     </script>
+
 </body>
 
 </html>

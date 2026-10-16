@@ -98,16 +98,13 @@ if (!isset($_SESSION['wallet_id'])) {
 
 $u_wallet_id = $_SESSION['wallet_id'];
 
-/*
-|--------------------------------------------------------------------------
-| PIN VERIFICATION
-|--------------------------------------------------------------------------
-*/
+/* PIN VERIFICATION */
 
 $unlocked_currency = null;
 $pin_error = "";
 
 /* synchronize if balance mismatch */
+
 if ($serverConnected) {
     try {
 
@@ -135,6 +132,7 @@ if ($serverConnected) {
         $cache_bal = decryptData($cache['balance']);
 
         // start
+
         if ($server_bal != $cache_bal) {
             header("location:synchronize_login.php");
         }
@@ -145,11 +143,7 @@ if ($serverConnected) {
 
 try {
 
-    /*
-    |--------------------------------------------------------------------------
-    | ONLINE PIN VERIFICATION
-    |--------------------------------------------------------------------------
-    */
+    /* ONLINE PIN VERIFICATION */
 
     if (isset($_POST['online'])) {
 
@@ -169,11 +163,7 @@ try {
                 "Please enter your PIN.";
         } else {
 
-            /*
-            |--------------------------------------------------------------------------
-            | GET CURRENCY FROM SERVER
-            |--------------------------------------------------------------------------
-            */
+            /* GET CURRENCY FROM SERVER */
 
             $stmt = mysqli_prepare(
                 $c_conn,
@@ -219,11 +209,7 @@ try {
                     "Currency not found.";
             } else {
 
-                /*
-                |--------------------------------------------------------------------------
-                | GET USER PIN FROM SERVER
-                |--------------------------------------------------------------------------
-                */
+                /* GET USER PIN FROM SERVER */
 
                 $stmt = mysqli_prepare(
                     $conn,
@@ -250,11 +236,7 @@ try {
                 mysqli_stmt_close($stmt);
 
 
-                /*
-                |--------------------------------------------------------------------------
-                | VERIFY ONLINE PIN
-                |--------------------------------------------------------------------------
-                */
+                /* VERIFY ONLINE PIN */
 
                 if (
                     $user &&
@@ -264,9 +246,7 @@ try {
                     )
                 ) {
 
-                    /*
-                    | PIN CORRECT
-                    */
+                    /* PIN CORRECT */
 
                     $unlocked_currency =
                         $online_currency;
@@ -276,9 +256,7 @@ try {
                         $online_currency['id'];
 
 
-                    /*
-                    | Clear old offline unlock
-                    */
+                    /* Clear old offline unlock */
 
                     unset(
                         $_SESSION['unlocked_currency_serial']
@@ -288,9 +266,7 @@ try {
                     $pin_error = "";
                 } else {
 
-                    /*
-                    | PIN WRONG
-                    */
+                    /* PIN WRONG */
 
                     unset(
                         $_SESSION['unlocked_currency_id']
@@ -304,16 +280,7 @@ try {
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | OFFLINE PIN VERIFICATION
-    |--------------------------------------------------------------------------
-    |
-    | IMPORTANT:
-    | This is INSIDE try.
-    | It must NOT be inside catch.
-    |--------------------------------------------------------------------------
-    */
+    /* OFFLINE PIN VERIFICATION */
 
     if (isset($_POST['offline'])) {
 
@@ -333,11 +300,7 @@ try {
                 "Please enter your PIN.";
         } else {
 
-            /*
-            |--------------------------------------------------------------------------
-            | USER CACHE DIRECTORY
-            |--------------------------------------------------------------------------
-            */
+            /* USER CACHE DIRECTORY */
 
             $userId =
                 hash(
@@ -346,11 +309,7 @@ try {
                 );
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | PROFILE CACHE
-            |--------------------------------------------------------------------------
-            */
+            /* PROFILE CACHE */
 
             $profile =
                 CACHE_DIR .
@@ -364,11 +323,7 @@ try {
                     "Offline profile not found.";
             } else {
 
-                /*
-                |--------------------------------------------------------------------------
-                | READ PROFILE
-                |--------------------------------------------------------------------------
-                */
+                /* READ PROFILE */
 
                 $profileData =
                     json_decode(
@@ -379,21 +334,13 @@ try {
                     );
 
 
-                /*
-                |--------------------------------------------------------------------------
-                | GET ENCRYPTED/HASHED PIN
-                |--------------------------------------------------------------------------
-                */
+                /* GET ENCRYPTED/HASHED PIN */
 
                 $cachedPin =
                     $profileData['pin'] ?? "";
 
 
-                /*
-                |--------------------------------------------------------------------------
-                | VERIFY OFFLINE PIN
-                |--------------------------------------------------------------------------
-                */
+                /* VERIFY OFFLINE PIN */
 
                 if (
                     empty($cachedPin) ||
@@ -411,11 +358,7 @@ try {
                         "Incorrect PIN. Please try again.";
                 } else {
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | PIN CORRECT
-                    |--------------------------------------------------------------------------
-                    */
+                    /* PIN CORRECT */
 
                     $currencyDir =
                         CACHE_DIR .
@@ -426,11 +369,7 @@ try {
                     $foundCurrency = null;
 
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | READ CACHED CURRENCIES
-                    |--------------------------------------------------------------------------
-                    */
+                    /* READ CACHED CURRENCIES */
 
                     if (
                         is_dir(
@@ -466,11 +405,7 @@ try {
                             }
 
 
-                            /*
-                            |--------------------------------------------------------------------------
-                            | SERIAL_NO IS ENCRYPTED
-                            |--------------------------------------------------------------------------
-                            */
+                            /* SERIAL_NO IS ENCRYPTED */
 
                             if (
                                 empty($cachedCurrency['serial_no'])
@@ -479,11 +414,7 @@ try {
                             }
 
 
-                            /*
-                            |--------------------------------------------------------------------------
-                            | DECRYPT ONLY FOR COMPARISON
-                            |--------------------------------------------------------------------------
-                            */
+                            /* DECRYPT ONLY FOR COMPARISON */
 
                             $cachedSerial =
                                 decryptData(
@@ -491,33 +422,14 @@ try {
                                 );
 
 
-                            /*
-                            |--------------------------------------------------------------------------
-                            | FIND SELECTED CURRENCY
-                            |--------------------------------------------------------------------------
-                            */
+                            /* FIND SELECTED CURRENCY */
 
                             if (
                                 $cachedSerial ===
                                 $serialNo
                             ) {
 
-                                /*
-                                |--------------------------------------------------------------------------
-                                | FOUND
-                                |--------------------------------------------------------------------------
-                                |
-                                | IMPORTANT:
-                                | Keep all original encrypted values.
-                                |
-                                | serial_no             -> encrypted
-                                | currency_serial_no    -> encrypted
-                                | amount                -> encrypted
-                                | currency_status       -> encrypted
-                                | receiver_mobile       -> encrypted
-                                | sender_mobile         -> encrypted
-                                |
-                                */
+                                /* FOUND */
 
                                 $foundCurrency =
                                     $cachedCurrency;
@@ -528,21 +440,13 @@ try {
                     }
 
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | CHECK CURRENCY
-                    |--------------------------------------------------------------------------
-                    */
+                    /* CHECK CURRENCY */
 
                     if (
                         $foundCurrency !== null
                     ) {
 
-                        /*
-                        |--------------------------------------------------------------------------
-                        | CREATE LOCAL ID
-                        |--------------------------------------------------------------------------
-                        */
+                        /* CREATE LOCAL ID  */
 
                         $foundCurrency['id'] =
                             md5(
@@ -550,29 +454,19 @@ try {
                             );
 
 
-                        /*
-                        |--------------------------------------------------------------------------
-                        | UNLOCK CURRENCY
-                        |--------------------------------------------------------------------------
-                        */
+                        /* UNLOCK CURRENCY */
 
                         $unlocked_currency =
                             $foundCurrency;
 
 
-                        /*
-                        |--------------------------------------------------------------------------
-                        | SAVE UNLOCKED SERIAL
-                        |--------------------------------------------------------------------------
-                        */
+                        /* SAVE UNLOCKED SERIAL */
 
                         $_SESSION['unlocked_currency_serial'] =
                             $serialNo;
 
 
-                        /*
-                        | Clear online unlock
-                        */
+                        /* Clear online unlock */
 
                         unset(
                             $_SESSION['unlocked_currency_id']
@@ -591,20 +485,13 @@ try {
     }
 } catch (Throwable $th) {
 
-    /*
-    |--------------------------------------------------------------------------
-    | SERVER/DATABASE ERROR
-    |--------------------------------------------------------------------------
-    |
-    | Do not put the offline PIN verification here.
-    |
-    */
+    /* SERVER/DATABASE ERROR */
 
     $pin_error =
         "Server connection unavailable.";
 }
 
-/*FETCH GENERATED CURRENCIES*/
+/* FETCH GENERATED CURRENCIES */
 
 try {
     $sql = "SELECT
@@ -662,6 +549,7 @@ try {
     $userId = hash("sha256", $u_mob);
 
     // User currency folder
+
     $currencyDir = CACHE_DIR . $userId . "/currency/";
 
     if (is_dir($currencyDir)) {
@@ -677,6 +565,7 @@ try {
             }
 
             // File name is the encrypted serial number
+
             $currency_rows[] = $currency;
 
             $total_value +=
@@ -715,19 +604,13 @@ x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weigh
 fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 
-    <!--
-|--------------------------------------------------------------------------
-| QR CODE LIBRARY
-|--------------------------------------------------------------------------
--->
+    <!-- QR CODE LIBRARY -->
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 
     <style>
-        /* =========================================================
-   RESET
-========================================================= */
+        /* RESET */
 
         * {
             margin: 0;
@@ -736,9 +619,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
 
-        /* =========================================================
-   BODY
-========================================================= */
+        /* BODY */
 
         body {
 
@@ -771,9 +652,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
 
-        /* =========================================================
-   PAGE
-========================================================= */
+        /* PAGE */
 
         .currency-page {
 
@@ -787,9 +666,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
 
-        /* =========================================================
-   HEADER
-========================================================= */
+        /* HEADER */
 
         .hero-header {
 
@@ -931,9 +808,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         }
 
-        /* =========================================================
-   SUMMARY
-========================================================= */
+        /* SUMMARY */
 
         .summary {
 
@@ -992,9 +867,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
 
-        /* =========================================================
-   SECTION
-========================================================= */
+        /* SECTION */
 
         .section-header {
 
@@ -1041,9 +914,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
 
-        /* =========================================================
-   LIVE DOT
-========================================================= */
+        /* LIVE DOT */
 
         .live-dot {
 
@@ -1215,9 +1086,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
 
-        /* =========================================================
-   GRID
-========================================================= */
+        /* GRID */
 
         .currency-grid {
 
@@ -1230,12 +1099,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
 
-        /*     
-   CURRENCY CARD
-
-  INDIAN-CURRENCY-INSPIRED DIGITAL NOTE CARD
-   
-*/
+        /* CURRENCY CARD,INDIAN-CURRENCY-INSPIRED DIGITAL NOTE CARD */
 
         .currency-card {
             --note-main: #2f7d55;
@@ -1260,9 +1124,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             animation: cardAppear .6s ease both;
         }
 
-        /* =========================================================
-           DENOMINATION COLORS — INDIAN BANKNOTE INSPIRED
-           ========================================================= */
+        /* DENOMINATION COLORS — INDIAN BANKNOTE INSPIRED */
 
         .currency-card.note-10 {
             --note-main: #8a6248;
@@ -1517,6 +1379,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
         /* NOTE HEADER */
+
         .card-top {
             position: relative;
             z-index: 3;
@@ -1882,9 +1745,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             }
         }
 
-        /* =========================================================
-   PIN MODAL
-========================================================= */
+        /* PIN MODAL */
 
         .pin-modal {
 
@@ -2115,9 +1976,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
 
-        /* =========================================================
-   EMPTY
-========================================================= */
+        /* EMPTY */
 
         .empty-box {
 
@@ -2174,13 +2033,9 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
 
-        /* =========================================================
-   MOBILE
-========================================================= */
+        /* MOBILE */
 
-        /* =========================================================
-           TABLET — 2 CARDS PER ROW
-           ========================================================= */
+        /* TABLET — 2 CARDS PER ROW */
 
         @media (max-width: 1100px) {
 
@@ -2255,9 +2110,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             }
         }
 
-        /* =========================================================
-           QR MODAL — MATCHES THE CURRENCY CARD DENOMINATION
-           ========================================================= */
+        /* QR MODAL — MATCHES THE CURRENCY CARD DENOMINATION */
         .qr-display-modal {
             --qr-main: #2f7d55;
             --qr-dark: #17553a;
@@ -2314,9 +2167,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             --qr-paper: #f7f0fa;
         }
 
-        /* =========================================================
-   PREMIUM QR DISPLAY MODAL
-========================================================= */
+        /* PREMIUM QR DISPLAY MODAL */
 
         .qr-display-modal {
             position: fixed;
@@ -2892,33 +2743,20 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         if ($message != "") {
 
-            echo "
-
-<div class='message'>
-$message
-</div>
-
-";
+            echo "<div class='message'>$message</div>";
         }
 
         ?>
+
         <?php
 
         if ($message1 != "") {
 
-            echo "
-
-<div class='message1'>
-$message1
-</div>
-
-";
+            echo "<div class='message1'>$message1</div>";
         }
 
         ?>
-        <!-- =====================================================
-     HEADER
-====================================================== -->
+        <!-- HEADER -->
 
         <section class="hero-header">
 
@@ -2993,20 +2831,13 @@ $message1
 
         if (!$serverConnected) {
 
-            echo "
-
-<div class='message1'>
-Please ensure your currencies are synchronized. Currencies generated online are securely cached on your device for offline use.
-</div>
-
-";
+            echo "<div class='message1'>Please ensure your currencies are synchronized. Currencies generated online 
+                    are securely cached on your device for offline use.</div>";
         }
 
         ?>
 
-        <!-- =====================================================
-     CURRENCY CARDS
-====================================================== -->
+        <!-- CURRENCY CARDS -->
 
         <?php if ($total_currency > 0): ?>
 
@@ -3127,9 +2958,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
                                 </div>
 
 
-                                <!-- =================================================
-         QR AREA
-    ================================================== -->
+                                <!-- QR AREA -->
 
                                 <div class="qr-section">
 
@@ -3167,9 +2996,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
 
                                 </div>
 
-                                <!-- =================================================
-         DETAILS
-    ================================================== -->
+                                <!-- DETAILS -->
 
                                 <div class="details">
 
@@ -3329,9 +3156,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
     </main>
 
 
-    <!-- =====================================================
-     PIN MODAL
-====================================================== -->
+    <!-- PIN MODAL -->
 
     <div
         class="pin-modal"
@@ -3448,13 +3273,13 @@ Please ensure your currencies are synchronized. Currencies generated online are 
 
 
     <?php
-    /*
-    |--------------------------------------------------------------------------
-    | QR MODAL DATA
-    |--------------------------------------------------------------------------
-    */
+
+    /* QR MODAL DATA */
+
     $verifiedQrData = "";
+
     $verifiedQrAmount = "";
+
     $qrDenominationClass = "qr-note-default";
 
     if ($unlocked_currency !== null) {
@@ -3504,6 +3329,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
             <div class="qr-display-box">
 
                 <!-- HEADER -->
+
                 <div class="qr-modal-header">
 
                     <div class="qr-brand">
@@ -3523,6 +3349,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
                 </div>
 
                 <!-- TITLE -->
+
                 <h2>
                     Receive Money
                 </h2>
@@ -3536,6 +3363,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
 
 
                 <!-- QR -->
+
                 <div class="qr-code-frame">
 
                     <div id="qrDisplayCode"></div>
@@ -3544,6 +3372,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
 
 
                 <!-- AMOUNT -->
+
                 <?php if ($verifiedQrAmount !== ""): ?>
 
                     <div class="qr-display-amount-box">
@@ -3564,6 +3393,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
                 <?php endif; ?>
 
                 <!-- CLOSE -->
+
                 <button
                     type="button"
                     class="qr-close-btn"
@@ -3584,11 +3414,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
 
 
     <script>
-        /*
-        |--------------------------------------------------------------------------
-        | PIN MODAL - ONLINE + OFFLINE
-        |--------------------------------------------------------------------------
-        */
+        /* PIN MODAL - ONLINE + OFFLINE */
 
         function openPinModal(button) {
 
@@ -3671,6 +3497,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
             | This fixes offline serial values containing quotes/special
             | characters and guarantees the same flow online/offline.
             */
+
             document.querySelectorAll(".show-qr-btn").forEach(function(button) {
 
                 button.addEventListener("click", function(event) {
@@ -3697,9 +3524,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
             }
 
 
-            /*
-            | Re-open after an incorrect PIN.
-            */
+            /* Re-open after an incorrect PIN. */
             <?php if ($pin_error !== ""): ?>
                 if (pinModal) {
                     pinModal.classList.add("active");
@@ -3716,6 +3541,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
             <?php endif; ?>
 
             // set currency data for qr
+
             <?php
 
             $qrPayload = [
@@ -3727,9 +3553,7 @@ Please ensure your currencies are synchronized. Currencies generated online are 
 
             ?>
 
-
             // QR DISPLAY MODAL
-
 
             const qrModal = document.getElementById("qrDisplayModal");
 
@@ -3740,9 +3564,11 @@ Please ensure your currencies are synchronized. Currencies generated online are 
                 if (qrTarget && typeof QRCode !== "undefined") {
 
                     // Clear previous QR
+
                     qrTarget.innerHTML = "";
 
                     // QR payload generated by PHP
+
                     const qrData = <?php echo json_encode($qrData ?? ""); ?>;
 
                     console.log("MBD Pay QR Data:", qrData);

@@ -1,6 +1,5 @@
 <?php require 'conn.php' ?>
 
-
 <style>
     /* ================= NAVBAR ================= */
 
@@ -273,11 +272,7 @@
     }
 </style>
 
-
-
-
 <!-- NAVBAR -->
-
 
 <nav class="mbd-navbar">
 
@@ -289,121 +284,39 @@
 
             ₹
 
-        </div>
-
-
-        MBD PAY
-
-
+        </div> MBD PAY
     </div>
-
-
-
-
 
     <ul class="mbd-links">
 
+        <li> <a href="index.php"> 🏠 Home </a> </li>
 
-        <li>
-
-            <a href="index.php">
-
-                🏠 Home
-
-            </a>
+        <li> <a href="wallet.php"> 👛 Wallet </a>
 
         </li>
 
-
-
-        <li>
-
-            <a href="wallet.php">
-
-                👛 Wallet
-
-            </a>
-
-        </li>
-
-        <li>
-
-            <a href="generated_currency.php">
-
-                📱 QR Currency
-
-            </a>
-
-        </li>
-
+        <li> <a href="generated_currency.php"> 📱 QR Currency </a> </li>
 
         <?php if ($serverConnected) { ?>
-            <li>
 
-                <a href="transaction.php">
+            <li> <a href="transaction.php"> 📋 Transaction </a> </li>
 
-                    📋 Transaction
+            <li> <a href="currency_status.php"> 💵 Currency Status </a> </li>
 
-                </a>
-
-            </li>
-
-            <li>
-
-                <a href="currency_status.php">
-
-                    💵 Currency Status
-
-                </a>
-
-            </li>
-
-
-            <li>
-
-                <a href="synchronize.php">
-
-                    🔄 Syn
-
-                </a>
-            </li>
+            <li> <a href="synchronize.php"> 🔄 Syn </a> </li>
 
         <?php } ?>
-        <li>
 
-            <a href="profile.php">
+        <li> <a href="profile.php"> 👤 Profile </a> </li>
 
-                👤 Profile
-
-            </a>
-
-        </li>
-
-
-        <li>
-
-            <a href="logout.php" class="logout-btn">
-
-                🚪 Logout
-
-            </a>
-
-        </li>
+        <li> <a href="logout.php" class="logout-btn"> 🚪 Logout </a> </li>
 
     </ul>
 
 
-
-
-
     <div class="server-status">
 
-
-        <span class="status 
-<?php echo $serverConnected ? 'connected' : 'disconnected'; ?>">
-        </span>
-
-
+        <span class="status <?php echo $serverConnected ? 'connected' : 'disconnected'; ?>"> </span>
 
         <?php
 
@@ -417,9 +330,6 @@
 
         ?>
 
-
     </div>
-
-
 
 </nav>

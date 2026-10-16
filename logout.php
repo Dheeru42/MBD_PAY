@@ -2,16 +2,17 @@
 
 session_start();
 
-
 // Remove all session variables
+
 $_SESSION = [];
 
-
 // Destroy session
+
 session_destroy();
 
 
 // Delete all cookies
+
 foreach ($_COOKIE as $name => $value) {
 
     setcookie(
@@ -24,6 +25,7 @@ foreach ($_COOKIE as $name => $value) {
 
 
 // Delete PHP Session Cookie
+
 if (ini_get("session.use_cookies")) {
 
     $params = session_get_cookie_params();
@@ -41,5 +43,7 @@ if (ini_get("session.use_cookies")) {
 
 
 // Redirect to login page
+
 header("Location: login.php");
+
 exit;

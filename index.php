@@ -1,22 +1,28 @@
 <?php
 
+session_start();
+
 // data from server,add in server
+
 $pendingSync = 0;
 
 date_default_timezone_set('Asia/Kolkata');
 
-session_start();
+/* include server's */
 
 require_once "conn.php";
+
 require_once "bank_conn.php";
+
 require_once "currency_con.php";
 
 date_default_timezone_set('Asia/Kolkata');
 
 
-// catch create logic
+/* catch create logic */
 
 define("CACHE_DIR", __DIR__ . "/cache/users/");
+
 require_once 'keys/config.php';
 
 /* Decrypt Function */
@@ -69,8 +75,6 @@ if (!isset($_SESSION['user']) && isset($_COOKIE['remember_user'])) {
     $_SESSION['user'] = $_COOKIE['remember_user'];
 }
 
-
-
 if (isset($_SESSION['user'])) {
 
     $username = $_SESSION['user'];
@@ -86,7 +90,8 @@ if (!isset($_SESSION['account'])) {
     exit;
 }
 
-// last update cache
+/* last update cache */
+
 if ($serverConnected) {
     $last_update = $_SESSION['last_update'];
 }
@@ -120,6 +125,7 @@ if ($serverConnected) {
         $cache_bal = decryptData($cache['balance']);
 
         // start
+
         if ($server_bal != $cache_bal) {
             header("location:synchronize_login.php");
         }
@@ -156,7 +162,7 @@ try {
     $last_update = $cache['update_at'];
 }
 
-/*FETCH GENERATED CURRENCIES*/
+/* FETCH GENERATED CURRENCIES */
 
 try {
 
@@ -317,6 +323,7 @@ try {
 }
 
 // fethc all generated currency
+
 try {
     $sql = "SELECT
             id,
@@ -359,6 +366,7 @@ try {
     $userId = hash("sha256", $u_mob);
 
     // Make sure CACHE_DIR ends with /
+
     $offline_trx_file = CACHE_DIR . $userId . "/transactions";
 
     if (is_dir($offline_trx_file)) {
@@ -370,9 +378,9 @@ try {
         }
     }
 } catch (\Throwable $th) {
-    //throw $th;
-}
 
+    error_log($th->getMessage());
+}
 
 session_abort();
 ?>
@@ -706,12 +714,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         }
 
-
-
-
-
         /* LOGO */
-
 
         .mbd-logo-box {
 
@@ -724,8 +727,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 
         }
-
-
 
         .mbd-rupee {
 
@@ -741,36 +742,21 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             align-items: center;
 
-
             font-size: 50px;
 
             font-weight: bold;
 
-
             color: white;
-
 
             border-radius: 22px;
 
+            background: linear-gradient(135deg, #059669, #022c22);
 
-            background:
-
-                linear-gradient(135deg, #059669, #022c22);
-
-
-
-            box-shadow:
-
-                0 10px 25px #059669;
-
-
+            box-shadow: 0 10px 25px #059669;
 
             animation: logoPulse 2s infinite;
 
-
         }
-
-
 
         @keyframes logoPulse {
 
@@ -784,8 +770,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         }
 
-
-
         .mbd-title {
 
 
@@ -796,19 +780,13 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
 
-
         .mbd-title span {
 
             color: #059669;
 
         }
 
-
-
-
-
         .mbd-text {
-
 
             margin-top: 20px;
 
@@ -821,11 +799,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         }
 
-
-
-
         /* FEATURES */
-
 
         .mbd-features {
 
@@ -842,9 +816,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
 
-
         .mbd-feature {
-
 
             background: white;
 
@@ -852,44 +824,30 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             border-radius: 15px;
 
-
             display: flex;
 
             align-items: center;
 
             gap: 15px;
 
-
-            box-shadow:
-
-                0 5px 15px rgba(0, 0, 0, .08);
-
+            box-shadow: 0 5px 15px rgba(0, 0, 0, .08);
 
             transition: .3s;
 
 
         }
 
-
-
         .mbd-feature:hover {
-
 
             transform: translateX(10px);
 
-
         }
-
-
 
         .mbd-feature-icon {
 
-
             font-size: 28px;
 
-
         }
-
 
         .welcome-box {
 
@@ -903,25 +861,15 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             padding: 18px 25px;
 
-            background:
-
-                linear-gradient(135deg,
-                    #ffffff,
-                    #ecfdf5);
+            background: linear-gradient(135deg, #ffffff, #ecfdf5);
 
             border-radius: 25px;
 
-
-            box-shadow:
-
-                0 10px 30px rgba(5, 150, 105, .15);
-
+            box-shadow: 0 10px 30px rgba(5, 150, 105, .15);
 
             width: max-content;
 
-
             animation: welcomeAnimation .8s ease;
-
 
         }
 
@@ -934,36 +882,25 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             border-radius: 50%;
 
-
             display: flex;
 
             justify-content: center;
 
             align-items: center;
 
-
             font-size: 32px;
 
+            background: linear-gradient(135deg, #059669, #022c22);
 
-            background:
-
-                linear-gradient(135deg, #059669, #022c22);
-
-
-            box-shadow:
-
-                0 8px 20px rgba(5, 150, 105, .5);
-
+            box-shadow: 0 8px 20px rgba(5, 150, 105, .5);
 
         }
-
 
         .welcome-text {
 
             display: flex;
 
             flex-direction: column;
-
 
         }
 
@@ -990,14 +927,11 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         }
 
 
-
         .welcome-text h2 span {
 
             color: #059669;
 
         }
-
-
 
         .welcome-text p {
 
@@ -1059,8 +993,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             }
 
-
-
         }
     </style>
 
@@ -1071,29 +1003,20 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 <body>
 
 
+    <!-- include navabar -->
 
     <?php require_once "navbar.php"; ?>
-
-
-
-
 
     <section class="mbd-home">
 
 
         <div class="mbd-card">
 
-
-
             <!-- LEFT SIDE -->
-
 
             <div>
 
-
-
                 <div class="mbd-logo-box">
-
 
                     <div class="mbd-rupee">
 
@@ -1101,24 +1024,16 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                     </div>
 
-
-
                     <h1 class="mbd-title">
 
                         MBD <span>PAY</span>
 
                     </h1>
 
-
-
                 </div>
-
-
-
 
                 <br>
                 <p class="mbd-text">
-
 
                 <div class="welcome-box">
 
@@ -1145,40 +1060,24 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                 </div>
 
-
                 <br><br>
-
 
                 Next generation digital payment system.
 
                 Transfer money using secure QR currency,
                 online synchronization and offline transaction support.
 
-
-
                 </p>
-
-
-
-
 
                 <div class="mbd-features">
 
-
-
                     <div class="mbd-feature">
 
-                        <div class="mbd-feature-icon">
-
-                            📱
-
-                        </div>
+                        <div class="mbd-feature-icon"> 📱</div>
 
                         QR Currency Transfer
 
                     </div>
-
-
 
                     <div class="mbd-feature">
 
@@ -1191,7 +1090,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                         Instant Wallet Update
 
                     </div>
-
 
 
                     <div class="mbd-feature">
@@ -1207,7 +1105,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     </div>
 
 
-
                     <div class="mbd-feature">
 
                         <div class="mbd-feature-icon">
@@ -1220,43 +1117,52 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                     </div>
 
-
-
                 </div>
 
 
             </div>
 
-            <!-- ================= WALLET CARD ================= -->
+            <!-- WALLET CARD -->
 
             <div class="mbd-wallet">
 
                 <!-- Wallet Header -->
+
                 <div class="wallet-header">
+
                     <h2>💳 MBD Wallet</h2>
 
                     <div class="wallet-status">
                         <?php if ($serverConnected) { ?>
+
                             <span class="status-dot online"></span>
+
                             <span>Connected</span>
+
                         <?php } else { ?>
+
                             <span class="status-dot offline"></span>
+
                             <span>Offline Mode</span>
+
                         <?php } ?>
+
                     </div>
+
                 </div>
 
                 <!-- Balance -->
+
                 <div class="wallet-balance-section">
 
-                    <span class="balance-title">
-                        Available Balance
-                    </span>
+                    <span class="balance-title"> Available Balance </span>
 
                     <div class="wallet-balance">
 
                         <span id="balanceText">
+
                             ₹<?php echo "••••••" ?>
+
                         </span>
 
                         <button id="toggleBalance"
@@ -1270,10 +1176,15 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     </div>
 
                     <div class="sync-time">
+
                         Last Sync •
+
                         <?php
+
                         echo $last_update;
+
                         ?>
+
                     </div>
 
                 </div>
@@ -1281,6 +1192,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                 <?php if ($conn && $bank_conn) { ?>
 
                     <!-- Quick Actions -->
+
                     <div class="wallet-actions">
 
                         <a href="generate_qr_currency.php" class="action-btn">
@@ -1308,6 +1220,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     </div>
 
                     <!-- Statistics -->
+
                     <div class="wallet-stats">
 
                         <div class="stat-box">
@@ -1323,6 +1236,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     </div>
 
                     <!-- Generated Currency -->
+
                     <div class="offline-card">
 
                         <div>
@@ -1347,6 +1261,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     <?php if (!$serverConnected) { ?>
 
                         <!-- Offline Transactions -->
+
                         <div class="offline-card">
 
                             <div>
@@ -1364,6 +1279,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     <br>
 
                     <!-- Offline Mode -->
+
                     <div class="offline-card" style="text-align:center; display:block;">
 
                         <h3>📴 Offline Mode</h3>
@@ -1386,16 +1302,11 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         </div>
 
-
-
         </div>
-
-
 
     </section>
 
-
-
+    <!-- include footer -->
 
     <?php require_once "footer.php"; ?>
 

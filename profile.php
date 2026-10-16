@@ -1,8 +1,11 @@
 <?php
+
 session_start();
+
 require_once "conn.php";
 
 define("CACHE_DIR", __DIR__ . "/cache/users/");
+
 require_once 'keys/config.php';
 
 /* Decrypt Function */
@@ -65,22 +68,31 @@ if (!isset($_SESSION['wallet_id'])) {
 $u_wallet_id = $_SESSION['wallet_id'];
 
 // access profile data from server
+
 try {
     $mobile = $_SESSION['mobile'];
 
     $sql = "SELECT * FROM users WHERE mobile='$mobile'";
+
     $result = mysqli_query($conn, $sql);
+
     $user = mysqli_fetch_assoc($result);
 
     $name = $user['name'];
+
     $email = $user['email'];
+
     $account = $user['account_no'];
+
     $mobile = $user['mobile'];
+
     $wallet_id = $user['wallet_id'] ?? "";
+
     $balance = decryptData($user['balance']);
 
     $initial = strtoupper(substr($name, 0, 1));
 } catch (\Throwable $th) {
+
     // user cache path
 
     $userId = hash("sha256", $mobile);
@@ -91,14 +103,22 @@ try {
         file_get_contents($profile),
         true
     );
+
     $_SESSION['name'] = decryptData($cache['name']);
+
     $initial = strtoupper(substr($_SESSION['name'], 0, 1));
+
     $_SESSION['email'] = decryptData($cache['email']);
+
     $_SESSION['account'] = decryptData($cache['account']);
+
     $_SESSION['mobile'] = decryptData($cache['mobile']);
+
     $_SESSION['wallet_id_cache'] = decryptData($cache['wallet_id'] ?? "");
+
     $balance = decryptData($cache['balance']);
 }
+
 ?>
 
 <!DOCTYPE html>
@@ -118,10 +138,7 @@ x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weigh
 fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
     <style>
-        /* ==========================
-   MBD PAY PROFILE PAGE CSS
-   Soft Green Theme
-========================== */
+        /* MBD PAY PROFILE PAGE CSS Soft Green Theme */
 
         * {
             margin: 0;
@@ -421,162 +438,226 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 </head>
 
 <body>
-    <?php require_once 'navbar.php' ?>
 
+    /* Include navabar */
+
+    <?php require_once 'navbar.php' ?>
 
     <div class="mbd-profile">
 
         <div class="profile-container">
 
             <!-- Left Side -->
+
             <div class="profile-left">
 
                 <div class="profile-avatar">
+
                     <?php echo $initial; ?>
+
                 </div>
 
-                <h2 class="profile-name"><?php if ($serverConnected) {
+                <h2 class="profile-name">
 
-                                                echo htmlspecialchars($name);
-                                            } else {
-                                                echo htmlspecialchars($_SESSION['name']);
-                                            } ?></h2>
+                    <?php if ($serverConnected) {
 
-                <p class="profile-status">
-                    ✔ Verified MBD Pay User
-                </p>
+                        echo htmlspecialchars($name);
+                    } else {
+
+                        echo htmlspecialchars($_SESSION['name']);
+                    } ?> </h2>
+
+                <p class="profile-status"> ✔ Verified MBD Pay User </p>
 
                 <div class="profile-balance">
+
                     <h4>Wallet Balance</h4>
+
                     <h1>₹<?php if ($serverConnected) {
 
                                 echo htmlspecialchars($balance);
                             } else {
+
                                 echo htmlspecialchars($balance);
-                            } ?></h1>
+                            } ?> </h1>
+
                 </div>
 
                 <div class="profile-actions">
+
                     <?php if ($serverConnected) { ?>
 
-                        <a href="#">
-                            ✏ Edit Profile
-                        </a>
+                        <a href="#"> ✏ Edit Profile </a>
 
-                        <a href="#">
-                            🔒 Change Password
-                        </a>
+                        <a href="#"> 🔒 Change Password </a>
 
-                        <a href="transaction.php">
-                            💳 Transaction History
-                        </a>
+                        <a href="transaction.php"> 💳 Transaction History </a>
+
                     <?php } ?>
-                    <a href="logout.php">
-                        🚪 Logout
-                    </a>
+
+                    <a href="logout.php"> 🚪 Logout </a>
 
                 </div>
 
             </div>
 
             <!-- Right Side -->
+
             <div class="profile-right">
 
                 <!-- Personal Information -->
+
                 <div class="profile-card">
 
                     <h3>Personal Information</h3>
 
                     <div class="profile-info">
+
                         <div class="profile-label">Wallet ID</div>
+
                         <div class="profile-value">
+
                             <?php
+
                             if ($serverConnected) {
+
                                 echo htmlspecialchars($wallet_id);
                             } else {
+
                                 echo htmlspecialchars($_SESSION['wallet_id_cache']);
                             }
+
                             ?>
+
                         </div>
+
                     </div>
 
                     <div class="profile-info">
+
                         <div class="profile-label">Full Name</div>
+
                         <div class="profile-value">
+
                             <?php
+
                             if ($serverConnected) {
 
                                 echo htmlspecialchars($name);
                             } else {
+
                                 echo htmlspecialchars($_SESSION['name']);
                             }
+
                             ?>
+
                         </div>
+
                     </div>
 
                     <div class="profile-info">
+
                         <div class="profile-label">Mobile Number</div>
+
                         <div class="profile-value">
+
                             <?php if ($serverConnected) {
+
                                 $masked_mobile = substr($mobile, 0, 3) . '****' . substr($mobile, -3);
+
                                 echo htmlspecialchars($masked_mobile);
                             } else {
+
                                 $masked_mobile = substr($_SESSION['mobile'], 0, 3) . '****' . substr($_SESSION['mobile'], -3);
+
                                 echo htmlspecialchars($masked_mobile);
                             } ?>
+
                         </div>
+
                     </div>
 
                     <div class="profile-info">
+
                         <div class="profile-label">Email Address</div>
+
                         <div class="profile-value">
+
                             <?php if ($serverConnected) {
+
                                 $masked_email = substr($email, 0, 5) . '***' . substr($email, -5);
+
                                 echo htmlspecialchars($masked_email);
                             } else {
+
                                 $masked_email = substr($_SESSION['email'], 0, 5) . '***' . substr($_SESSION['email'], -5);
+
                                 echo htmlspecialchars($masked_email);
                             } ?>
+
                         </div>
+
                     </div>
 
                 </div>
 
                 <!-- Bank Information -->
+
                 <div class="profile-card">
 
                     <h3>Bank Information</h3>
 
                     <div class="profile-info">
+
                         <div class="profile-label">Linked Account Number</div>
+
                         <div class="profile-value">
+
                             <?php if ($serverConnected) {
+
                                 $masked_account = substr($account, 0, 3) . '****' . substr($account, -3);
+
                                 echo htmlspecialchars($masked_account);
                             } else {
+
                                 $masked_account = substr($_SESSION['account'], 0, 3) . '****' . substr($_SESSION['account'], -3);
+
                                 echo htmlspecialchars($masked_account);
                             } ?>
+
                         </div>
+
                     </div>
 
+
                     <div class="profile-info">
+
                         <div class="profile-label">Wallet Status</div>
+
                         <div class="profile-value">
+
                             Active
+
                         </div>
+
                     </div>
 
                     <div class="profile-info">
+
                         <div class="profile-label">KYC Status</div>
+
                         <div class="profile-value">
+
                             ✔ Verified
+
                         </div>
+
                     </div>
 
                 </div>
 
                 <!-- Security -->
+
                 <div class="profile-card profile-security">
 
                     <div>
@@ -590,33 +671,42 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                     </div>
 
-                    <div class="security-badge">
-                        Protected
-                    </div>
+                    <div class="security-badge"> Protected </div>
 
                 </div>
 
                 <!-- Statistics -->
+
                 <div class="profile-stats">
 
                     <div class="profile-stat-box">
+
                         <h2>₹<?php if ($serverConnected) {
 
                                     echo htmlspecialchars($balance);
                                 } else {
+
                                     echo htmlspecialchars($balance);
                                 } ?></h2>
+
                         <p>Available Balance</p>
+
                     </div>
 
                     <div class="profile-stat-box">
+
                         <h2>100%</h2>
+
                         <p>Account Secure</p>
+
                     </div>
 
                     <div class="profile-stat-box">
+
                         <h2>24×7</h2>
+
                         <p>Server Status</p>
+
                     </div>
 
                 </div>
@@ -628,7 +718,11 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
     </div>
 
 </body>
+
+/* Include footer */
+
 <?php require_once 'footer.php' ?>
+
 </body>
 
 </html>
