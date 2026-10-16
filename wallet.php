@@ -1,12 +1,15 @@
 <?php
+
 session_start();
 
 date_default_timezone_set('Asia/Kolkata');
 
 require_once 'conn.php';
+
 require_once 'bank_conn.php';
 
 $mess = "";
+
 $mess_f = "";
 
 if (isset($_SESSION['message_pay'])) {
@@ -22,9 +25,11 @@ if (isset($_SESSION['message_pay_f'])) {
 // catch create logic
 
 define("CACHE_DIR", __DIR__ . "/cache/users/");
+
 require_once 'keys/config.php';
 
 /* Encrypt Function */
+
 function encryptData($text)
 {
     $key = hash("sha256", SECRET_KEY, true);
@@ -65,13 +70,13 @@ function decryptData($text)
 
 
 $message = '';
+
 $message1 = "";
 
 if (!isset($_SESSION['user'])) {
     header("location:login.php");
     exit;
 }
-
 
 if (!isset($_SESSION['user']) && isset($_COOKIE['remember_user'])) {
     $_SESSION['user'] = $_COOKIE['remember_user'];
@@ -96,24 +101,29 @@ if (!isset($_SESSION['mode'])) {
     exit;
 }
 
-
 if (!isset($_SESSION['wallet_id'])) {
     header("location:index.php");
     exit;
 }
+
 $u_wallet_id = $_SESSION['wallet_id'];
 
 /* synchronize if balance mismatch */
 
 if ($serverConnected) {
+
     try {
 
         // server balance
 
         $stmt = mysqli_prepare($conn, "SELECT name,balance FROM users WHERE mobile=? AND account_no=?");
+
         mysqli_stmt_bind_param($stmt, "ss", $u_mob, $u_account);
+
         mysqli_stmt_execute($stmt);
+
         $result = mysqli_stmt_get_result($stmt);
+
         $user = mysqli_fetch_assoc($result);
 
         $server_bal = decryptData($user['balance']);
@@ -132,6 +142,7 @@ if ($serverConnected) {
         $cache_bal = decryptData($cache['balance']);
 
         // start
+
         if ($server_bal != $cache_bal) {
             header("location:synchronize_login.php");
         }
@@ -141,15 +152,23 @@ if ($serverConnected) {
 }
 
 // make serever connection
+
 try {
+
     $mobile = $_SESSION['mobile'];
+
     $stmt = mysqli_prepare($conn, "SELECT name,balance FROM users WHERE mobile=? AND account_no = ?");
+
     mysqli_stmt_bind_param($stmt, "ss", $mobile, $u_account);
+
     mysqli_stmt_execute($stmt);
+
     $result = mysqli_stmt_get_result($stmt);
+
     $user = mysqli_fetch_assoc($result);
 
     $_SESSION['balance'] = decryptData($user['balance']);
+
     $e_u_bal = encryptData($_SESSION['balance']);
 } catch (\Throwable $th) {
 
@@ -164,66 +183,80 @@ try {
         file_get_contents($profile),
         true
     );
+
     $cache['balance'] = decryptData($cache['balance']);
+
     $_SESSION['balance'] = $cache['balance'];
 }
 
 
 // add money to wallet
+
 try {
     if (isset($_POST['add_money'])) {
+
         $mobile = $_SESSION['mobile'];
+
         $amount = floatval($_POST['amount']);
+
         $e_amount = encryptData($amount);
 
         if ($amount <= 0) {
             $message = "Invalid Amount";
         } else {
             if ($conn && $bank_conn) {
+
                 // bank balance balace
+
                 $bankSql = "SELECT balance FROM users WHERE mobile='$mobile' AND account_number = '$u_account'";
+
                 $b_result = mysqli_query($bank_conn, $bankSql);
 
                 if ($w_user = mysqli_fetch_assoc($b_result)) {
+
                     $available_wallet = decryptData($w_user['balance']);
+
                     $e_available_wallet = encryptData($available_wallet);
+
                     $s_u_balance = encryptData($available_wallet - $amount);
+
                     if ($available_wallet >= $amount) {
 
                         // Debit from Bank
+
                         $bankQuery = "UPDATE users SET balance = ? WHERE account_number = ?";
+
                         $stmt = mysqli_prepare($bank_conn, $bankQuery);
+
                         mysqli_stmt_bind_param($stmt, "ss", $s_u_balance, $u_account);
+
                         mysqli_stmt_execute($stmt);
 
                         if (mysqli_stmt_affected_rows($stmt) > 0) {
+
                             $e_u_bal1 = $_SESSION['balance'];
+
                             $e_m_u_bal = encryptData($e_u_bal1 + $amount);
 
                             // Credit to MBD Wallet
+
                             $walletQuery = "UPDATE users SET balance = ? WHERE mobile = ?";
 
                             $stmt2 = mysqli_prepare($conn, $walletQuery);
-                            mysqli_stmt_bind_param($stmt2, "ss", $e_m_u_bal, $mobile);
-                            mysqli_stmt_execute($stmt2);
-                            if (mysqli_stmt_affected_rows($stmt2) > 0) {
 
+                            mysqli_stmt_bind_param($stmt2, "ss", $e_m_u_bal, $mobile);
+
+                            mysqli_stmt_execute($stmt2);
+
+                            if (mysqli_stmt_affected_rows($stmt2) > 0) {
 
                                 // Generate transaction ID
 
                                 $transaction_id = "MBD" . time() . rand(1000, 9999);
 
+                                /* Update MBD Pay Transaction */
 
-                                /*
-        Update MBD Pay Transaction
-    */
-
-
-                                $walletBalanceQuery = "
-        SELECT balance 
-        FROM users 
-        WHERE mobile='$mobile'
-    ";
+                                $walletBalanceQuery = "SELECT balance FROM users WHERE mobile='$mobile'";
 
                                 $walletResult = mysqli_query($conn, $walletBalanceQuery);
 
@@ -234,29 +267,30 @@ try {
 
 
                                 $walletTransaction = "
-        INSERT INTO transactions
-        (
-        transaction_id,
-        mobile,
-        type,
-        amount,
-        balance_before,
-        balance_after,
-        description,
-        status
-        )
-        VALUES
-        (?,?,?,?,?,?,?,?)
-    ";
+                                                        INSERT INTO transactions
+                                                        (
+                                                        transaction_id,
+                                                        mobile,
+                                                        type,
+                                                        amount,
+                                                        balance_before,
+                                                        balance_after,
+                                                        description,
+                                                        status
+                                                        )
+                                                        VALUES
+                                                        (?,?,?,?,?,?,?,?)
+                                                    ";
 
 
                                 $stmt3 = mysqli_prepare($conn, $walletTransaction);
 
 
                                 $type = "Credit";
-                                $st = 'Success';
-                                $desc = "Wallet recharge from bank account";
 
+                                $st = 'Success';
+
+                                $desc = "Wallet recharge from bank account";
 
                                 mysqli_stmt_bind_param(
                                     $stmt3,
@@ -276,42 +310,33 @@ try {
 
 
 
-                                /*
-        Update Bank Transaction
-    */
+                                /* Update Bank Transaction */
 
 
-                                $bankBalanceQuery = "
-        SELECT balance 
-        FROM users 
-        WHERE account_number='$u_account'
-    ";
-
+                                $bankBalanceQuery = "SELECT balance FROM users WHERE account_number = '$u_account'";
 
                                 $bankResult = mysqli_query($bank_conn, $bankBalanceQuery);
 
                                 $bankData = mysqli_fetch_assoc($bankResult);
 
-
                                 $bank_balance = $bankData['balance'];
 
 
-
                                 $bankTransaction = "
-        INSERT INTO transactions
-        (
-        transaction_id,
-        account_number,
-        transaction_type,
-        amount,
-        balance_before,
-        balance_after,
-        status,
-        remarks
-        )
-        VALUES
-        (?,?,?,?,?,?,?,?)
-    ";
+                                                    INSERT INTO transactions
+                                                    (
+                                                    transaction_id,
+                                                    account_number,
+                                                    transaction_type,
+                                                    amount,
+                                                    balance_before,
+                                                    balance_after,
+                                                    status,
+                                                    remarks
+                                                    )
+                                                    VALUES
+                                                    (?,?,?,?,?,?,?,?)
+                                                ";
 
 
 
@@ -320,8 +345,8 @@ try {
 
 
                                 $bankType = "Debit";
-                                $bankDesc = "Money transferred to MBD Pay wallet";
 
+                                $bankDesc = "Money transferred to MBD Pay wallet";
 
 
                                 mysqli_stmt_bind_param(
@@ -337,16 +362,11 @@ try {
                                     $bankDesc
                                 );
 
-
-
                                 mysqli_stmt_execute($stmt4);
 
 
 
-                                /*
-        Update Offline Cache
-    */
-
+                                /* Update Offline Cache */
 
                                 $userId = hash("sha256", $mobile);
 
@@ -382,17 +402,23 @@ try {
 
 
                                 $message = "Money Added Successfully";
+
                                 $_SESSION['message_pay'] = $message;
+
                                 header("location:wallet.php");
                             } else {
                                 $message1 =  "Wallet credit failed.";
+
                                 $_SESSION['message_pay_f'] = $message1;
+
                                 header("location:wallet.php");
                             }
                         }
                     } else {
                         $message1 = "Insufficient balance.";
+
                         $_SESSION['message_pay_f'] = $message1;
+
                         header("location:wallet.php");
                     }
                 }
@@ -404,405 +430,176 @@ try {
 }
 
 
-
-// ============================================================
-// WITHDRAWAL MONEY LOGIC
-// ============================================================
+/* WITHDRAWAL MONEY LOGIC */
 
 try {
 
     if (isset($_POST['wtdl_money'])) {
 
-        /*
-         * ========================================================
-         * 1. GET USER INFORMATION
-         * ========================================================
-         */
+        /* 1.GET USER INFORMATION */
 
         $mobile = $_SESSION['mobile'];
+
         $u_account = $_SESSION['account'];
 
         $amount = floatval($_POST['amount']);
 
-        /*
-         * Encrypt transaction amount
-         */
+        /* Encrypt transaction amount */
+
         $e_amount = encryptData($amount);
 
-
-        /*
-         * ========================================================
-         * 2. VALIDATE AMOUNT
-         * ========================================================
-         */
+        /* 2.VALIDATE AMOUNT */
 
         if ($amount <= 0) {
-
             $message1 = "Invalid Amount";
         } else {
 
-            /*
-             * ====================================================
-             * 3. CHECK SERVER CONNECTION
-             * ====================================================
-             */
+            /* 3.CHECK SERVER CONNECTION */
 
             if ($conn && $bank_conn) {
 
 
-                /*
-                 * =================================================
-                 * 4. GET MBD PAY WALLET BALANCE
-                 * =================================================
-                 *
-                 * Database balance is encrypted.
-                 * First decrypt it.
-                 */
+                /* 4.GET MBD PAY WALLET BALANCE */
 
-                $walletSql = "
-                    SELECT balance
-                    FROM users
-                    WHERE mobile = ?
-                    AND account_no = ?
-                ";
+                $walletSql = "SELECT balance FROM users WHERE mobile = ? AND account_no = ?";
 
-                $stmtWallet = mysqli_prepare(
-                    $conn,
-                    $walletSql
-                );
+                $stmtWallet = mysqli_prepare($conn, $walletSql);
 
-                mysqli_stmt_bind_param(
-                    $stmtWallet,
-                    "ss",
-                    $mobile,
-                    $u_account
-                );
+                mysqli_stmt_bind_param($stmtWallet, "ss", $mobile, $u_account);
 
-                mysqli_stmt_execute(
-                    $stmtWallet
-                );
+                mysqli_stmt_execute($stmtWallet);
 
-                $walletResult =
-                    mysqli_stmt_get_result(
-                        $stmtWallet
-                    );
+                $walletResult = mysqli_stmt_get_result($stmtWallet);
 
 
-                /*
-                 * =================================================
-                 * 5. CHECK WALLET USER
-                 * =================================================
-                 */
+                /* 5.CHECK WALLET USER */
 
-                if (
-                    $walletUser =
-                    mysqli_fetch_assoc($walletResult)
-                ) {
+                if ($walletUser = mysqli_fetch_assoc($walletResult)) {
 
 
-                    /*
-                     * =================================================
-                     * 6. DECRYPT MBD WALLET BALANCE
-                     * =================================================
-                     */
+                    /* 6.DECRYPT MBD WALLET BALANCE */
 
-                    $wallet_before =
-                        decryptData(
-                            $walletUser['balance']
-                        );
+                    $wallet_before = decryptData($walletUser['balance']);
 
 
-                    /*
-                     * =================================================
-                     * 7. CHECK SUFFICIENT BALANCE
-                     * =================================================
-                     */
+                    /* 7.CHECK SUFFICIENT BALANCE */
 
                     if ($wallet_before >= $amount) {
 
+                        /* 8.CALCULATE NEW MBD WALLET BALANCE */
 
-                        /*
-                         * =================================================
-                         * 8. CALCULATE NEW MBD WALLET BALANCE
-                         * =================================================
-                         */
-
-                        $wallet_after =
-                            $wallet_before - $amount;
+                        $wallet_after = $wallet_before - $amount;
 
 
-                        /*
-                         * Encrypt new wallet balance
-                         */
+                        /*  Encrypt new wallet balance */
 
-                        $e_wallet_after =
-                            encryptData(
-                                $wallet_after
-                            );
+                        $e_wallet_after = encryptData($wallet_after);
 
+                        /* 9.GET BANK ACCOUNT BALANCE */
 
-                        /*
-                         * =================================================
-                         * 9. GET BANK ACCOUNT BALANCE
-                         * =================================================
-                         */
+                        $bankSql = "SELECT balance FROM users WHERE account_number = ? AND mobile = ?";
 
-                        $bankSql = "
-                            SELECT balance
-                            FROM users
-                            WHERE account_number = ?
-                            AND mobile = ?
-                        ";
+                        $stmtBank = mysqli_prepare($bank_conn, $bankSql);
 
-                        $stmtBank =
-                            mysqli_prepare(
-                                $bank_conn,
-                                $bankSql
-                            );
+                        mysqli_stmt_bind_param($stmtBank, "ss", $u_account, $mobile);
 
-                        mysqli_stmt_bind_param(
-                            $stmtBank,
-                            "ss",
-                            $u_account,
-                            $mobile
-                        );
+                        mysqli_stmt_execute($stmtBank);
 
-                        mysqli_stmt_execute(
-                            $stmtBank
-                        );
-
-                        $bankResult =
-                            mysqli_stmt_get_result(
-                                $stmtBank
-                            );
+                        $bankResult = mysqli_stmt_get_result($stmtBank);
 
 
-                        /*
-                         * =================================================
-                         * 10. CHECK BANK ACCOUNT
-                         * =================================================
-                         */
+                        /* 10.CHECK BANK ACCOUNT */
 
-                        if (
-                            $bankUser =
-                            mysqli_fetch_assoc(
-                                $bankResult
-                            )
-                        ) {
+                        if ($bankUser = mysqli_fetch_assoc($bankResult)) {
+
+                            /* 11.DECRYPT BANK BALANCE */
+
+                            $bank_before = floatval(decryptData($bankUser['balance']));
 
 
-                            /*
-                             * =================================================
-                             * 11. DECRYPT BANK BALANCE
-                             * =================================================
-                             */
+                            /* 12.CALCULATE BANK NEW BALANCE */
 
-                            $bank_before =
-                                floatval(
-                                    decryptData(
-                                        $bankUser['balance']
-                                    )
-                                );
+                            $bank_after = $bank_before + $amount;
 
+                            /* Encrypt new bank balance */
 
-                            /*
-                             * =================================================
-                             * 12. CALCULATE BANK NEW BALANCE
-                             * =================================================
-                             *
-                             * Withdrawal from MBD Pay means:
-                             *
-                             * MBD Pay  : - amount
-                             * Bank     : + amount
-                             */
+                            $e_bank_after = encryptData($bank_after);
 
-                            $bank_after =
-                                $bank_before + $amount;
+                            /* 13.UPDATE BANK BALANCE  */
 
+                            $bankUpdateSql = "UPDATE users SET balance = ? WHERE account_number = ? AND mobile = ?";
 
-                            /*
-                             * Encrypt new bank balance
-                             */
+                            $stmtBankUpdate = mysqli_prepare($bank_conn, $bankUpdateSql);
 
-                            $e_bank_after =
-                                encryptData(
-                                    $bank_after
-                                );
+                            mysqli_stmt_bind_param($stmtBankUpdate, "sss", $e_bank_after, $u_account, $mobile);
+
+                            mysqli_stmt_execute($stmtBankUpdate);
+
+                            /* 14.CHECK BANK UPDATE */
+
+                            if (mysqli_stmt_affected_rows($stmtBankUpdate) > 0) {
+
+                                /* 15.UPDATE MBD PAY WALLET */
+
+                                $walletUpdateSql = " UPDATE users SET balance = ? WHERE mobile = ? AND account_no = ? ";
+
+                                $stmtWalletUpdate = mysqli_prepare($conn, $walletUpdateSql);
+
+                                mysqli_stmt_bind_param($stmtWalletUpdate, "sss", $e_wallet_after, $mobile, $u_account);
+
+                                mysqli_stmt_execute($stmtWalletUpdate);
 
 
-                            /*
-                             * =================================================
-                             * 13. UPDATE BANK BALANCE
-                             * =================================================
-                             */
+                                /* 16.CHECK WALLET UPDATE */
 
-                            $bankUpdateSql = "
-                                UPDATE users
-                                SET balance = ?
-                                WHERE account_number = ?
-                                AND mobile = ?
-                            ";
+                                if (mysqli_stmt_affected_rows($stmtWalletUpdate) > 0) {
 
-                            $stmtBankUpdate =
-                                mysqli_prepare(
-                                    $bank_conn,
-                                    $bankUpdateSql
-                                );
+                                    /* 17.UPDATE SESSION BALANCE */
 
-                            mysqli_stmt_bind_param(
-                                $stmtBankUpdate,
-                                "sss",
-                                $e_bank_after,
-                                $u_account,
-                                $mobile
-                            );
+                                    $_SESSION['balance'] = $wallet_after;
 
-                            mysqli_stmt_execute(
-                                $stmtBankUpdate
-                            );
+                                    /* 18.GENERATE TRANSACTION ID */
 
-
-                            /*
-                             * =================================================
-                             * 14. CHECK BANK UPDATE
-                             * =================================================
-                             */
-
-                            if (
-                                mysqli_stmt_affected_rows(
-                                    $stmtBankUpdate
-                                ) > 0
-                            ) {
-
-
-                                /*
-                                 * =================================================
-                                 * 15. UPDATE MBD PAY WALLET
-                                 * =================================================
-                                 */
-
-                                $walletUpdateSql = "
-                                    UPDATE users
-                                    SET balance = ?
-                                    WHERE mobile = ?
-                                    AND account_no = ?
-                                ";
-
-                                $stmtWalletUpdate =
-                                    mysqli_prepare(
-                                        $conn,
-                                        $walletUpdateSql
-                                    );
-
-                                mysqli_stmt_bind_param(
-                                    $stmtWalletUpdate,
-                                    "sss",
-                                    $e_wallet_after,
-                                    $mobile,
-                                    $u_account
-                                );
-
-                                mysqli_stmt_execute(
-                                    $stmtWalletUpdate
-                                );
-
-
-                                /*
-                                 * =================================================
-                                 * 16. CHECK WALLET UPDATE
-                                 * =================================================
-                                 */
-
-                                if (
-                                    mysqli_stmt_affected_rows(
-                                        $stmtWalletUpdate
-                                    ) > 0
-                                ) {
-
-
-                                    /*
-                                     * =============================================
-                                     * 17. UPDATE SESSION BALANCE
-                                     * =============================================
-                                     */
-
-                                    $_SESSION['balance'] =
-                                        $wallet_after;
-
-
-                                    /*
-                                     * =============================================
-                                     * 18. GENERATE TRANSACTION ID
-                                     * =============================================
-                                     */
-
-                                    $transaction_id =
-                                        "MBD" .
-                                        time() .
-                                        rand(
-                                            1000,
-                                            9999
-                                        );
-
+                                    $transaction_id = "MBD" . time() . rand(1000, 9999);
 
                                     $status = "Success";
 
-
-                                    /*
-                                     * =============================================
-                                     * 19. MBD PAY TRANSACTION
-                                     * =============================================
-                                     */
+                                    /* 19.MBD PAY TRANSACTION */
 
                                     $walletTransaction = "
-                                        INSERT INTO transactions
-                                        (
-                                            transaction_id,
-                                            mobile,
-                                            type,
-                                            amount,
-                                            balance_before,
-                                            balance_after,
-                                            description,
-                                            status
-                                        )
-                                        VALUES
-                                        (
-                                            ?,
-                                            ?,
-                                            ?,
-                                            ?,
-                                            ?,
-                                            ?,
-                                            ?,
-                                            ?
-                                        )
-                                    ";
+                                                            INSERT INTO transactions
+                                                            (
+                                                                transaction_id,
+                                                                mobile,
+                                                                type,
+                                                                amount,
+                                                                balance_before,
+                                                                balance_after,
+                                                                description,
+                                                                status
+                                                            )
+                                                            VALUES
+                                                            (
+                                                                ?,
+                                                                ?,
+                                                                ?,
+                                                                ?,
+                                                                ?,
+                                                                ?,
+                                                                ?,
+                                                                ?
+                                                            )
+                                                         ";
 
-                                    $stmt3 =
-                                        mysqli_prepare(
-                                            $conn,
-                                            $walletTransaction
-                                        );
+                                    $stmt3 = mysqli_prepare($conn, $walletTransaction);
 
+                                    $type = "Debit";
 
-                                    $type =
-                                        "Debit";
+                                    $desc = "Withdrawal to MBD bank account";
 
+                                    /* Encrypt old wallet balance */
 
-                                    $desc =
-                                        "Withdrawal to MBD bank account";
-
-
-                                    /*
-                                     * Encrypt old wallet balance
-                                     */
-
-                                    $e_wallet_before =
-                                        encryptData(
-                                            $wallet_before
-                                        );
-
+                                    $e_wallet_before = encryptData($wallet_before);
 
                                     mysqli_stmt_bind_param(
                                         $stmt3,
@@ -818,74 +615,45 @@ try {
                                     );
 
 
-                                    mysqli_stmt_execute(
-                                        $stmt3
-                                    );
+                                    mysqli_stmt_execute($stmt3);
 
-
-                                    /*
-                                     * =============================================
-                                     * 20. BANK TRANSACTION
-                                     * =============================================
-                                     */
+                                    /* 20.BANK TRANSACTION */
 
                                     $bankTransaction = "
-                                        INSERT INTO transactions
-                                        (
-                                            transaction_id,
-                                            account_number,
-                                            transaction_type,
-                                            amount,
-                                            balance_before,
-                                            balance_after,
-                                            status,
-                                            remarks
-                                        )
-                                        VALUES
-                                        (
-                                            ?,
-                                            ?,
-                                            ?,
-                                            ?,
-                                            ?,
-                                            ?,
-                                            ?,
-                                            ?
-                                        )
-                                    ";
+                                                        INSERT INTO transactions
+                                                        (
+                                                            transaction_id,
+                                                            account_number,
+                                                            transaction_type,
+                                                            amount,
+                                                            balance_before,
+                                                            balance_after,
+                                                            status,
+                                                            remarks
+                                                        )
+                                                        VALUES
+                                                        (
+                                                            ?,
+                                                            ?,
+                                                            ?,
+                                                            ?,
+                                                            ?,
+                                                            ?,
+                                                            ?,
+                                                            ?
+                                                        )
+                                                        ";
 
 
-                                    $stmt4 =
-                                        mysqli_prepare(
-                                            $bank_conn,
-                                            $bankTransaction
-                                        );
+                                    $stmt4 = mysqli_prepare($bank_conn, $bankTransaction);
 
+                                    $bankType = "Credit";
 
-                                    $bankType =
-                                        "Credit";
+                                    $remark = "Money received from MBD Pay wallet";
 
+                                    /* Encrypt OLD bank balance */
 
-                                    $remark =
-                                        "Money received from MBD Pay wallet";
-
-
-                                    /*
-                                     * Encrypt OLD bank balance
-                                     */
-
-                                    $e_bank_before =
-                                        encryptData(
-                                            $bank_before
-                                        );
-
-
-                                    /*
-                                     * IMPORTANT:
-                                     *
-                                     * bank_before = old bank balance
-                                     * bank_after  = old bank balance + amount
-                                     */
+                                    $e_bank_before = encryptData($bank_before);
 
                                     mysqli_stmt_bind_param(
                                         $stmt4,
@@ -901,193 +669,118 @@ try {
                                     );
 
 
-                                    mysqli_stmt_execute(
-                                        $stmt4
-                                    );
+                                    mysqli_stmt_execute($stmt4);
 
 
-                                    /*
-                                     * =============================================
-                                     * 21. UPDATE OFFLINE CACHE
-                                     * =============================================
-                                     */
+                                    /* 21.UPDATE OFFLINE CACHE */
 
-                                    $userId =
-                                        hash(
-                                            "sha256",
-                                            $mobile
-                                        );
+                                    $userId = hash("sha256", $mobile);
 
+                                    $file = "cache/users/$userId/profile.json";
 
-                                    $file =
-                                        "cache/users/$userId/profile.json";
+                                    if (file_exists($file)) {
 
+                                        $data = json_decode(file_get_contents($file), true);
 
-                                    if (
-                                        file_exists($file)
-                                    ) {
+                                        /* Store encrypted Wallet balance */
 
+                                        $data['balance'] = encryptData($wallet_after);
 
-                                        $data =
-                                            json_decode(
-                                                file_get_contents(
-                                                    $file
-                                                ),
-                                                true
-                                            );
+                                        /* Server is synchronized */
 
+                                        $data['server_sync'] = true;
 
-                                        /*
-                                         * Store encrypted
-                                         * wallet balance
-                                         */
+                                        /* Server is update */
 
-                                        $data['balance'] =
-                                            encryptData(
-                                                $wallet_after
-                                            );
-
-
-                                        /*
-                                         * Server is synchronized
-                                         */
-
-                                        $data['server_sync'] =
-                                            true;
-                                        /*
-                                         * Server is update
-                                         */
                                         $data['update_at'] = date("Y-m-d h:i:s A");
 
 
-                                        /*
-                                         * Save transaction ID
-                                         */
+                                        /* Save transaction ID */
 
-                                        $data['last_transaction'] =
-                                            $transaction_id;
+                                        $data['last_transaction'] = $transaction_id;
 
+                                        /* Save cache */
 
-                                        /*
-                                         * Save cache
-                                         */
-
-                                        file_put_contents(
-                                            $file,
-                                            json_encode(
-                                                $data,
-                                                JSON_PRETTY_PRINT
-                                            )
-                                        );
+                                        file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT));
                                     }
 
+                                    /* 22.SUCCESS MESSAGE */
 
-                                    /*
-                                     * =============================================
-                                     * 22. SUCCESS MESSAGE
-                                     * =============================================
-                                     */
+                                    $message = "Money Withdrawal Successfully";
 
-                                    $message =
-                                        "Money Withdrawal Successfully";
                                     $_SESSION['message_pay'] = $message;
+
                                     header("location:wallet.php");
                                 } else {
 
 
-                                    /*
-                                     * =============================================
-                                     * WALLET UPDATE FAILED
-                                     * =============================================
-                                     */
+                                    /* WALLET UPDATE FAILED */
 
-                                    $message1 =
-                                        "Wallet debit failed.";
+                                    $message1 = "Wallet debit failed.";
+
                                     $_SESSION['message_pay_f'] = $message1;
+
                                     header("location:wallet.php");
                                 }
                             } else {
 
+                                /* BANK UPDATE FAILED */
 
-                                /*
-                                 * =============================================
-                                 * BANK UPDATE FAILED
-                                 * =============================================
-                                 */
+                                $message1 = "Bank credit failed.";
 
-                                $message1 =
-                                    "Bank credit failed.";
                                 $_SESSION['message_pay_f'] = $message1;
+
                                 header("location:wallet.php");
                             }
                         } else {
 
+                            /* BANK ACCOUNT NOT FOUND */
 
-                            /*
-                             * =============================================
-                             * BANK ACCOUNT NOT FOUND
-                             * =============================================
-                             */
+                            $message1 = "Bank account not found.";
 
-                            $message1 =
-                                "Bank account not found.";
                             $_SESSION['message_pay_f'] = $message1;
+
                             header("location:wallet.php");
                         }
                     } else {
 
 
-                        /*
-                         * =============================================
-                         * INSUFFICIENT WALLET BALANCE
-                         * =============================================
-                         */
+                        /* INSUFFICIENT WALLET BALANCE */
 
-                        $message1 =
-                            "Insufficient wallet balance.";
+                        $message1 = "Insufficient wallet balance.";
+
                         $_SESSION['message_pay_f'] = $message1;
+
                         header("location:wallet.php");
                     }
                 } else {
 
 
-                    /*
-                     * =============================================
-                     * MBD WALLET ACCOUNT NOT FOUND
-                     * =============================================
-                     */
+                    /* MBD WALLET ACCOUNT NOT FOUND */
 
-                    $message1 =
-                        "Wallet account not found.";
+                    $message1 = "Wallet account not found.";
+
                     $_SESSION['message_pay_f'] = $message1;
+
                     header("location:wallet.php");
                 }
             } else {
 
+                /* SERVER CONNECTION FAILED */
 
-                /*
-                 * =============================================
-                 * SERVER CONNECTION FAILED
-                 * =============================================
-                 */
+                $message1 = "Please connect to the Internet.";
 
-                $message1 =
-                    "Please connect to the Internet.";
                 $_SESSION['message_pay_f'] = $message1;
+
                 header("location:wallet.php");
             }
         }
     }
 } catch (Throwable $th) {
 
-    /*
-     * ============================================================
-     * ERROR HANDLING
-     * ============================================================
-     */
+    /* ERROR HANDLING */
 
-    $message1 =
-        "Please connect to the Internet.";
+    $message1 = "Please connect to the Internet.";
 }
 
 ?>
@@ -1096,13 +789,14 @@ try {
 <html>
 
 <head>
+
     <title>MBD PAY | Wallet</title>
 
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' 
-viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext 
-x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' 
-fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
+        viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext 
+        x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' 
+        fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
     <style>
         body {
@@ -1194,7 +888,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         <?php
 
         if ($mess_f != "") {
-
             echo "<div class='message1'>$mess_f</div>";
         }
 
@@ -1203,7 +896,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         <?php
 
         if ($message1 != "") {
-
             echo "<div class='message1'>$message1</div>";
         }
 

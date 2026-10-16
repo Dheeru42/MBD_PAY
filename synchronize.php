@@ -3,18 +3,16 @@
 session_start();
 
 // default time zone 
+
 date_default_timezone_set('Asia/Kolkata');
 
 $date = date("Y-m-d h:i:s A");
 
 // last syn
+
 $_SESSION['last_update'] = date("Y-m-d h:i:s A");
 
-/*
-|--------------------------------------------------------------------------
-| LOGIN CHECK
-|--------------------------------------------------------------------------
-*/
+/* LOGIN CHECK */
 
 $u_account = $_SESSION['account'];
 
@@ -24,7 +22,6 @@ if (!isset($_SESSION['user']) && isset($_COOKIE['remember_user'])) {
 
 
 if (isset($_SESSION['user'])) {
-
     $username = $_SESSION['user'];
 }
 
@@ -38,80 +35,46 @@ if (!isset($_SESSION['account'])) {
 }
 
 if (!isset($_SESSION['wallet_id'])) {
-
     header("location:login.php");
     exit;
 }
 
 $u_wallet_id = $_SESSION['wallet_id'];
 
-/*
-|--------------------------------------------------------------------------
-| DATABASE CONNECTION
-|--------------------------------------------------------------------------
-*/
+/* DATABASE CONNECTION */
 
 require_once __DIR__ . '/currency_con.php';
+
 require_once 'conn.php';
 
 if (!$serverConnected) {
-
     header("location:index.php");
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| CONFIGURATION
-|--------------------------------------------------------------------------
-*/
+/* CONFIGURATION */
 
 require_once 'keys/config.php';
 
-define(
-    'CACHE_DIR',
-    __DIR__ . '/cache/'
-);
+define('CACHE_DIR', __DIR__ . '/cache/');
 
-define(
-    'USERS_CACHE_DIR',
-    CACHE_DIR . 'users/'
-);
+define('USERS_CACHE_DIR', CACHE_DIR . 'users/');
 
 
-/*
-|--------------------------------------------------------------------------
-| GET USER MOBILE
-|--------------------------------------------------------------------------
-*/
+/* GET USER MOBILE */
 
 function getLoggedInMobile()
 {
-    if (
-        isset($_SESSION['user']['mobile']) &&
-        $_SESSION['user']['mobile'] !== ''
-    ) {
-        return trim(
-            (string) $_SESSION['user']['mobile']
-        );
+    if (isset($_SESSION['user']['mobile']) && $_SESSION['user']['mobile'] !== '') {
+        return trim((string) $_SESSION['user']['mobile']);
     }
 
-    if (
-        isset($_SESSION['user']['u_mob']) &&
-        $_SESSION['user']['u_mob'] !== ''
-    ) {
-        return trim(
-            (string) $_SESSION['user']['u_mob']
-        );
+    if (isset($_SESSION['user']['u_mob']) && $_SESSION['user']['u_mob'] !== '') {
+        return trim((string) $_SESSION['user']['u_mob']);
     }
 
-    if (
-        isset($_SESSION['mobile']) &&
-        $_SESSION['mobile'] !== ''
-    ) {
-        return trim(
-            (string) $_SESSION['mobile']
-        );
+    if (isset($_SESSION['mobile']) && $_SESSION['mobile'] !== '') {
+        return trim((string) $_SESSION['mobile']);
     }
 
     return '';
@@ -122,16 +85,11 @@ $u_mob = getLoggedInMobile();
 
 
 if ($u_mob === '') {
-
     die('Unable to synchronize: mobile number not found.');
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| ENCRYPTION
-|--------------------------------------------------------------------------
-*/
+/* ENCRYPTION */
 
 function encryptData($value)
 {
@@ -153,9 +111,7 @@ function encryptData($value)
 
     if ($encrypted === false) {
 
-        throw new Exception(
-            'Unable to encrypt cache data.'
-        );
+        throw new Exception('Unable to encrypt cache data.');
     }
 
     return base64_encode(
@@ -185,40 +141,20 @@ function decryptData($text)
     );
 }
 
-/*
-|--------------------------------------------------------------------------
-| MOBILE HASH
-|--------------------------------------------------------------------------
-*/
+/* MOBILE HASH */
 
-$mobileHash = hash(
-    'sha256',
-    $u_mob
-);
+$mobileHash = hash('sha256', $u_mob);
 
 
-/*
-|--------------------------------------------------------------------------
-| EXACT CACHE PATH
-|--------------------------------------------------------------------------
-*/
+/* EXACT CACHE PATH */
 
-$userCacheFolder =
-    USERS_CACHE_DIR .
-    $mobileHash;
+$userCacheFolder = USERS_CACHE_DIR . $mobileHash;
 
 
-$currencyCacheFolder =
-    $userCacheFolder .
-    DIRECTORY_SEPARATOR .
-    'currency';
+$currencyCacheFolder = $userCacheFolder . DIRECTORY_SEPARATOR . 'currency';
 
 
-/*
-|--------------------------------------------------------------------------
-| CREATE DIRECTORY
-|--------------------------------------------------------------------------
-*/
+/* CREATE DIRECTORY */
 
 function createDirectory($path)
 {
@@ -226,29 +162,16 @@ function createDirectory($path)
         return true;
     }
 
-    if (
-        !mkdir(
-            $path,
-            0777,
-            true
-        )
-    ) {
+    if (!mkdir($path, 0777, true)) {
 
-        throw new Exception(
-            'Unable to create directory: ' .
-                $path
-        );
+        throw new Exception('Unable to create directory: ' . $path);
     }
 
     return true;
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| REMOVE DIRECTORY
-|--------------------------------------------------------------------------
-*/
+/* REMOVE DIRECTORY */
 
 function removeDirectory($directory)
 {
@@ -256,9 +179,7 @@ function removeDirectory($directory)
         return;
     }
 
-    $items = scandir(
-        $directory
-    );
+    $items = scandir($directory);
 
     if ($items === false) {
         return;
@@ -266,17 +187,11 @@ function removeDirectory($directory)
 
     foreach ($items as $item) {
 
-        if (
-            $item === '.' ||
-            $item === '..'
-        ) {
+        if ($item === '.' || $item === '..') {
             continue;
         }
 
-        $path =
-            $directory .
-            DIRECTORY_SEPARATOR .
-            $item;
+        $path = $directory . DIRECTORY_SEPARATOR . $item;
 
         if (is_dir($path)) {
 
@@ -291,11 +206,7 @@ function removeDirectory($directory)
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| DELETE ONLY JSON CACHE FILES
-|--------------------------------------------------------------------------
-*/
+/* DELETE ONLY JSON CACHE FILES */
 
 function clearCurrencyCache($folder)
 {
@@ -303,138 +214,75 @@ function clearCurrencyCache($folder)
         return;
     }
 
-    $files = glob(
-        $folder .
-            DIRECTORY_SEPARATOR .
-            '*.json'
-    );
+    $files = glob($folder . DIRECTORY_SEPARATOR . '*.json');
 
     if ($files === false) {
-        throw new Exception(
-            'Unable to read currency cache.'
-        );
+        throw new Exception('Unable to read currency cache.');
     }
 
     foreach ($files as $file) {
 
-        if (
-            is_file($file) &&
-            !unlink($file)
-        ) {
+        if (is_file($file) && !unlink($file)) {
 
-            throw new Exception(
-                'Unable to remove old currency cache file.'
-            );
+            throw new Exception('Unable to remove old currency cache file.');
         }
     }
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| CREATE CURRENCY JSON FILE
-|--------------------------------------------------------------------------
-*/
+/* CREATE CURRENCY JSON FILE */
 
-function createCurrencyCacheFile(
-    $folder,
-    $mobile,
-    $serialNo,
-    $encryptedSerial,
-    $amount,
-    $status,
-    $g_date
-) {
-
-    $serialNo =
-        trim(
-            (string) $serialNo
-        );
+function createCurrencyCacheFile($folder, $mobile, $serialNo, $encryptedSerial, $amount, $status, $g_date)
+{
+    $serialNo = trim((string) $serialNo);
 
 
     if ($serialNo === '') {
 
-        throw new Exception(
-            'Currency serial number is empty.'
-        );
+        throw new Exception('Currency serial number is empty.');
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | CACHE DATA
-    |--------------------------------------------------------------------------
-    */
+    /* CACHE DATA */
 
     $currencyData = [
 
-        'serial_no' =>
-        encryptData(
-            $serialNo
-        ),
+        'serial_no' => encryptData($serialNo),
 
-        'currency_serial_no' =>
-        $encryptedSerial,
+        'currency_serial_no' => $encryptedSerial,
 
-        'amount' =>
-        $amount,
+        'amount' => $amount,
 
-        'currency_status' =>
-        encryptData(
-            $status
-        ),
+        'currency_status' => encryptData($status),
 
-        'receiver_mobile' =>
-        encryptData(
-            ''
-        ),
+        'receiver_mobile' => encryptData(''),
 
-        'sender_mobile' =>
-        encryptData(
-            $mobile
-        ),
+        'sender_mobile' => encryptData($mobile),
 
-        'synced' =>
-        true,
+        'synced' => true,
 
         'generated_at' => $g_date,
 
         'update_at' => date("Y-m-d h:i:s A"),
 
-        'completed_at' =>
-        null,
+        'completed_at' => null,
 
-        'scanned_at' =>
-        null
+        'scanned_at' => null
     ];
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | JSON ENCODE
-    |--------------------------------------------------------------------------
-    */
+    /* JSON ENCODE */
 
-    $json = json_encode(
-        $currencyData,
-        JSON_PRETTY_PRINT |
-            JSON_UNESCAPED_SLASHES
-    );
+    $json = json_encode($currencyData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
 
     if ($json === false) {
 
-        throw new Exception(
-            'Unable to create currency JSON.'
-        );
+        throw new Exception('Unable to create currency JSON.');
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | FILE NAME
-    |--------------------------------------------------------------------------
-    */
+    /* FILE NAME */
 
     $fileName =
         hash(
@@ -450,11 +298,7 @@ function createCurrencyCacheFile(
         $fileName;
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | WRITE FILE
-    |--------------------------------------------------------------------------
-    */
+    /* WRITE FILE */
 
     $written =
         file_put_contents(
@@ -473,11 +317,7 @@ function createCurrencyCacheFile(
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | VERIFY FILE
-    |--------------------------------------------------------------------------
-    */
+    /* VERIFY FILE */
 
     if (!is_file($filePath)) {
 
@@ -488,11 +328,7 @@ function createCurrencyCacheFile(
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | VERIFY JSON
-    |--------------------------------------------------------------------------
-    */
+    /* VERIFY JSON */
 
     $check =
         file_get_contents(
@@ -530,46 +366,37 @@ function createCurrencyCacheFile(
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| DATABASE CHECK
-|--------------------------------------------------------------------------
-*/
+/* DATABASE CHECK */
 
-if (
-    !isset($c_conn) ||
-    !($c_conn instanceof mysqli)
-) {
-
+if (!isset($c_conn) || !($c_conn instanceof mysqli)) {
     die('Database connection not available.');
 }
 
 
 if ($c_conn->connect_errno) {
-
-    die('Database connection failed: ' .
-        $c_conn->connect_error);
+    die('Database connection failed: ' . $c_conn->connect_error);
 }
 
 // synchronize profile data at login time
 
 try {
     // mbd pay balance
+
     $Sql1 = "SELECT * FROM users WHERE mobile='$u_mob' AND account_no = '$u_account'";
+
     $result1 = mysqli_query($conn, $Sql1);
+
     if ($w_user = mysqli_fetch_assoc($result1)) {
+
         $available_wallet = $w_user['balance'];
+
         $userId = hash("sha256", $u_mob);
 
         $file = "cache/users/$userId/profile.json";
 
-
         if (file_exists($file)) {
 
-            $data = json_decode(
-                file_get_contents($file),
-                true
-            );
+            $data = json_decode(file_get_contents($file), true);
 
             $data['balance'] = $available_wallet;
 
@@ -589,18 +416,21 @@ try {
         }
     }
 } catch (\Throwable $th) {
-    echo 'aagyaa';
+    error_log($th->getMessage());
 }
 
 // synchronize transaction data at login time
 
 try {
+
     $userId = hash("sha256", $u_mob);
 
     $trx_file = "cache/users/$userId/transactions";
 
     if (is_dir($trx_file)) {
+
         // Retrieve all .json files in the transactions directory
+
         $files = glob($trx_file . "/*.json");
 
         if ($files !== false) {
@@ -610,37 +440,62 @@ try {
                 }
 
                 // Read and decode the JSON file content
+
                 $jsonContent = file_get_contents($file);
+
                 $data = json_decode($jsonContent, true);
 
                 if (is_array($data) && isset($data['reciever_mobile'])) {
+
                     $d_recieverMobile = decryptData($data['reciever_mobile']);
+
                     $e_recieverMobile = $data['reciever_mobile'];
+
                     $tokenId          = $data['token_id'] ?? null;
 
                     if (!empty($tokenId)) {
+
                         // 1. Check if token_id exists in offline_transactions table
+
                         $tokenQuery = $conn->prepare("SELECT id FROM offline_transactions WHERE token_id = ? LIMIT 1");
+
                         $tokenQuery->bind_param("s", $tokenId);
+
                         $tokenQuery->execute();
+
                         $tokenResult = $tokenQuery->get_result();
+
                         $tokenExists = ($tokenResult->num_rows > 0);
+
                         $tokenQuery->close();
 
                         // 2. Check if reciever_mobile exists (is verified) in the users table
+
                         $userQuery = $conn->prepare("SELECT id FROM users WHERE mobile = ? LIMIT 1");
+
                         $userQuery->bind_param("s", $d_recieverMobile);
+
                         $userQuery->execute();
+
                         $userResult = $userQuery->get_result();
+
                         $receiverExists = ($userResult->num_rows > 0);
+
                         $userQuery->close();
 
+
                         // 3. If token exists AND receiver is verified, update DB with latest data and unlink cache
+
                         if ($tokenExists && $receiverExists) {
+
                             $recieverCheck = 'Verified';
+
                             $sendBalance   = $data['send_balance'] ?? '0';
+
                             $serverSync    = $data['server_sync'] ?? 'pending';
+
                             $status = $data['status'] ?? 'not scanned';
+
                             $pr_status = 'not assign';
 
                             $updateStmt = $conn->prepare("
@@ -666,12 +521,18 @@ try {
                             );
 
                             $updateStmt->execute();
+
                             $updateStmt->close();
                         } elseif (!$receiverExists) {
+
                             $recieverCheck = 'Not Verified';
+
                             $sendBalance   = $data['send_balance'] ?? '0';
+
                             $serverSync    = $data['server_sync'] ?? 'pending';
+
                             $status = $data['status'] ?? 'not scanned';
+
                             $pr_status = 'not assign';
 
                             $updateStmt = $conn->prepare("
@@ -697,9 +558,12 @@ try {
                             );
 
                             $updateStmt->execute();
+
                             $updateStmt->close();
                         }
+
                         // Unlink the cache file only after a successful update
+
                         unlink($file);
                     }
                 }
@@ -724,39 +588,51 @@ try {
     ");
 
     $updateStmt->bind_param("s", $date);
+
     $updateStmt->execute();
+
     $updateStmt->close();
 } catch (\Throwable $th) {
     error_log("Database Update Error: " . $th->getMessage());
 }
 
 // synchronize log data at login time
+
 try {
     $userId = hash("sha256", $u_mob);
+
     $log_folder = "cache/users/$userId/logs";
 
     // Create log cache folder if it does not exist
+
     if (!is_dir($log_folder)) {
         mkdir($log_folder, 0777, true);
     }
 
     // Count existing transaction log files
+
     $existingLogs = glob($log_folder . "/*.json");
+
     $logCount = count($existingLogs ?: []);
 
     // Allow a maximum of 2 entries
+
     while ($logCount < 2) {
 
         $logCount += 1;
 
         // Generate a unique token
+
         $micro_timestamp = microtime(true);
+
         $randomPart = bin2hex(random_bytes(4));
+
         $uniqueToken = "MBD-" . $micro_timestamp . "-" . $randomPart;
 
         $token_id = hash("sha256", $uniqueToken);
 
         // Prepare transaction data
+
         $trx_data = [
             "token_id"        => $token_id,
             "wallet_id"       => hash("sha256", $u_wallet_id),
@@ -770,9 +646,11 @@ try {
         ];
 
         $trx_file = hash("sha256", $token_id);
+
         $trx_cacheFile = $log_folder . "/" . $trx_file . ".json";
 
         // 1. Save transaction in cache file
+
         file_put_contents(
             $trx_cacheFile,
             json_encode($trx_data, JSON_PRETTY_PRINT),
@@ -780,6 +658,7 @@ try {
         );
 
         // 2. Insert transaction data using a simple SQL query
+
         $sql = "INSERT INTO offline_transactions (token_id, wallet_id, sender_mobile,status, created_at, update_at, server_sync) 
                 VALUES ('{$trx_data['token_id']}', '{$trx_data['wallet_id']}', '{$trx_data['sender_mobile']}','{$trx_data['status']}',
                  '{$trx_data['created_at']}', '{$trx_data['update_at']}', '{$trx_data['server_sync']}')";
@@ -790,11 +669,7 @@ try {
     error_log($th->getMessage());
 }
 
-/*
-|--------------------------------------------------------------------------
-| SYNCHRONIZATION
-|--------------------------------------------------------------------------
-*/
+/* SYNCHRONIZATION */
 
 $success = false;
 
@@ -805,190 +680,91 @@ $tempFolder = null;
 
 try {
 
-    /*
-    |--------------------------------------------------------------------------
-    | CREATE CACHE DIRECTORIES
-    |--------------------------------------------------------------------------
-    */
+    /* CREATE CACHE DIRECTORIES */
 
-    createDirectory(
-        CACHE_DIR
-    );
+    createDirectory(CACHE_DIR);
 
-    createDirectory(
-        USERS_CACHE_DIR
-    );
+    createDirectory(USERS_CACHE_DIR);
 
-    createDirectory(
-        $userCacheFolder
-    );
+    createDirectory($userCacheFolder);
 
-    createDirectory(
-        $currencyCacheFolder
-    );
+    createDirectory($currencyCacheFolder);
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | DATABASE QUERY
-    |--------------------------------------------------------------------------
-    |
-    | IMPORTANT:
-    |
-    | Actual database fields:
-    |
-    | serial_no
-    | encrypted_serial
-    | amount
-    | status
-    |
-    |--------------------------------------------------------------------------
-    */
+    /* DATABASE QUERY */
 
-    $sql = "
-        SELECT
-            serial_no,
-            encrypted_serial,
-            amount,
-            generated_at,
-            status
-        FROM currency
-        WHERE sender_mobile = ?
-        AND status = 'GENERATED'
+    $sql = "SELECT serial_no,encrypted_serial,amount,generated_at,status FROM currency
+            WHERE sender_mobile = ? AND status = 'GENERATED'
     ";
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | PREPARE
-    |--------------------------------------------------------------------------
-    */
+    /* PREPARE */
 
-    $stmt =
-        $c_conn->prepare(
-            $sql
-        );
+    $stmt = $c_conn->prepare($sql);
 
 
     if (!$stmt) {
 
-        throw new Exception(
-            'Database prepare failed: ' .
-                $c_conn->error
-        );
+        throw new Exception('Database prepare failed: ' . $c_conn->error);
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | BIND MOBILE
-    |--------------------------------------------------------------------------
-    */
+    /* BIND MOBILE */
 
-    $stmt->bind_param(
-        's',
-        $u_mob
-    );
+    $stmt->bind_param('s', $u_mob);
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | EXECUTE
-    |--------------------------------------------------------------------------
-    */
+    /* EXECUTE */
 
     if (!$stmt->execute()) {
 
-        $error =
-            $stmt->error;
+        $error = $stmt->error;
 
         $stmt->close();
 
-        throw new Exception(
-            'Database query failed: ' .
-                $error
-        );
+        throw new Exception('Database query failed: ' . $error);
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | GET RESULT
-    |--------------------------------------------------------------------------
-    */
+    /* GET RESULT */
 
-    $result =
-        $stmt->get_result();
+    $result = $stmt->get_result();
 
 
     if (!$result) {
 
         $stmt->close();
 
-        throw new Exception(
-            'Unable to get currency records.'
-        );
+        throw new Exception('Unable to get currency records.');
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | FETCH RECORDS
-    |--------------------------------------------------------------------------
-    */
+    /* FETCH RECORDS */
 
     $records = [];
 
+    while ($row = $result->fetch_assoc()) {
 
-    while (
-        $row =
-        $result->fetch_assoc()
-    ) {
+        /* Validate fields */
 
-        /*
-        |--------------------------------------------------------------------------
-        | Validate fields
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            !isset(
-                $row['serial_no']
-            )
-        ) {
+        if (!isset($row['serial_no'])) {
             continue;
         }
 
-        if (
-            !isset(
-                $row['encrypted_serial']
-            )
-        ) {
+        if (!isset($row['encrypted_serial'])) {
             continue;
         }
 
-        if (
-            !isset(
-                $row['amount']
-            )
-        ) {
+        if (!isset($row['amount'])) {
             continue;
         }
 
-        if (
-            !isset(
-                $row['status']
-            )
-        ) {
+        if (!isset($row['status'])) {
             continue;
         }
 
 
-        $serialNo =
-            trim(
-                (string)
-                $row['serial_no']
-            );
+        $serialNo = trim((string)$row['serial_no']);
 
 
         if ($serialNo === '') {
@@ -998,20 +774,15 @@ try {
 
         $records[] = [
 
-            'serial_no' =>
-            $serialNo,
+            'serial_no' => $serialNo,
 
-            'encrypted_serial' =>
-            $row['encrypted_serial'],
+            'encrypted_serial' => $row['encrypted_serial'],
 
-            'amount' =>
-            $row['amount'],
+            'amount' => $row['amount'],
 
-            'status' =>
-            $row['status'],
+            'status' => $row['status'],
 
-            'generated_at' =>
-            $row['generated_at']
+            'generated_at' => $row['generated_at']
         ];
     }
 
@@ -1019,44 +790,17 @@ try {
     $stmt->close();
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | CREATE TEMP DIRECTORY
-    |--------------------------------------------------------------------------
-    |
-    | New cache is created here first.
-    |
-    |--------------------------------------------------------------------------
-    */
+    /* CREATE TEMP DIRECTORY */
 
-    $tempFolder =
-        $userCacheFolder .
-        DIRECTORY_SEPARATOR .
-        'currency_sync_' .
-        date('YmdHis') .
-        '_' .
-        bin2hex(
-            random_bytes(5)
-        );
+    $tempFolder = $userCacheFolder . DIRECTORY_SEPARATOR . 'currency_sync_' . date('YmdHis') . '_' . bin2hex(random_bytes(5));
 
+    createDirectory($tempFolder);
 
-    createDirectory(
-        $tempFolder
-    );
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | CREATE NEW CACHE FILES
-    |--------------------------------------------------------------------------
-    */
+    /* CREATE NEW CACHE FILES */
 
     $createdCount = 0;
 
-
-    foreach (
-        $records as $record
-    ) {
+    foreach ($records as $record) {
 
         createCurrencyCacheFile(
 
@@ -1080,196 +824,93 @@ try {
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | VERIFY TEMP CACHE
-    |--------------------------------------------------------------------------
-    */
+    /* VERIFY TEMP CACHE */
 
-    $tempFiles =
-        glob(
-            $tempFolder .
-                DIRECTORY_SEPARATOR .
-                '*.json'
-        );
+    $tempFiles = glob($tempFolder . DIRECTORY_SEPARATOR . '*.json');
 
 
     if ($tempFiles === false) {
-
-        throw new Exception(
-            'Unable to verify temporary cache.'
-        );
+        throw new Exception('Unable to verify temporary cache.');
     }
 
 
-    if (
-        count($tempFiles) !==
-        $createdCount
-    ) {
+    if (count($tempFiles) !== $createdCount) {
 
-        throw new Exception(
-            'Temporary cache verification failed.'
-        );
+        throw new Exception('Temporary cache verification failed.');
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | CLEAR OLD CACHE
-    |--------------------------------------------------------------------------
-    */
+    /* CLEAR OLD CACHE */
 
-    clearCurrencyCache(
-        $currencyCacheFolder
-    );
+    clearCurrencyCache($currencyCacheFolder);
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | MOVE NEW CACHE
-    |--------------------------------------------------------------------------
-    */
+    /* MOVE NEW CACHE */
 
-    foreach (
-        $tempFiles as $tempFile
-    ) {
+    foreach ($tempFiles as $tempFile) {
 
-        $fileName =
-            basename(
-                $tempFile
-            );
+        $fileName = basename($tempFile);
+
+        $destination = $currencyCacheFolder . DIRECTORY_SEPARATOR . $fileName;
 
 
-        $destination =
-            $currencyCacheFolder .
-            DIRECTORY_SEPARATOR .
-            $fileName;
+        if (!rename($tempFile, $destination)) {
 
-
-        if (
-            !rename(
-                $tempFile,
-                $destination
-            )
-        ) {
-
-            throw new Exception(
-                'Unable to move cache file: ' .
-                    $fileName
-            );
+            throw new Exception('Unable to move cache file: ' . $fileName);
         }
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | REMOVE TEMP DIRECTORY
-    |--------------------------------------------------------------------------
-    */
+    /* REMOVE TEMP DIRECTORY */
 
-    if (
-        is_dir(
-            $tempFolder
-        )
-    ) {
-
-        @rmdir(
-            $tempFolder
-        );
+    if (is_dir($tempFolder)) {
+        @rmdir($tempFolder);
     }
 
 
     $tempFolder = null;
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | FINAL VERIFICATION
-    |--------------------------------------------------------------------------
-    */
+    /* FINAL VERIFICATION */
 
-    $finalFiles =
-        glob(
-            $currencyCacheFolder .
-                DIRECTORY_SEPARATOR .
-                '*.json'
-        );
+    $finalFiles = glob($currencyCacheFolder . DIRECTORY_SEPARATOR . '*.json');
 
 
     if ($finalFiles === false) {
-
-        throw new Exception(
-            'Unable to read final currency cache.'
-        );
+        throw new Exception('Unable to read final currency cache.');
     }
 
 
-    if (
-        count($finalFiles) !==
-        $createdCount
-    ) {
-
-        throw new Exception(
-            'Final cache verification failed.'
-        );
+    if (count($finalFiles) !== $createdCount) {
+        throw new Exception('Final cache verification failed.');
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | SUCCESS
-    |--------------------------------------------------------------------------
-    */
+    /* SUCCESS */
 
     $success = true;
 
-
-    $message =
-        $createdCount .
-        ' currency record(s) synchronized.';
+    $message = $createdCount . ' currency record(s) synchronized.';
 } catch (Throwable $e) {
 
-    /*
-    |--------------------------------------------------------------------------
-    | REMOVE TEMP CACHE
-    |--------------------------------------------------------------------------
-    */
+    /* REMOVE TEMP CACHE */
 
-    if (
-        $tempFolder !== null &&
-        is_dir($tempFolder)
-    ) {
-
-        removeDirectory(
-            $tempFolder
-        );
+    if ($tempFolder !== null && is_dir($tempFolder)) {
+        removeDirectory($tempFolder);
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | ERROR LOG
-    |--------------------------------------------------------------------------
-    */
+    /* ERROR LOG */
 
-    error_log(
-        'MBD PAY CURRENCY SYNC ERROR: ' .
-            $e->getMessage()
-    );
-
+    error_log('MBD PAY CURRENCY SYNC ERROR: ' . $e->getMessage());
 
     $success = false;
 
-    $message =
-        'Synchronization failed.';
+    $message = 'Synchronization failed.';
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| FAILURE PAGE
-|--------------------------------------------------------------------------
-*/
+/* FAILURE PAGE */
 
 if (!$success) {
 
@@ -1293,12 +934,12 @@ if (!$success) {
 
         <link rel="icon" type="image/svg+xml"
             href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'
-viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20'
-fill='%23059669'/%3E%3Ctext x='50' y='72'
-text-anchor='middle' font-size='70'
-font-family='Arial'
-font-weight='bold'
-fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
+            viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20'
+            fill='%23059669'/%3E%3Ctext x='50' y='72'
+            text-anchor='middle' font-size='70'
+            font-family='Arial'
+            font-weight='bold'
+            fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         <style>
             * {
@@ -1319,12 +960,10 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                 padding: 20px;
 
-                font-family:
-                    Arial,
-                    sans-serif;
+                font-family: Arial, sans-serif;
 
-                background:
-                    #ecfdf5;
+                background: #ecfdf5;
+
             }
 
             .card {
@@ -1341,11 +980,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                 text-align: center;
 
-                box-shadow:
-                    0 20px 50px rgba(0,
-                        0,
-                        0,
-                        .12);
+                box-shadow: 0 20px 50px rgba(0, 0, 0, .12);
             }
 
             .icon {
@@ -1417,24 +1052,16 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         <div class="card">
 
-            <div class="icon">
-                !
-            </div>
+            <div class="icon">!</div>
 
-            <h1>
-                Synchronization Failed
-            </h1>
+            <h1>Synchronization Failed</h1>
 
             <p>
                 Currency data could not be synchronized.
                 Please try again.
             </p>
 
-            <a
-                href="synchronize.php"
-                class="retry">
-                Try Again
-            </a>
+            <a href="synchronize.php" class="retry">Try Again</a>
 
         </div>
 
@@ -1468,12 +1095,10 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'
-viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20'
-fill='%23059669'/%3E%3Ctext x='50' y='72'
-text-anchor='middle' font-size='70'
-font-family='Arial'
-font-weight='bold'
-fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
+        viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20'
+        fill='%23059669'/%3E%3Ctext x='50' y='72'text-anchor='middle' 
+        font-size='70' font-family='Arial' font-weight='bold' 
+        fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 
     <style>
@@ -1498,18 +1123,11 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             padding: 20px;
 
-            font-family:
-                Arial,
-                sans-serif;
+            font-family: Arial, sans-serif;
 
-            background:
-                radial-gradient(circle at top,
-                    #bbf7d0,
-                    #ecfdf5,
-                    #d1fae5);
+            background: radial-gradient(circle at top, #bbf7d0, #ecfdf5, #d1fae5);
 
-            color:
-                #064e3b;
+            color: #064e3b;
         }
 
         .sync-card {
@@ -1518,26 +1136,15 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             max-width: 420px;
 
-            padding:
-                45px 25px;
+            padding: 45px 25px;
 
-            background:
-                rgba(255,
-                    255,
-                    255,
-                    .94);
+            background: rgba(255, 255, 255, .94);
 
-            border-radius:
-                30px;
+            border-radius: 30px;
 
-            text-align:
-                center;
+            text-align: center;
 
-            box-shadow:
-                0 25px 60px rgba(0,
-                    0,
-                    0,
-                    .15);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, .15);
         }
 
         .logo {
@@ -1546,112 +1153,82 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             height: 70px;
 
-            margin:
-                0 auto 25px;
+            margin: 0 auto 25px;
 
-            display:
-                flex;
+            display: flex;
 
-            align-items:
-                center;
+            align-items: center;
 
-            justify-content:
-                center;
+            justify-content: center;
 
-            border-radius:
-                20px;
+            border-radius: 20px;
 
-            background:
-                linear-gradient(135deg,
-                    #059669,
-                    #047857);
+            background: linear-gradient(135deg, #059669, #047857);
 
-            color:
-                #ffffff;
+            color: #ffffff;
 
-            font-size:
-                38px;
+            font-size: 38px;
 
-            font-weight:
-                bold;
+            font-weight: bold;
         }
 
         .loader {
 
-            width:
-                55px;
+            width: 55px;
 
-            height:
-                55px;
+            height: 55px;
 
-            margin:
-                25px auto;
+            margin: 25px auto;
 
-            border:
-                5px solid #d1fae5;
+            border: 5px solid #d1fae5;
 
-            border-top:
-                5px solid #059669;
+            border-top: 5px solid #059669;
 
-            border-radius:
-                50%;
+            border-radius: 50%;
 
-            animation:
-                spin 1s linear infinite;
+            animation: spin 1s linear infinite;
         }
 
         @keyframes spin {
 
             to {
-
-                transform:
-                    rotate(360deg);
+                transform: rotate(360deg);
             }
         }
 
         h1 {
 
-            font-size:
-                25px;
+            font-size: 25px;
 
-            margin-bottom:
-                10px;
+            margin-bottom: 10px;
         }
 
         .description {
 
-            color:
-                #64748b;
+            color: #64748b;
 
-            font-size:
-                14px;
+            font-size: 14px;
 
-            line-height:
-                1.6;
+            line-height: 1.6;
         }
 
         .status {
 
-            margin-top:
-                20px;
+            margin-top: 20px;
 
-            color:
-                #059669;
+            color: #059669;
 
             font-size:
                 13px;
 
-            font-weight:
-                bold;
+            font-weight: bold;
         }
 
         .dots::after {
 
-            content:
-                "";
+            content: "";
 
-            animation:
-                dots 1.5s infinite;
+            animation: dots 1.5s infinite;
         }
 
         @keyframes dots {
@@ -1684,13 +1261,9 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
     <div class="sync-card">
 
-        <div class="logo">
-            ₹
-        </div>
+        <div class="logo">₹</div>
 
-        <h1>
-            Synchronizing
-        </h1>
+        <h1>Synchronizing</h1>
 
         <p class="description">
             Updating your MBD Pay Cache data.
@@ -1701,11 +1274,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         <div class="status">
 
-            <?= htmlspecialchars(
-                $message,
-                ENT_QUOTES,
-                'UTF-8'
-            ) ?>
+            <?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?>
 
             <span class="dots"></span>
 
@@ -1716,11 +1285,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
     <script>
         setTimeout(function() {
-
-            window.location.replace(
-                "index.php"
-            );
-
+            window.location.replace("index.php");
         }, 1200);
     </script>
 
