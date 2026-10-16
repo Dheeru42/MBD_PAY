@@ -12,7 +12,7 @@ if (!$serverConnected) {
 }
 
 // secret key
-require_once 'config.php';
+require_once 'keys/config.php';
 
 /* Encrypt Function */
 function encryptData($text)

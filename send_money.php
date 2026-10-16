@@ -89,7 +89,7 @@ define("CACHE_DIR", __DIR__ . "/cache/users/");
    SECRET KEY
 ========================================================= */
 
-require_once 'config.php';
+require_once 'keys/config.php';
 
 
 /* =========================================================

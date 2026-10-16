@@ -1,1 +1,6 @@
+# directories
+keys
+cache
+
+# php file
 config.php

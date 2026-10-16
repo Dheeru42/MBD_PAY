@@ -56,7 +56,7 @@ if (!isset($_SESSION['mode'])) {
     exit;
 }
 
-require_once 'config.php';
+require_once 'keys/config.php';
 define("CACHE_DIR", __DIR__ . "/cache/users/");
 
 /* Encrypt Function */

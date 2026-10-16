@@ -3,7 +3,7 @@ session_start();
 require_once "conn.php";
 
 define("CACHE_DIR", __DIR__ . "/cache/users/");
-require_once 'config.php';
+require_once 'keys/config.php';
 
 /* Decrypt Function */
 

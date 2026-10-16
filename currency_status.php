@@ -51,7 +51,7 @@ $u_wallet_id = $_SESSION['wallet_id'];
 | Same structure used by generated_currency.php
 |--------------------------------------------------------------------------
 */
-require_once 'config.php';
+require_once 'keys/config.php';
 define("CACHE_DIR", __DIR__ . "/cache/users/");
 
 function decryptData($text)

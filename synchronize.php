@@ -66,7 +66,7 @@ if (!$serverConnected) {
 |--------------------------------------------------------------------------
 */
 
-require_once 'config.php';
+require_once 'keys/config.php';
 
 define(
     'CACHE_DIR',

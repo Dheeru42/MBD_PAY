@@ -14,7 +14,7 @@ $message_f = "";
 // catch create logic
 
 define("CACHE_DIR", __DIR__ . "/cache/users/");
-require_once 'config.php';
+require_once 'keys/config.php';
 
 /* Encrypt Function */
 function encryptData($text)
