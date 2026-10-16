@@ -1169,19 +1169,16 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 </head>
 
 <body>
+    /* Include navabar */
+
     <?php require_once "navbar.php"; ?>
+
     <div class="card">
+
         <?php
 
         if ($message != "") {
-
-            echo "
-
-        <div class='message'>
-        $message
-            </div>
-
-                ";
+            echo "<div class='message'>$message</div>";
         }
 
         ?>
@@ -1189,14 +1186,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         <?php
 
         if ($mess != "") {
-
-            echo "
-
-        <div class='message'>
-        $mess
-            </div>
-
-                ";
+            echo "<div class='message'>$mess</div>";
         }
 
         ?>
@@ -1205,13 +1195,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         if ($mess_f != "") {
 
-            echo "
-
-        <div class='message1'>
-        $mess_f
-            </div>
-
-                ";
+            echo "<div class='message1'>$mess_f</div>";
         }
 
         ?>
@@ -1220,29 +1204,29 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
         if ($message1 != "") {
 
-            echo "
-
-        <div class='message1'>
-        $message1
-            </div>
-
-                ";
+            echo "<div class='message1'>$message1</div>";
         }
 
         ?>
         <h2>My Wallet</h2>
 
         <div class="balance">
+
             <?php
             if ($_SESSION['mode'] == "ONLINE") {
                 echo "₹" . $_SESSION['balance'];
             }
+
             if ($_SESSION['mode'] == "OFFLINE") {
                 echo "₹" . $_SESSION['balance'];
             }
+
             ?>
+
         </div>
+
         <?php if ($conn && $bank_conn) { ?>
+
             <form action="wallet.php" method="post">
                 <input type="number" name="amount" id="amount" min="1" step="0.01" placeholder="Enter Amount" required>
                 <button name='add_money'>Deposit</button>
@@ -1258,24 +1242,25 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
     </div>
 
 <?php } else { ?>
+
     <!-- Offline Mode -->
+
     <div class="offline-card" style="text-align:center; display:block;">
 
         <h3>📴 Offline Mode</h3>
 
-        <p style="margin-top:10px;">
-            MBD Pay is currently running in offline mode.
-        </p>
+        <p style="margin-top:10px;">MBD Pay is currently running in offline mode.</p>
 
-        <p style="margin-top:8px; opacity:.8;">
-            Connect to the internet to add amount and withdraw available amount.
-        </p>
+        <p style="margin-top:8px; opacity:.8;">Connect to the internet to add amount and withdraw available amount.</p>
 
     </div>
 
 <?php } ?>
 
+/* Include footer */
+
 <?php require_once "footer.php"; ?>
+
 </body>
 
 </html>

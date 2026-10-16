@@ -14,9 +14,11 @@ $message_f = "";
 // catch create logic
 
 define("CACHE_DIR", __DIR__ . "/cache/users/");
+
 require_once 'keys/config.php';
 
 /* Encrypt Function */
+
 function encryptData($text)
 {
     $key = hash("sha256", SECRET_KEY, true);
@@ -110,28 +112,34 @@ $u_balance = decryptData($cache['balance']);
 $verify = false;
 
 $submitted_amount = 0;
+
 $d_send_amount = 0;
+
 $receiver_mobile = "";
+
 $token_id = "";
+
 $matched_log_file = "";
 
 // Define logs cache folder path
+
 $logs_dir = CACHE_DIR . $userId . "/logs/";
 
 // Handle AJAX request from JS to clear expired session QR immediately
+
 if (isset($_GET['clear_qr_session'])) {
     unset($_SESSION['offline_qr']);
     exit('OK');
 }
 
-/*
- * Restore the last generated offline QR from the session.
- */
+/* Restore the last generated offline QR from the session. */
+
 if (isset($_SESSION['offline_qr']) && is_array($_SESSION['offline_qr'])) {
 
     $savedQr = $_SESSION['offline_qr'];
 
     $qrCreatedAt = (int)($savedQr['created_at'] ?? 0);
+
     $qrAge = time() - $qrCreatedAt;
 
     if (
@@ -144,17 +152,24 @@ if (isset($_SESSION['offline_qr']) && is_array($_SESSION['offline_qr'])) {
         $verify = true;
 
         // Restore the exact transaction data used by the QR.
+
         $token_id = $savedQr['token_id'];
+
         $submitted_amount = $savedQr['amount'];
+
         $d_send_amount = $savedQr['amount'];
+
         $receiver_mobile = $savedQr['receiver_mobile'];
     } else {
+
         // QR has expired. Unset session immediately so next available token can load.
+
         unset($_SESSION['offline_qr']);
     }
 }
 
 // If not verified via session, fetch the next available token_id from JSON files in the logs cache folder
+
 if (!$verify) {
     if (is_dir($logs_dir)) {
         $log_files = glob($logs_dir . "*.json");
@@ -172,6 +187,7 @@ if (!$verify) {
 }
 
 // Restore one-time success/error message after POST -> redirect -> GET.
+
 if (!empty($_SESSION['offline_message'])) {
     $message = $_SESSION['offline_message'];
     unset($_SESSION['offline_message']);
@@ -183,6 +199,7 @@ if (!empty($_SESSION['offline_message_f'])) {
 }
 
 // verify pin
+
 try {
     if (isset($_POST['verify_pin'])) {
         $pin = $_POST['pin'];
@@ -190,6 +207,7 @@ try {
         $receiver_mobile = trim($_POST['receiver_mobile'] ?? '');
 
         // Re-check logs to fetch token_id if not already bound
+
         if (empty($token_id) && is_dir($logs_dir)) {
             $log_files = glob($logs_dir . "*.json");
             if (!empty($log_files)) {
@@ -202,6 +220,7 @@ try {
         }
 
         // Validate token_id exists
+
         if (empty($token_id)) {
             $message_f = "You have exceeded your sending limit.Please synchronize your wallet to continue.";
         } elseif (!is_numeric($submitted_amount) || $submitted_amount <= 0 || $submitted_amount > $u_balance) {
@@ -252,6 +271,7 @@ try {
                 $trx_folder = CACHE_DIR . $userId . "/transactions";
 
                 // Create transactions cache folder if not exist
+
                 if (!is_dir($trx_folder)) {
                     mkdir($trx_folder, 0777, true);
                 }
@@ -281,6 +301,7 @@ try {
                 $trx_id = $token_id;
 
                 $trx_file = hash("sha256", $trx_id);
+
                 $trx_cacheFile = $trx_folder . "/" . $trx_file . ".json";
 
                 file_put_contents(
@@ -290,6 +311,7 @@ try {
 
 
                 /* Clear token_id JSON file from logs folder after QR generation */
+
                 if (!empty($matched_log_file) && file_exists($matched_log_file)) {
                     unlink($matched_log_file);
                 } else {
@@ -326,9 +348,8 @@ try {
                     )
                 );
 
-                /*
-                 * Save the exact QR data in the session.
-                 */
+                /* Save the exact QR data in the session. */
+
                 $_SESSION['offline_qr'] = [
                     'token_id' => $token_id,
                     'amount' => $submitted_amount,
@@ -339,6 +360,7 @@ try {
                 $_SESSION['offline_message'] = $message;
 
                 header("Location: " . $_SERVER['PHP_SELF']);
+
                 exit;
             } else {
                 $message_f = "Pin Not Verified";
@@ -351,7 +373,9 @@ try {
 
 
 // Fetch all offline transactions from the cache directory
+
 $transactionsList = [];
+
 $trxDir = CACHE_DIR . $userId . "/transactions";
 
 try {
@@ -372,6 +396,7 @@ try {
 } catch (\Throwable $th) {
     $transactionsList = [];
 }
+
 ?>
 
 <!DOCTYPE html>
@@ -380,11 +405,15 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>MBD PAY | Offline Send Money</title>
+
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
+
     <!-- QRCode.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
     <style>
         * {
             box-sizing: border-box;
@@ -765,10 +794,14 @@ try {
 
 <body>
 
+    /* Include navbar */
+
     <?php require_once 'navbar.php'; ?>
 
     <div class="offline-container">
+
         <!-- LEFT SIDE: Wallet Balance Section -->
+
         <div class="left-panel">
             <div>
                 <div class="panel-title">💳 Wallet Overview</div>
@@ -786,31 +819,26 @@ try {
         </div>
 
         <!-- RIGHT SIDE: Send Money Option -->
+
         <div class="right-panel">
             <?php
 
             if ($message != "") {
 
-                echo "
-        <div class='message'>
-        $message
-        </div>
-                ";
+                echo "<div class='message'>$message</div>";
             }
 
             if ($message_f != "") {
 
-                echo "
-        <div class='message_f'>
-        $message_f
-        </div>
-                ";
+                echo "<div class='message_f'>$message_f</div>";
             }
 
             ?>
+
             <div class="panel-title" style="color:#022c22;">📲 Send Money Offline</div>
 
             <!-- Message banner displayed when QR is generated -->
+
             <?php if ($verify): ?>
                 <div class="alert-error" id="qrActiveMsg" style="background-color: #fef3c7; color: #92400e; padding: 12px; border-radius: 10px; margin-bottom: 15px; font-weight: 600; text-align: center;">
                     ⚠ A QR code has been generated. Please wait for the QR code to expire before initiating a new transaction.
@@ -818,7 +846,9 @@ try {
             <?php endif; ?>
 
             <form id="offlineForm" onsubmit="openPinModal(event)">
+
                 <!-- Token ID Form Field -->
+
                 <div class="form-group">
                     <input type="hidden"
                         id="token_id_display"
@@ -861,12 +891,14 @@ try {
                 </div>
 
                 <!-- Hidden when QR is generated ($verify is true) -->
+
                 <button type="submit" id="btnProceed" class="btn-submit" style="display: <?php echo $verify ? 'none' : 'block'; ?>;">
                     Proceed to Send
                 </button>
             </form>
 
             <!-- QR Container -->
+
             <div id="qrWrapper" class="qr-wrapper" style="display: <?php echo $verify ? 'block' : 'none'; ?>;">
                 <div id="qrcode"></div>
                 <div style="margin: 8px 0 15px; font-size: 18px; font-weight: bold; color: #dc2626;">
@@ -880,6 +912,7 @@ try {
     </div>
 
     <!-- BELOW SECTION: All Offline Transactions Data Table -->
+
     <div class="table-container">
         <div class="table-card">
             <div class="panel-title" style="color:#022c22;">📊 Transaction History</div>
@@ -896,12 +929,16 @@ try {
                             <th>Info</th>
                         </tr>
                     </thead>
+
                     <tbody>
+
                         <?php if (!empty($transactionsList)): ?>
                             <?php foreach ($transactionsList as $index => $trx): ?>
                                 <tr>
                                     <td><?php echo $index + 1; ?></td>
+
                                     <td><?php echo htmlspecialchars($trx['created_at'] ?? 'N/A'); ?></td>
+
                                     <td>
                                         <?php
                                         $recieverMobile = isset($trx['reciever_mobile'])
@@ -915,8 +952,11 @@ try {
                                         }
                                         ?>
                                         <?php echo htmlspecialchars($maskedMobile); ?>
+
                                     </td>
+
                                     <td><strong>₹<?php echo number_format((float)($trx['send_balance_decrypted'] ?? 0), 2); ?></strong></td>
+
                                     <td>
                                         <?php
                                         $status = strtolower($trx['status'] ?? 'Not Scanned');
@@ -926,6 +966,7 @@ try {
                                             <?php echo htmlspecialchars($trx['status'] ?? 'Not Scanned'); ?>
                                         </span>
                                     </td>
+
                                     <td>
                                         <?php if (!empty($trx['server_sync'])): ?>
                                             <span class="sync-badge sync-yes"> <?php echo htmlspecialchars($trx['server_sync'] ?? 'Pending'); ?></span>
@@ -933,6 +974,7 @@ try {
                                             <span class="sync-badge sync-no">Pending</span>
                                         <?php endif; ?>
                                     </td>
+
                                     <td>
                                         <button type="button"
                                             class="info-btn"
@@ -940,7 +982,9 @@ try {
                                             onclick="openTransactionInfo()"
                                             title="Transaction information">i</button>
                                     </td>
+
                                 </tr>
+
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
@@ -954,6 +998,7 @@ try {
     </div>
 
     <!-- TRANSACTION INFORMATION POPUP -->
+
     <div id="transactionInfoModal"
         class="transaction-info-modal"
         role="dialog"
@@ -973,6 +1018,7 @@ try {
     </div>
 
     <!-- PIN VERIFICATION MODAL -->
+
     <div id="pinModal" class="modal-overlay" style="display: <?php echo !empty($pin_error) ? 'flex' : 'none'; ?>;">
         <div class="modal-card">
             <form method="post">
@@ -995,6 +1041,8 @@ try {
             </form>
         </div>
     </div>
+
+    /* Include footer */
 
     <?php require_once 'footer.php'; ?>
 
@@ -1115,7 +1163,9 @@ try {
                 const amountInput = document.getElementById('amount');
 
                 function handleQrExpire() {
+
                     // Clear the session via a quick background request so next load grabs the new token
+
                     fetch('?clear_qr_session=1')
                         .then(() => {
                             window.location.reload();
@@ -1165,6 +1215,7 @@ try {
             });
         <?php endif; ?>
     </script>
+
 </body>
 
 </html>

@@ -2,11 +2,9 @@
 
 session_start();
 
-
 require_once 'conn.php';
 
 if (!$serverConnected) {
-
     header("location:index.php");
     exit;
 }
@@ -15,6 +13,7 @@ if (!$serverConnected) {
 require_once 'keys/config.php';
 
 /* Encrypt Function */
+
 function encryptData($text)
 {
     $key = hash("sha256", SECRET_KEY, true);
@@ -58,7 +57,6 @@ if (!isset($_SESSION['user'])) {
     exit;
 }
 
-
 if (!isset($_SESSION['user']) && isset($_COOKIE['remember_user'])) {
     $_SESSION['user'] = $_COOKIE['remember_user'];
 }
@@ -83,7 +81,6 @@ if (!isset($_SESSION['mode'])) {
 }
 
 if (!isset($_SESSION['wallet_id'])) {
-
     header("location:login.php");
     exit;
 }
@@ -91,49 +88,41 @@ if (!isset($_SESSION['wallet_id'])) {
 $u_wallet_id = $_SESSION['wallet_id'];
 
 $transactions = [];
+
 $message = "";
+
 $message1 = "";
 
 $account_number = "";
 
 $total_credit = 0;
+
 $total_debit = 0;
 
 $current_balance = 0;
+
 $account_holder = "";
 
 try {
+
     // Fetch Account Details
 
-    $accountSql =
-        "SELECT balance,name,wallet_id 
-     FROM users 
-     WHERE mobile=?";
-
+    $accountSql = "SELECT balance,name,wallet_id FROM users WHERE mobile=?";
 
     $stmt = mysqli_prepare($conn, $accountSql);
 
 
-    mysqli_stmt_bind_param(
-        $stmt,
-        "s",
-        $u_mobile
-    );
+    mysqli_stmt_bind_param($stmt, "s", $u_mobile);
 
 
     mysqli_stmt_execute($stmt);
 
-
-
     $accountResult = mysqli_stmt_get_result($stmt);
-
 
 
     if (mysqli_num_rows($accountResult) == 1) {
 
-
         $account = mysqli_fetch_assoc($accountResult);
-
 
         $current_balance = decryptData($account['balance']);
 
@@ -145,39 +134,12 @@ try {
 
         // Fetch Transactions
 
+        $sql = "SELECT transaction_id,mobile,type,amount,balance_before,balance_after,status,description,created_at
+                FROM transactions WHERE mobile=? ORDER BY created_at DESC";
 
-        $sql =
-            "SELECT 
-        transaction_id,
-        mobile,
-        type,
-        amount,
-        balance_before,
-        balance_after,
-        status,
-        description,
-        created_at
+        $stmt2 = mysqli_prepare($conn, $sql);
 
-        FROM transactions
-
-        WHERE mobile=?
-
-        ORDER BY created_at DESC";
-
-
-
-        $stmt2 = mysqli_prepare(
-            $conn,
-            $sql
-        );
-
-
-
-        mysqli_stmt_bind_param(
-            $stmt2,
-            "s",
-            $u_mobile
-        );
+        mysqli_stmt_bind_param($stmt2, "s", $u_mobile);
 
 
 
@@ -191,21 +153,15 @@ try {
 
         while ($row = mysqli_fetch_assoc($transactions)) {
 
-
             if ($row['type'] == "Credit") {
-
                 $total_credit += decryptData($row['amount']);
             } elseif ($row['type'] == "Debit") {
-
                 $total_debit += decryptData($row['amount']);
             } elseif ($row['type'] == "Transfer") {
-
                 $total_debit += decryptData($row['amount']);
             } elseif ($row['type'] == "Currency Generated") {
-
                 $total_debit += decryptData($row['amount']);
             } elseif ($row['type'] == "Currency Received") {
-
                 $total_debit += decryptData($row['amount']);
             }
         }
@@ -238,13 +194,12 @@ try {
 
 
     <title>MBD PAY | Transaction</title>
-    <link rel="icon" type="image/svg+xml"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' 
-viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext 
-x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' 
-fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
-
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' 
+                                                viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' 
+                                                fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' 
+                                                font-size='70' font-family='Arial' font-weight='bold' 
+                                                fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
     <style>
         * {
@@ -653,6 +608,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 <body>
 
+    /* Include navbar */
 
     <?php require_once 'navbar.php'; ?>
 
@@ -709,8 +665,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             </div>
 
 
-
-
             <div class="account-box">
 
                 <h2>
@@ -732,8 +686,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 
             </div>
-
-
 
 
 
@@ -783,8 +735,6 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 
 
-
-
             <div class="table-container">
 
 
@@ -796,12 +746,19 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                         <tr>
 
                             <th>Transaction ID</th>
+
                             <th>Date</th>
+
                             <th>Type</th>
+
                             <th>Amount</th>
+
                             <th>Balance Before</th>
+
                             <th>Balance After</th>
+
                             <th>Status</th>
+
                             <th>Description</th>
 
                         </tr>
@@ -813,45 +770,38 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                     <tbody>
 
 
-
                         <?php
 
 
                         if (mysqli_num_rows($transactions) > 0) {
 
                             while ($row = mysqli_fetch_assoc($transactions)) {
+
                                 // decrypted balance and amount 
+
                                 $d_amount = decryptData($row['amount']);
+
                                 $d_balance_before = decryptData($row['balance_before']);
+
                                 $d_balance_after = decryptData($row['balance_after']);
 
                                 $type = "";
 
                                 if ($row['type'] == "Credit") {
-
                                     $type = "credit";
                                 } elseif ($row['type'] == "Debit") {
-
                                     $type = "debit";
                                 } elseif ($row['type'] == "Currency Received") {
-
                                     $type = "credit";
                                 } elseif ($row['type'] == "Currency Generated") {
-
                                     $type = "debit";
                                 } else {
-
                                     $type = "transfer";
                                 }
 
 
 
-                                $status =
-                                    $row['status'] == "Success"
-                                    ?
-                                    "success"
-                                    :
-                                    "failed";
+                                $status = $row['status'] == "Success" ? "success" : "failed";
 
                         ?>
 
@@ -869,10 +819,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                                         <?php
 
-                                        echo date(
-                                            "d M Y h:i A",
-                                            strtotime($row['created_at'])
-                                        );
+                                        echo date("d M Y h:i A", strtotime($row['created_at']));
 
                                         ?>
 
@@ -948,19 +895,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                             }
                         } else {
 
-                            echo "
-
-<tr>
-
-<td colspan='8'>
-
-No Transactions Available
-
-</td>
-
-</tr>
-
-";
+                            echo "<tr><td colspan='8'>No Transactions Available</td></tr>";
                         }
 
                         ?>
@@ -980,9 +915,7 @@ No Transactions Available
 
     </div>
 
-
-
-
+    <!-- Include footer -->
 
     <?php require_once 'footer.php'; ?>
 

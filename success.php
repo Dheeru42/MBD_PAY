@@ -16,7 +16,6 @@ if (!isset($_SESSION['user']) && isset($_COOKIE['remember_user'])) {
 }
 
 if (!isset($_SESSION['wallet_id'])) {
-
     header("location:login.php");
     exit;
 }
@@ -37,6 +36,7 @@ if (!isset($_SESSION['success_transaction'])) {
 }
 
 // session data
+
 $user_mob = $_SESSION['mobile'];
 
 $u_wallet_id = $_SESSION['wallet_id'];
@@ -46,10 +46,15 @@ $u_account = $_SESSION['account'];
 $transaction = $_SESSION['success_transaction'];
 
 $trx_token_id         = $transaction['token_id'] ?? '';
+
 $trx_id               = $transaction['transaction_id'] ?? '';
+
 $trx_amount          = $transaction['amount'] ?? 0;
+
 $trx_sender_mobile   = $transaction['sender_mobile'] ?? '';
+
 $trx_receiver_mobile = $transaction['receiver_mobile'] ?? '';
+
 $trx_timestamp       = $transaction['timestamp'] ?? date('Y-m-d H:i:s');
 
 
@@ -76,6 +81,7 @@ $formattedDate = date("d M Y", strtotime($trx_timestamp));
 $formattedTime = date("h:i A", strtotime($trx_timestamp));
 
 session_abort();
+
 ?>
 
 <!DOCTYPE html>
@@ -93,7 +99,9 @@ session_abort();
 
     <link rel="icon"
         type="image/svg+xml"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' 
+        height='100' rx='20' fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' 
+        font-weight='bold' fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
     <style>
         * {
@@ -585,6 +593,7 @@ session_abort();
 <body>
 
     <div class="glow one"></div>
+
     <div class="glow two"></div>
 
     <div class="success-card">
@@ -669,13 +678,9 @@ session_abort();
 
             <div class="detail-row">
 
-                <span class="detail-label">
-                    Time
-                </span>
+                <span class="detail-label"> Time </span>
 
-                <span class="detail-value">
-                    <?php echo e($formattedTime); ?>
-                </span>
+                <span class="detail-value"> <?php echo e($formattedTime); ?> </span>
 
             </div>
 
@@ -691,21 +696,9 @@ session_abort();
 
         <div class="buttons">
 
-            <button
-                class="btn btn-secondary"
-                onclick="window.print()">
+            <button class="btn btn-secondary" onclick="window.print()"> Print Receipt </button>
 
-                Print Receipt
-
-            </button>
-
-            <a
-                href="qr_scanner.php"
-                class="btn btn-primary">
-
-                Done
-
-            </a>
+            <a href="qr_scanner.php" class="btn btn-primary"> Done </a>
 
         </div>
 

@@ -1,6 +1,11 @@
 <?php
+
 session_start();
+
+/* include database */
+
 require_once 'conn.php';
+
 require_once 'currency_con.php';
 
 $mess_fail = "";
@@ -8,7 +13,6 @@ $mess_fail = "";
 $timestamp = time();
 
 if (!$serverConnected) {
-
     header("location:index.php");
     exit;
 }
@@ -57,9 +61,11 @@ if (!isset($_SESSION['mode'])) {
 }
 
 require_once 'keys/config.php';
+
 define("CACHE_DIR", __DIR__ . "/cache/users/");
 
 /* Encrypt Function */
+
 function encryptData($text)
 {
     $key = hash("sha256", SECRET_KEY, true);
@@ -106,9 +112,13 @@ if ($serverConnected) {
         // server balance
 
         $stmt = mysqli_prepare($conn, "SELECT name,balance FROM users WHERE mobile=? AND account_no=?");
+
         mysqli_stmt_bind_param($stmt, "ss", $user_mob, $u_account);
+
         mysqli_stmt_execute($stmt);
+
         $result = mysqli_stmt_get_result($stmt);
+
         $user = mysqli_fetch_assoc($result);
 
         $server_bal = decryptData($user['balance']);
@@ -127,6 +137,7 @@ if ($serverConnected) {
         $cache_bal = decryptData($cache['balance']);
 
         // start
+
         if ($server_bal != $cache_bal) {
             header("location:synchronize_login.php");
         }
@@ -136,9 +147,12 @@ if ($serverConnected) {
 }
 
 
-// QR scan data is served to server for credit/debit processing.
-// Transaction result is stored in the session so sensitive transaction
-// information is not exposed in the success/failure URL.
+/* QR scan data is served to server for credit/debit processing.
+
+|  Transaction result is stored in the session so sensitive transaction
+
+| information is not exposed in the success/failure URL. */
+
 $qrData = '';
 
 function createTransactionId(): string
@@ -181,6 +195,7 @@ try {
         $pay_mode = trim((string)($data['pay_mode']));
 
         // code for offline money qr code scanner
+
         if ($pay_mode == 'Offline') {
             $qr_token_id = $data['token_id'];
             $qr_token_no = decryptData($data['token_no']);
@@ -191,16 +206,14 @@ try {
             $e_qr_reciever_mobile = $data['receiver_mobile'];
 
             /* Create Transaction id */
+
             $trx_id = createTransactionId();
 
             /* check token id exist or not */
 
             $token_stmt = mysqli_prepare(
                 $conn,
-                "SELECT
-                * FROM offline_transactions
-             WHERE token_id = ?
-             LIMIT 1"
+                "SELECT * FROM offline_transactions WHERE token_id = ? LIMIT 1"
             );
 
             if (!$token_stmt) {
@@ -249,6 +262,7 @@ try {
             }
 
             // check qr money is rejected or not
+
             elseif ($qr_status == 'rejected') {
 
                 $mess_fail = "This QR money is rejected.";
@@ -269,6 +283,7 @@ try {
             elseif ($token_data && $qr_status == 'not assign') {
 
                 // fetch data of qr sender
+
                 $sender_stmt = mysqli_prepare(
                     $conn,
                     "SELECT * FROM users WHERE mobile = ? LIMIT 1"
@@ -305,6 +320,7 @@ try {
                 $e_qr_sender_update_bal = encryptData($decrypt_sender_bal - $qr_amount);
 
                 // fetch data of qr reciever
+
                 $reciever_stmt = mysqli_prepare(
                     $conn,
                     "SELECT * FROM users WHERE mobile = ? LIMIT 1"
@@ -392,18 +408,23 @@ try {
                 }
 
                 // if this condition true then update both users trx
+
                 elseif ($user_mob == $qr_reciever_mobile) {
 
                     // sender wallet update
 
                     /* debit from MBD Wallet */
+
                     $qr_send_walletQuery = "UPDATE users SET balance = ?, update_at = ? WHERE mobile = ?";
 
                     $qr_send_stmt = mysqli_prepare($conn, $qr_send_walletQuery);
+
                     mysqli_stmt_bind_param($qr_send_stmt, "sss", $e_qr_sender_update_bal, $date_time, $d_qr_sender_mobile);
+
                     mysqli_stmt_execute($qr_send_stmt);
 
                     // sender transaction update
+
                     $send_walletTransaction = "INSERT INTO transactions(
                                                                 transaction_id,
                                                                 mobile,
@@ -423,9 +444,10 @@ try {
 
 
                     $type = "Debit";
-                    $st = 'Success';
-                    $desc = "QR Money Send to " . $qr_reciever_mobile . "/" . $reciever_wallet_id;
 
+                    $st = 'Success';
+
+                    $desc = "QR Money Send to " . $qr_reciever_mobile . "/" . $reciever_wallet_id;
 
                     mysqli_stmt_bind_param(
                         $sender_stmt1,
@@ -446,14 +468,16 @@ try {
                     // reciever wallet update
 
                     /* Credit to MBD Wallet */
+
                     $walletQuery = "UPDATE users SET balance = ?, update_at = ? WHERE mobile = ?";
 
                     $qr_rec_stmt = mysqli_prepare($conn, $walletQuery);
+
                     mysqli_stmt_bind_param($qr_rec_stmt, "sss", $e_rec_update_bal, $date_time, $user_mob);
+
                     mysqli_stmt_execute($qr_rec_stmt);
 
                     // reciever transaction update
-
 
                     /*  fetch latest balance of user */
 
@@ -484,9 +508,10 @@ try {
 
 
                     $type = "Credit";
-                    $st = 'Success';
-                    $desc = "QR Money Recieved From " . $d_qr_sender_mobile . "/" . $decrypt_sender_wallet;
 
+                    $st = 'Success';
+
+                    $desc = "QR Money Recieved From " . $d_qr_sender_mobile . "/" . $decrypt_sender_wallet;
 
                     mysqli_stmt_bind_param(
                         $rec_stmt1,
@@ -509,7 +534,6 @@ try {
                     $userId = hash("sha256", $user_mob);
 
                     $file = "cache/users/$userId/profile.json";
-
 
                     if (file_exists($file)) {
 
@@ -539,6 +563,7 @@ try {
                     }
 
                     // Transaction data for success.php
+
                     $_SESSION['success_transaction'] = [
                         'transaction_id' => $trx_id,
                         'token_id'        => $qr_token_id,
@@ -598,7 +623,9 @@ try {
                     header('Location: fail.php');
                 }
             } else {
+
                 // code if token not found
+
                 $mess_fail = "You are Scanning an Un-Authorized Token.Please do not try to Scan again.";
 
                 $_SESSION['failed_transaction'] = [
@@ -683,10 +710,13 @@ try {
 
 
             $sen_mob = (string)($currency['sender_mobile'] ?? '');
+
             $sen_amount = $currency['amount'] ?? '';
+
             $sender_wallet_id = $currency['wallet_id'];
 
             // A user cannot scan their own currency.
+
             if ((string)$user_mob === $sen_mob) {
                 setQrFailure('You cannot scan your own currency.', [
                     'amount'        => decryptData($currency['amount']) ?? null,
@@ -701,10 +731,8 @@ try {
             $updateStmt = mysqli_prepare(
                 $c_conn,
                 "UPDATE currency
-             SET status = 'SCANNED', receiver_mobile = ?,scanned_at = ?,completed_at = ?
-             WHERE id = ?
-             AND status = 'GENERATED'
-             LIMIT 1"
+                        SET status = 'SCANNED', receiver_mobile = ?,scanned_at = ?,completed_at = ?
+                        WHERE id = ? AND status = 'GENERATED' LIMIT 1"
             );
 
             if (!$updateStmt) {
@@ -718,7 +746,9 @@ try {
             }
 
             // If another request scanned it first, do not report a false success.
+
             if (mysqli_stmt_affected_rows($updateStmt) !== 1) {
+
                 setQrFailure('This currency has already been processed or is no longer available.', [
                     'amount'        => decryptData($currency['amount']) ?? null,
                     'serial_no'     => $currency['serial_no'] ?? null,
@@ -727,6 +757,7 @@ try {
                     'generated_at'  => $currency['generated_at'] ?? null,
                 ]);
             }
+
 
             $_SESSION['qr_result'] = [
                 'transaction_id' => createTransactionId(),
@@ -740,16 +771,13 @@ try {
             ];
 
             $data = $_SESSION['qr_result'];
+
             $transaction_id_cur =  $data['transaction_id'];
 
 
             // Update MBD Pay wallet
 
-            $walletBalanceQuery = "
-        SELECT balance 
-        FROM users 
-        WHERE mobile='$user_mob'
-    ";
+            $walletBalanceQuery = "SELECT balance FROM users WHERE mobile='$user_mob' ";
 
             $walletResult = mysqli_query($conn, $walletBalanceQuery);
 
@@ -766,22 +794,20 @@ try {
             $e_update_wallet_bal = encryptData($update_wallet_bal);
 
             // Credit to MBD Wallet
+
             $walletQuery = "UPDATE users SET balance = ?, update_at = ? WHERE mobile = ?";
 
             $stmt2 = mysqli_prepare($conn, $walletQuery);
-            mysqli_stmt_bind_param($stmt2, "sss", $e_update_wallet_bal, $date_time, $user_mob);
-            mysqli_stmt_execute($stmt2);
 
+            mysqli_stmt_bind_param($stmt2, "sss", $e_update_wallet_bal, $date_time, $user_mob);
+
+            mysqli_stmt_execute($stmt2);
 
             // Update MBD Pay Transaction
 
             //  fetch latest balance of user
 
-            $latest_walletBalanceQuery = "
-        SELECT balance 
-        FROM users 
-        WHERE mobile='$user_mob'
-    ";
+            $latest_walletBalanceQuery = "SELECT balance FROM users WHERE mobile='$user_mob' ";
 
             $latest_walletResult = mysqli_query($conn, $latest_walletBalanceQuery);
 
@@ -790,6 +816,7 @@ try {
             $latest_wallet_balance = $latest_walletData['balance'];
 
             $walletTransaction = "
+
             INSERT INTO transactions
             (
             transaction_id,
@@ -805,14 +832,13 @@ try {
             (?,?,?,?,?,?,?,?)
         ";
 
-
             $stmt1 = mysqli_prepare($conn, $walletTransaction);
 
-
             $type = "Currency Received";
-            $st = 'Success';
-            $desc = "Digital Currency Recieved From " . $sen_mob . "/" . $sender_wallet_id;
 
+            $st = 'Success';
+
+            $desc = "Digital Currency Recieved From " . $sen_mob . "/" . $sender_wallet_id;
 
             mysqli_stmt_bind_param(
                 $stmt1,
@@ -865,11 +891,14 @@ try {
             }
 
             header('Location: qr_success.php');
+
             exit;
         }
     }
 } catch (Throwable $e) {
+
     // Keep technical database errors out of the customer-facing page.
+
     setQrFailure('We could not complete this transaction. Please try again.');
 }
 
@@ -889,10 +918,14 @@ try {
 
     <link rel="icon"
         type="image/svg+xml"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' font-weight='bold' fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' 
+        height='100' rx='20' fill='%23059669'/%3E%3Ctext x='50' y='72' text-anchor='middle' font-size='70' font-family='Arial' 
+        font-weight='bold' fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
     <!-- QR Scanner Library -->
+
     <script src="https://unpkg.com/html5-qrcode"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
     <style>
@@ -923,9 +956,7 @@ try {
             overflow-x: hidden;
         }
 
-        /* =========================================================
-           MAIN
-        ========================================================= */
+        /* MAIN */
 
         .qr-wrapper {
 
@@ -940,9 +971,7 @@ try {
             z-index: 1;
         }
 
-        /* =========================================================
-           HEADER
-        ========================================================= */
+        /* HEADER */
 
         .qr-heading {
 
@@ -996,9 +1025,7 @@ try {
             font-size: 14px;
         }
 
-        /* =========================================================
-           CARD
-        ========================================================= */
+        /* CARD */
 
         .qr-card {
 
@@ -1022,9 +1049,7 @@ try {
             overflow: hidden;
         }
 
-        /* =========================================================
-           BUTTONS
-        ========================================================= */
+        /* BUTTONS */
 
         .qr-actions {
 
@@ -1103,9 +1128,7 @@ try {
             color: #422006;
         }
 
-        /* =========================================================
-           CAMERA
-        ========================================================= */
+        /* CAMERA */
 
         #cameraSection {
 
@@ -1187,9 +1210,7 @@ try {
             font-weight: bold;
         }
 
-        /* =========================================================
-           UPLOAD
-        ========================================================= */
+        /* UPLOAD */
 
         #uploadSection {
 
@@ -1297,9 +1318,7 @@ try {
             display: none;
         }
 
-        /* =========================================================
-           SUCCESS MESSAGE
-        ========================================================= */
+        /* SUCCESS MESSAGE */
 
         #scanSuccess {
 
@@ -1328,9 +1347,7 @@ try {
             font-size: 14px;
         }
 
-        /* =========================================================
-           MOBILE
-        ========================================================= */
+        /* MOBILE */
 
         @media (max-width: 650px) {
 
@@ -1386,9 +1403,7 @@ try {
             }
         }
 
-        /* =========================================================
-           VERY SMALL MOBILE
-        ========================================================= */
+        /* VERY SMALL MOBILE */
 
         @media (max-width: 380px) {
 
@@ -1423,38 +1438,30 @@ try {
 </head>
 
 <body>
+
+    /* Include navbar */
+
     <?php require_once "navbar.php"; ?>
+
     <?php
 
     if ($mess_fail != "") {
-
-        echo "
-
-        <div class='mess_fail'>
-        $mess_fail
-            </div>
-
-                ";
+        echo "<div class='mess_fail'>$mess_fail</div>";
     }
 
     ?>
+
     <div class="qr-wrapper">
 
         <!-- HEADER -->
 
         <div class="qr-heading">
 
-            <div class="qr-icon">
-                📱
-            </div>
+            <div class="qr-icon"> 📱 </div>
 
-            <h1>
-                QR Scanner
-            </h1>
+            <h1> QR Scanner </h1>
 
-            <p>
-                Scan a QR code or upload a QR image
-            </p>
+            <p> Scan a QR code or upload a QR image </p>
 
         </div>
 
@@ -1537,24 +1544,15 @@ try {
                     class="upload-area"
                     for="qrImageInput">
 
-                    <div class="upload-icon">
-                        🖼️
-                    </div>
+                    <div class="upload-icon"> 🖼️ </div>
 
-                    <h2>
-                        Upload QR Code
-                    </h2>
+                    <h2> Upload QR Code </h2>
 
-                    <p>
-                        Select a QR image from your device
-                    </p>
+                    <p> Select a QR image from your device </p>
 
-                    <span class="choose-btn">
-                        Choose QR Image
-                    </span>
+                    <span class="choose-btn"> Choose QR Image </span>
 
                 </label>
-
 
                 <input
                     type="file"
@@ -1563,29 +1561,21 @@ try {
 
             </div>
 
-
         </div>
 
     </div>
 
 
     <script>
-        /*
-    |--------------------------------------------------------------------------
-    | GLOBAL VARIABLES
-    |--------------------------------------------------------------------------
-    */
+        /* GLOBAL VARIABLES */
 
         let scanner = null;
+
         let currentResult = "";
+
         let processingQR = false;
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | SEND QR DATA TO PHP USING POST
-        |--------------------------------------------------------------------------
-        */
+        /* SEND QR DATA TO PHP USING POST */
 
         function sendQRToPHP(decodedText) {
 
@@ -1594,6 +1584,7 @@ try {
             }
 
             const qrInput = document.getElementById("qrDataInput");
+
             const qrForm = document.getElementById("qrSubmitForm");
 
             if (!qrInput || !qrForm) {
@@ -1603,32 +1594,17 @@ try {
 
             qrInput.value = decodedText;
 
-            /*
-            |--------------------------------------------------------------------------
-            | NORMAL FORM SUBMIT
-            |--------------------------------------------------------------------------
-            | No fetch(), no AJAX response handling and no JavaScript DOM display.
-            | The browser submits the QR data to PHP, and PHP echoes it immediately.
-            |--------------------------------------------------------------------------
-            */
+            /* NORMAL FORM SUBMIT */
 
             qrForm.submit();
         }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | QR FOUND
-        |--------------------------------------------------------------------------
-        */
+        /* QR FOUND */
 
         function qrFound(decodedText) {
 
-            /*
-            |--------------------------------------------------------------------------
-            | PREVENT MULTIPLE SCANS
-            |--------------------------------------------------------------------------
-            */
+            /* PREVENT MULTIPLE SCANS */
 
             if (processingQR) {
                 return;
@@ -1640,29 +1616,17 @@ try {
             // QR payload is intentionally not logged or displayed.
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | STOP CAMERA
-            |--------------------------------------------------------------------------
-            */
+            /* STOP CAMERA */
 
             stopCamera();
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | SEND QR DATA TO PHP
-            |--------------------------------------------------------------------------
-            */
+            /* SEND QR DATA TO PHP */
 
             sendQRToPHP(decodedText);
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | ALLOW ANOTHER SCAN
-            |--------------------------------------------------------------------------
-            */
+            /* ALLOW ANOTHER SCAN */
 
             setTimeout(function() {
 
@@ -1673,11 +1637,7 @@ try {
         }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | START CAMERA
-        |--------------------------------------------------------------------------
-        */
+        /* START CAMERA */
 
         function startCamera() {
 
@@ -1685,10 +1645,8 @@ try {
                 return;
             }
 
-
             scanner =
                 new Html5Qrcode("reader");
-
 
             scanner.start(
 
@@ -1706,11 +1664,7 @@ try {
                     },
 
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | QR SCANNED
-                    |--------------------------------------------------------------------------
-                    */
+                    /* QR SCANNED */
 
                     function(decodedText) {
 
@@ -1719,28 +1673,18 @@ try {
                     },
 
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | SCAN ERROR
-                    |--------------------------------------------------------------------------
-                    */
+                    /* SCAN ERROR */
 
                     function(errorMessage) {
 
-                        /*
-                        Normal scanning errors are ignored.
-                        */
+                        /* Normal scanning errors are ignored. */
 
                     }
 
                 )
 
 
-                /*
-                |--------------------------------------------------------------------------
-                | CAMERA STARTED
-                |--------------------------------------------------------------------------
-                */
+                /* CAMERA STARTED */
 
                 .then(function() {
 
@@ -1757,11 +1701,7 @@ try {
                 })
 
 
-                /*
-                |--------------------------------------------------------------------------
-                | CAMERA ERROR
-                |--------------------------------------------------------------------------
-                */
+                /* CAMERA ERROR */
 
                 .catch(function(error) {
 
@@ -1782,11 +1722,7 @@ try {
         }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | STOP CAMERA
-        |--------------------------------------------------------------------------
-        */
+        /* STOP CAMERA */
 
         function stopCamera() {
 
@@ -1819,11 +1755,7 @@ try {
         }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | SHOW CAMERA
-        |--------------------------------------------------------------------------
-        */
+        /* SHOW CAMERA */
 
         function showCamera() {
 
@@ -1849,11 +1781,7 @@ try {
         }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | OPEN UPLOAD
-        |--------------------------------------------------------------------------
-        */
+        /* OPEN UPLOAD */
 
         function openUpload() {
 
@@ -1877,19 +1805,12 @@ try {
         }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | READ UPLOADED QR IMAGE
-        |--------------------------------------------------------------------------
-        */
+        /* READ UPLOADED QR IMAGE */
 
-        /*
-        |--------------------------------------------------------------------------
-        | READ UPLOADED QR IMAGE
-        |--------------------------------------------------------------------------
-        | html5-qrcode is tried first. If the image is difficult to decode
-        | because of resolution, scaling, rotation, or compression, jsQR is
-        | used as a fallback. The decoded value is never written to the page.
+        /* 
+        html5-qrcode is tried first. If the image is difficult to decode because of 
+        resolution, scaling, rotation, or compression, jsQR is used as a fallback. 
+        The decoded value is never written to the page.
         */
 
         function submitDecodedUpload(decodedText) {
@@ -1900,12 +1821,15 @@ try {
             processingQR = true;
 
             const statusElement = document.getElementById("scanStatus");
+
             if (statusElement) {
                 statusElement.innerText = "🟢 QR detected. Processing...";
             }
 
             // Do not display/log the QR payload.
+
             sendQRToPHP(decodedText);
+
         }
 
         function decodeUploadedImageWithJsQR(file) {
@@ -1916,23 +1840,31 @@ try {
                 }
 
                 const image = new Image();
+
                 const objectUrl = URL.createObjectURL(file);
 
                 image.onload = function() {
                     try {
                         const maxSize = 2400;
+
                         let width = image.naturalWidth;
+
                         let height = image.naturalHeight;
 
                         // Keep enough resolution for small QR modules.
+
                         if (Math.max(width, height) > maxSize) {
                             const scale = maxSize / Math.max(width, height);
+
                             width = Math.round(width * scale);
+
                             height = Math.round(height * scale);
                         }
 
                         const canvas = document.createElement("canvas");
+
                         canvas.width = width;
+
                         canvas.height = height;
 
                         const ctx = canvas.getContext("2d", {
@@ -1983,9 +1915,12 @@ try {
                         }
 
                         // Third attempt: rotate 90 degrees.
+
                         if (!result) {
                             const rotated = document.createElement("canvas");
+
                             rotated.width = height;
+
                             rotated.height = width;
 
                             const rctx = rotated.getContext("2d", {
@@ -1993,7 +1928,9 @@ try {
                             });
 
                             rctx.translate(height, 0);
+
                             rctx.rotate(Math.PI / 2);
+
                             rctx.drawImage(image, 0, 0, width, height);
 
                             const rotatedData = rctx.getImageData(
@@ -2060,11 +1997,9 @@ try {
                     new Html5Qrcode("reader");
 
                 try {
-                    /*
-                    |--------------------------------------------------------------------------
-                    | METHOD 1: html5-qrcode
-                    |--------------------------------------------------------------------------
-                    */
+
+                    /* METHOD 1: html5-qrcode */
+
                     const decodedText =
                         await imageScanner.scanFile(file, true);
 
@@ -2080,11 +2015,8 @@ try {
                         // Ignore cleanup errors.
                     }
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | METHOD 2: jsQR FALLBACK
-                    |--------------------------------------------------------------------------
-                    */
+                    /* METHOD 2: jsQR FALLBACK  */
+
                     try {
                         const decodedText =
                             await decodeUploadedImageWithJsQR(file);
@@ -2105,15 +2037,12 @@ try {
                 }
 
                 // Allow selecting the same image again.
+
                 event.target.value = "";
             }
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | PAGE LOAD
-        |--------------------------------------------------------------------------
-        */
+        /* PAGE LOAD */
 
         window.addEventListener(
 
@@ -2128,11 +2057,7 @@ try {
         );
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | CLEANUP
-        |--------------------------------------------------------------------------
-        */
+        /* CLEANUP */
 
         window.addEventListener(
 
@@ -2149,7 +2074,11 @@ try {
 
 
     <?php
+
+    /* Include footer */
+
     require_once 'footer.php';
+
     ?>
 
 </body>
