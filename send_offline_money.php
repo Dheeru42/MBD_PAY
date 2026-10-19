@@ -794,7 +794,7 @@ try {
 
 <body>
 
-    /* Include navbar */
+    <!-- Include navbar -->
 
     <?php require_once 'navbar.php'; ?>
 
@@ -1042,7 +1042,7 @@ try {
         </div>
     </div>
 
-    /* Include footer */
+    <!-- Include footer -->
 
     <?php require_once 'footer.php'; ?>
 

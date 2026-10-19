@@ -2328,7 +2328,7 @@ try {
 
     </div>
 
-    /* Include footer */
+    <!-- Include footer -->
 
     <?php require_once 'footer.php'; ?>
 

@@ -538,7 +538,7 @@ try {
 
 <body>
 
-    <!-- NAVBAR -->
+    <!-- include navbar -->
 
     <nav class="mbd-navbar">
 
@@ -716,7 +716,7 @@ try {
         }
     </script>
 
-    /* include footer */
+    <!-- include footer -->
 
     <?php require_once "footer.php"; ?>
 

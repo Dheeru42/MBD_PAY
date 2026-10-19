@@ -2733,6 +2733,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 <body>
 
+    <!-- Include navbar -->
 
     <?php require_once 'navbar.php'; ?>
 
@@ -3409,6 +3410,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
     <?php endif; ?>
 
+    <!-- Include footer -->
 
     <?php require_once 'footer.php'; ?>
 

@@ -608,7 +608,7 @@ try {
 
 <body>
 
-    /* Include navbar */
+    <!-- Include navbar -->
 
     <?php require_once 'navbar.php'; ?>
 

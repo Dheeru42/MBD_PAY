@@ -863,7 +863,8 @@ try {
 </head>
 
 <body>
-    /* Include navabar */
+
+    <!-- Include navabar -->
 
     <?php require_once "navbar.php"; ?>
 
@@ -949,7 +950,7 @@ try {
 
 <?php } ?>
 
-/* Include footer */
+<!-- Include footer -->
 
 <?php require_once "footer.php"; ?>
 

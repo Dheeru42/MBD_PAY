@@ -439,7 +439,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 <body>
 
-    /* Include navabar */
+    <!-- Include navabar -->
 
     <?php require_once 'navbar.php' ?>
 
@@ -719,7 +719,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 </body>
 
-/* Include footer */
+<!-- Include footer -->
 
 <?php require_once 'footer.php' ?>
 

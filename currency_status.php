@@ -748,11 +748,14 @@ function statusIcon($status)
 
 <body>
 
+    <!-- Include navbar -->
+
     <?php require_once 'navbar.php'; ?>
 
     <main class="currency-status-page">
 
         <!-- HERO -->
+
         <section class="hero">
 
             <div class="hero-left">
@@ -775,6 +778,7 @@ function statusIcon($status)
         <?php endif; ?>
 
         <!-- SUMMARY -->
+
         <section class="summary-grid">
 
             <div class="summary-card">
@@ -818,6 +822,7 @@ function statusIcon($status)
         </section>
 
         <!-- CONTROLS -->
+
         <section class="controls">
 
             <div class="search-box">
@@ -842,6 +847,7 @@ function statusIcon($status)
         </section>
 
         <!-- STATUS SUMMARY -->
+
         <?php if (!empty($status_counts)): ?>
             <div class="status-summary" style="margin-bottom:18px;">
 
@@ -856,6 +862,7 @@ function statusIcon($status)
         <?php endif; ?>
 
         <!-- TABLE -->
+
         <section class="table-card">
 
             <div class="table-head">
@@ -1010,6 +1017,8 @@ function statusIcon($status)
         </section>
 
     </main>
+
+    <!-- Include footer -->
 
     <?php require_once 'footer.php'; ?>
 

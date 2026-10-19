@@ -2352,6 +2352,7 @@ try {
 
 <body>
 
+    <!-- Include navbar -->
 
     <?php require_once 'navbar.php'; ?>
 
@@ -3052,6 +3053,7 @@ try {
 
     </main>
 
+    <!-- Include footer -->
 
     <?php require_once 'footer.php'; ?>
 
