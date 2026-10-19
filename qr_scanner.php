@@ -10,6 +10,8 @@ require_once 'currency_con.php';
 
 $mess_fail = "";
 
+$signature_valid = false;
+
 $timestamp = time();
 
 if (!$serverConnected) {
@@ -192,18 +194,26 @@ try {
             setQrFailure('Invalid QR code. The QR data format is not supported.');
         }
 
-        $pay_mode = trim((string)($data['pay_mode']));
+        $pay_mode = trim((string)($data['pm']));
 
         // code for offline money qr code scanner
 
         if ($pay_mode == 'Offline') {
-            $qr_token_id = $data['token_id'];
-            $qr_token_no = decryptData($data['token_no']);
+            $qr_token_id = $data['ti'];
+            $qr_token_no = decryptData($data['tn']);
             $expires_at = $qr_token_no + 120000; // after check correct to 40 sec
-            $qr_amount = decryptData($data['amount']);
-            $e_qr_amount = $data['amount'];
-            $qr_reciever_mobile = decryptData($data['receiver_mobile']);
-            $e_qr_reciever_mobile = $data['receiver_mobile'];
+            $qr_amount = decryptData($data['a']);
+            $e_qr_amount = $data['a'];
+            $qr_reciever_mobile = decryptData($data['rm']);
+            $e_qr_reciever_mobile = $data['rm'];
+            $qr_digital_sign = $data['sg'];
+
+            // Reconstruct and verify the HMAC digital signature matching send_offline_money.php
+            $signatureData = $qr_token_id . "|" . $qr_amount . "|" . $qr_reciever_mobile;
+
+            $calculated_signature = hash_hmac("sha256", $signatureData, SECRET_KEY);
+
+            $signature_valid = hash_equals($calculated_signature, $qr_digital_sign);
 
             /* Create Transaction id */
 
@@ -282,305 +292,309 @@ try {
 
             elseif ($token_data && $qr_status == 'not assign') {
 
-                // fetch data of qr sender
+                // check signature valid or not
 
-                $sender_stmt = mysqli_prepare(
-                    $conn,
-                    "SELECT * FROM users WHERE mobile = ? LIMIT 1"
-                );
+                if ($signature_valid) {
 
-                if (!$sender_stmt) {
-                    throw new Exception('Database prepare failed.');
-                }
+                    // fetch data of qr sender
 
-                mysqli_stmt_bind_param(
-                    $sender_stmt,
-                    's',
-                    $d_qr_sender_mobile
-                );
-
-                if (!mysqli_stmt_execute($sender_stmt)) {
-                    throw new Exception('Database query failed.');
-                }
-
-                $sender_result = mysqli_stmt_get_result($sender_stmt);
-
-                if (!$sender_result) {
-                    throw new Exception('Unable to read currency record.');
-                }
-
-                $sender_data = mysqli_fetch_assoc($sender_result);
-
-                $decrypt_sender_bal = decryptData($sender_data['balance']);
-
-                $encrypt_sender_bal = $sender_data['balance'];
-
-                $decrypt_sender_wallet = $sender_data['wallet_id'];
-
-                $e_qr_sender_update_bal = encryptData($decrypt_sender_bal - $qr_amount);
-
-                // fetch data of qr reciever
-
-                $reciever_stmt = mysqli_prepare(
-                    $conn,
-                    "SELECT * FROM users WHERE mobile = ? LIMIT 1"
-                );
-
-                if (!$reciever_stmt) {
-                    throw new Exception('Database prepare failed.');
-                }
-
-                mysqli_stmt_bind_param(
-                    $reciever_stmt,
-                    's',
-                    $qr_reciever_mobile
-                );
-
-                if (!mysqli_stmt_execute($reciever_stmt)) {
-                    throw new Exception('Database query failed.');
-                }
-
-                $reciever_result = mysqli_stmt_get_result($reciever_stmt);
-
-                if (!$reciever_result) {
-                    throw new Exception('Unable to read currency record.');
-                }
-
-                $reciever_data = mysqli_fetch_assoc($reciever_result);
-
-                $old_decrypt_reciever_bal = decryptData($reciever_data['balance']);
-
-                $reciever_wallet_id = $reciever_data['wallet_id'];
-
-                $old_encrypt_reciever_bal = $reciever_data['balance'];
-
-                $e_rec_update_bal = encryptData($old_decrypt_reciever_bal + $qr_amount);
-
-                // check owner scan own qr money
-
-                if ($user_mob == $d_qr_sender_mobile) {
-
-                    $mess_fail = "You cannot scan your own QR money.";
-
-                    $_SESSION['failed_transaction'] = [
-                        'transaction_id' => $trx_id,
-                        'amount'          => $qr_amount,
-                        'sender_mobile'   => $d_qr_sender_mobile,
-                        'receiver_mobile' => $user_mob,
-                        'reason'          => $mess_fail,
-                        'timestamp'       => date("Y-m-d h:i:s A")
-                    ];
-                    header('Location: fail.php');
-                }
-
-                // check qr timeout or not
-
-                elseif ($timestamp > $expires_at) {
-
-                    $mess_fail = "This QR money is expired.";
-
-                    $_SESSION['failed_transaction'] = [
-                        'transaction_id' => $trx_id,
-                        'amount'          => $qr_amount,
-                        'sender_mobile'   => $d_qr_sender_mobile,
-                        'receiver_mobile' => $user_mob,
-                        'reason'          => $mess_fail,
-                        'timestamp'       => date("Y-m-d h:i:s A")
-                    ];
-                    header('Location: fail.php');
-                }
-
-                // check only receiver scanner is scan or not 
-
-                elseif ($user_mob != $qr_reciever_mobile) {
-
-                    $mess_fail = "You are not authorized to scan this QR money.";
-
-                    $_SESSION['failed_transaction'] = [
-                        'transaction_id' => $trx_id,
-                        'amount'          => $qr_amount,
-                        'sender_mobile'   => $d_qr_sender_mobile,
-                        'receiver_mobile' => $user_mob,
-                        'reason'          => $mess_fail,
-                        'timestamp'       => date("Y-m-d h:i:s A")
-                    ];
-                    header('Location: fail.php');
-                }
-
-                // if this condition true then update both users trx
-
-                elseif ($user_mob == $qr_reciever_mobile) {
-
-                    // sender wallet update
-
-                    /* debit from MBD Wallet */
-
-                    $qr_send_walletQuery = "UPDATE users SET balance = ?, update_at = ? WHERE mobile = ?";
-
-                    $qr_send_stmt = mysqli_prepare($conn, $qr_send_walletQuery);
-
-                    mysqli_stmt_bind_param($qr_send_stmt, "sss", $e_qr_sender_update_bal, $date_time, $d_qr_sender_mobile);
-
-                    mysqli_stmt_execute($qr_send_stmt);
-
-                    // sender transaction update
-
-                    $send_walletTransaction = "INSERT INTO transactions(
-                                                                transaction_id,
-                                                                mobile,
-                                                                type,
-                                                                amount,
-                                                                balance_before,
-                                                                balance_after,
-                                                                description,
-                                                                status
-                                                                )
-                                                                VALUES
-                                                                (?,?,?,?,?,?,?,?)
-                                      ";
-
-
-                    $sender_stmt1 = mysqli_prepare($conn, $send_walletTransaction);
-
-
-                    $type = "Debit";
-
-                    $st = 'Success';
-
-                    $desc = "QR Money Send to " . $qr_reciever_mobile . "/" . $reciever_wallet_id;
-
-                    mysqli_stmt_bind_param(
-                        $sender_stmt1,
-                        "ssssssss",
-                        $trx_id,
-                        $d_qr_sender_mobile,
-                        $type,
-                        $e_qr_amount,
-                        $encrypt_sender_bal,
-                        $e_qr_sender_update_bal,
-                        $desc,
-                        $st
+                    $sender_stmt = mysqli_prepare(
+                        $conn,
+                        "SELECT * FROM users WHERE mobile = ? LIMIT 1"
                     );
 
-
-                    mysqli_stmt_execute($sender_stmt1);
-
-                    // reciever wallet update
-
-                    /* Credit to MBD Wallet */
-
-                    $walletQuery = "UPDATE users SET balance = ?, update_at = ? WHERE mobile = ?";
-
-                    $qr_rec_stmt = mysqli_prepare($conn, $walletQuery);
-
-                    mysqli_stmt_bind_param($qr_rec_stmt, "sss", $e_rec_update_bal, $date_time, $user_mob);
-
-                    mysqli_stmt_execute($qr_rec_stmt);
-
-                    // reciever transaction update
-
-                    /*  fetch latest balance of user */
-
-                    $rec_latest_walletBalance = "SELECT balance FROM users WHERE mobile='$user_mob'";
-
-                    $rec_latest_walletResult = mysqli_query($conn, $rec_latest_walletBalance);
-
-                    $rec_latest_walletData = mysqli_fetch_assoc($rec_latest_walletResult);
-
-                    $rec_latest_wallet_balance = $rec_latest_walletData['balance'];
-
-                    $rec_walletTransaction = "INSERT INTO transactions(
-                                                                transaction_id,
-                                                                mobile,
-                                                                type,
-                                                                amount,
-                                                                balance_before,
-                                                                balance_after,
-                                                                description,
-                                                                status
-                                                                )
-                                                                VALUES
-                                                                (?,?,?,?,?,?,?,?)
-                                      ";
-
-
-                    $rec_stmt1 = mysqli_prepare($conn, $rec_walletTransaction);
-
-
-                    $type = "Credit";
-
-                    $st = 'Success';
-
-                    $desc = "QR Money Recieved From " . $d_qr_sender_mobile . "/" . $decrypt_sender_wallet;
-
-                    mysqli_stmt_bind_param(
-                        $rec_stmt1,
-                        "ssssssss",
-                        $trx_id,
-                        $user_mob,
-                        $type,
-                        $e_qr_amount,
-                        $old_encrypt_reciever_bal,
-                        $rec_latest_wallet_balance,
-                        $desc,
-                        $st
-                    );
-
-
-                    mysqli_stmt_execute($rec_stmt1);
-
-                    // update local cache
-
-                    $userId = hash("sha256", $user_mob);
-
-                    $file = "cache/users/$userId/profile.json";
-
-                    if (file_exists($file)) {
-
-                        $data = json_decode(
-                            file_get_contents($file),
-                            true
-                        );
-
-                        $U_balance = $rec_latest_wallet_balance;
-
-                        $data['balance'] = $U_balance;
-
-                        $data['server_sync'] = true;
-
-                        $data['update_at'] = date("Y-m-d h:i:s A");
-
-                        $data['last_transaction'] = $trx_id;
-
-
-                        file_put_contents(
-                            $file,
-                            json_encode(
-                                $data,
-                                JSON_PRETTY_PRINT
-                            )
-                        );
+                    if (!$sender_stmt) {
+                        throw new Exception('Database prepare failed.');
                     }
 
-                    // Transaction data for success.php
+                    mysqli_stmt_bind_param(
+                        $sender_stmt,
+                        's',
+                        $d_qr_sender_mobile
+                    );
 
-                    $_SESSION['success_transaction'] = [
-                        'transaction_id' => $trx_id,
-                        'token_id'        => $qr_token_id,
-                        'amount'          => $qr_amount,
-                        'sender_mobile'   => $d_qr_sender_mobile,
-                        'receiver_mobile' => $qr_reciever_mobile,
-                        'timestamp'       => date("Y-m-d h:i:s A")
-                    ];
-                    header('Location: success.php');
+                    if (!mysqli_stmt_execute($sender_stmt)) {
+                        throw new Exception('Database query failed.');
+                    }
 
-                    // update token status
+                    $sender_result = mysqli_stmt_get_result($sender_stmt);
 
-                    $t_qr_status = 'scanned';
-                    $qr_server_sync = 'synced';
-                    $receiver_check = 'Verified';
+                    if (!$sender_result) {
+                        throw new Exception('Unable to read currency record.');
+                    }
 
-                    $update_token_Stmt = $conn->prepare("
+                    $sender_data = mysqli_fetch_assoc($sender_result);
+
+                    $decrypt_sender_bal = decryptData($sender_data['balance']);
+
+                    $encrypt_sender_bal = $sender_data['balance'];
+
+                    $decrypt_sender_wallet = $sender_data['wallet_id'];
+
+                    $e_qr_sender_update_bal = encryptData($decrypt_sender_bal - $qr_amount);
+
+                    // fetch data of qr reciever
+
+                    $reciever_stmt = mysqli_prepare(
+                        $conn,
+                        "SELECT * FROM users WHERE mobile = ? LIMIT 1"
+                    );
+
+                    if (!$reciever_stmt) {
+                        throw new Exception('Database prepare failed.');
+                    }
+
+                    mysqli_stmt_bind_param(
+                        $reciever_stmt,
+                        's',
+                        $qr_reciever_mobile
+                    );
+
+                    if (!mysqli_stmt_execute($reciever_stmt)) {
+                        throw new Exception('Database query failed.');
+                    }
+
+                    $reciever_result = mysqli_stmt_get_result($reciever_stmt);
+
+                    if (!$reciever_result) {
+                        throw new Exception('Unable to read currency record.');
+                    }
+
+                    $reciever_data = mysqli_fetch_assoc($reciever_result);
+
+                    $old_decrypt_reciever_bal = decryptData($reciever_data['balance']);
+
+                    $reciever_wallet_id = $reciever_data['wallet_id'];
+
+                    $old_encrypt_reciever_bal = $reciever_data['balance'];
+
+                    $e_rec_update_bal = encryptData($old_decrypt_reciever_bal + $qr_amount);
+
+                    // check owner scan own qr money
+
+                    if ($user_mob == $d_qr_sender_mobile) {
+
+                        $mess_fail = "You cannot scan your own QR money.";
+
+                        $_SESSION['failed_transaction'] = [
+                            'transaction_id' => $trx_id,
+                            'amount'          => $qr_amount,
+                            'sender_mobile'   => $d_qr_sender_mobile,
+                            'receiver_mobile' => $user_mob,
+                            'reason'          => $mess_fail,
+                            'timestamp'       => date("Y-m-d h:i:s A")
+                        ];
+                        header('Location: fail.php');
+                    }
+
+                    // check qr timeout or not
+
+                    elseif ($timestamp > $expires_at) {
+
+                        $mess_fail = "This QR money is expired.";
+
+                        $_SESSION['failed_transaction'] = [
+                            'transaction_id' => $trx_id,
+                            'amount'          => $qr_amount,
+                            'sender_mobile'   => $d_qr_sender_mobile,
+                            'receiver_mobile' => $user_mob,
+                            'reason'          => $mess_fail,
+                            'timestamp'       => date("Y-m-d h:i:s A")
+                        ];
+                        header('Location: fail.php');
+                    }
+
+                    // check only receiver scanner is scan or not 
+
+                    elseif ($user_mob != $qr_reciever_mobile) {
+
+                        $mess_fail = "You are not authorized to scan this QR money.";
+
+                        $_SESSION['failed_transaction'] = [
+                            'transaction_id' => $trx_id,
+                            'amount'          => $qr_amount,
+                            'sender_mobile'   => $d_qr_sender_mobile,
+                            'receiver_mobile' => $user_mob,
+                            'reason'          => $mess_fail,
+                            'timestamp'       => date("Y-m-d h:i:s A")
+                        ];
+                        header('Location: fail.php');
+                    }
+
+                    // if this condition true then update both users trx
+
+                    elseif ($user_mob == $qr_reciever_mobile) {
+
+                        // sender wallet update
+
+                        /* debit from MBD Wallet */
+
+                        $qr_send_walletQuery = "UPDATE users SET balance = ?, update_at = ? WHERE mobile = ?";
+
+                        $qr_send_stmt = mysqli_prepare($conn, $qr_send_walletQuery);
+
+                        mysqli_stmt_bind_param($qr_send_stmt, "sss", $e_qr_sender_update_bal, $date_time, $d_qr_sender_mobile);
+
+                        mysqli_stmt_execute($qr_send_stmt);
+
+                        // sender transaction update
+
+                        $send_walletTransaction = "INSERT INTO transactions(
+                                                                transaction_id,
+                                                                mobile,
+                                                                type,
+                                                                amount,
+                                                                balance_before,
+                                                                balance_after,
+                                                                description,
+                                                                status
+                                                                )
+                                                                VALUES
+                                                                (?,?,?,?,?,?,?,?)
+                                      ";
+
+
+                        $sender_stmt1 = mysqli_prepare($conn, $send_walletTransaction);
+
+
+                        $type = "Debit";
+
+                        $st = 'Success';
+
+                        $desc = "QR Money Send to " . $qr_reciever_mobile . "/" . $reciever_wallet_id;
+
+                        mysqli_stmt_bind_param(
+                            $sender_stmt1,
+                            "ssssssss",
+                            $trx_id,
+                            $d_qr_sender_mobile,
+                            $type,
+                            $e_qr_amount,
+                            $encrypt_sender_bal,
+                            $e_qr_sender_update_bal,
+                            $desc,
+                            $st
+                        );
+
+
+                        mysqli_stmt_execute($sender_stmt1);
+
+                        // reciever wallet update
+
+                        /* Credit to MBD Wallet */
+
+                        $walletQuery = "UPDATE users SET balance = ?, update_at = ? WHERE mobile = ?";
+
+                        $qr_rec_stmt = mysqli_prepare($conn, $walletQuery);
+
+                        mysqli_stmt_bind_param($qr_rec_stmt, "sss", $e_rec_update_bal, $date_time, $user_mob);
+
+                        mysqli_stmt_execute($qr_rec_stmt);
+
+                        // reciever transaction update
+
+                        /*  fetch latest balance of user */
+
+                        $rec_latest_walletBalance = "SELECT balance FROM users WHERE mobile='$user_mob'";
+
+                        $rec_latest_walletResult = mysqli_query($conn, $rec_latest_walletBalance);
+
+                        $rec_latest_walletData = mysqli_fetch_assoc($rec_latest_walletResult);
+
+                        $rec_latest_wallet_balance = $rec_latest_walletData['balance'];
+
+                        $rec_walletTransaction = "INSERT INTO transactions(
+                                                                transaction_id,
+                                                                mobile,
+                                                                type,
+                                                                amount,
+                                                                balance_before,
+                                                                balance_after,
+                                                                description,
+                                                                status
+                                                                )
+                                                                VALUES
+                                                                (?,?,?,?,?,?,?,?)
+                                      ";
+
+
+                        $rec_stmt1 = mysqli_prepare($conn, $rec_walletTransaction);
+
+
+                        $type = "Credit";
+
+                        $st = 'Success';
+
+                        $desc = "QR Money Recieved From " . $d_qr_sender_mobile . "/" . $decrypt_sender_wallet;
+
+                        mysqli_stmt_bind_param(
+                            $rec_stmt1,
+                            "ssssssss",
+                            $trx_id,
+                            $user_mob,
+                            $type,
+                            $e_qr_amount,
+                            $old_encrypt_reciever_bal,
+                            $rec_latest_wallet_balance,
+                            $desc,
+                            $st
+                        );
+
+
+                        mysqli_stmt_execute($rec_stmt1);
+
+                        // update local cache
+
+                        $userId = hash("sha256", $user_mob);
+
+                        $file = "cache/users/$userId/profile.json";
+
+                        if (file_exists($file)) {
+
+                            $data = json_decode(
+                                file_get_contents($file),
+                                true
+                            );
+
+                            $U_balance = $rec_latest_wallet_balance;
+
+                            $data['balance'] = $U_balance;
+
+                            $data['server_sync'] = true;
+
+                            $data['update_at'] = date("Y-m-d h:i:s A");
+
+                            $data['last_transaction'] = $trx_id;
+
+
+                            file_put_contents(
+                                $file,
+                                json_encode(
+                                    $data,
+                                    JSON_PRETTY_PRINT
+                                )
+                            );
+                        }
+
+                        // Transaction data for success.php
+
+                        $_SESSION['success_transaction'] = [
+                            'transaction_id' => $trx_id,
+                            'token_id'        => $qr_token_id,
+                            'amount'          => $qr_amount,
+                            'sender_mobile'   => $d_qr_sender_mobile,
+                            'receiver_mobile' => $qr_reciever_mobile,
+                            'timestamp'       => date("Y-m-d h:i:s A")
+                        ];
+                        header('Location: success.php');
+
+                        // update token status
+
+                        $t_qr_status = 'scanned';
+                        $qr_server_sync = 'synced';
+                        $receiver_check = 'Verified';
+
+                        $update_token_Stmt = $conn->prepare("
                                 UPDATE offline_transactions 
                                 SET receiver_mobile = ?, 
                                     send_balance = ?, 
@@ -591,26 +605,41 @@ try {
                                 WHERE token_id = ?
                             ");
 
-                    $update_token_Stmt->bind_param(
-                        "sssssss",
-                        $e_qr_reciever_mobile,
-                        $e_qr_amount,
-                        $t_qr_status,
-                        $qr_server_sync,
-                        $receiver_check,
-                        $date_time,
-                        $qr_token_id
-                    );
+                        $update_token_Stmt->bind_param(
+                            "sssssss",
+                            $e_qr_reciever_mobile,
+                            $e_qr_amount,
+                            $t_qr_status,
+                            $qr_server_sync,
+                            $receiver_check,
+                            $date_time,
+                            $qr_token_id
+                        );
 
-                    $update_token_Stmt->execute();
-                    $update_token_Stmt->close();
-                }
+                        $update_token_Stmt->execute();
+                        $update_token_Stmt->close();
+                    }
 
-                // no one condition then throgh this error 
+                    // no one condition then throgh this error 
 
-                else {
+                    else {
 
-                    $mess_fail = "We could not complete this transaction. Please try again.";
+                        $mess_fail = "We could not complete this transaction. Please try again.";
+
+                        $_SESSION['failed_transaction'] = [
+                            'transaction_id' => $trx_id,
+                            'amount'          => $qr_amount,
+                            'sender_mobile'   => $d_qr_sender_mobile,
+                            'receiver_mobile' => $user_mob,
+                            'reason'          => $mess_fail,
+                            'timestamp'       => date("Y-m-d h:i:s A")
+                        ];
+                        header('Location: fail.php');
+                    }
+                } else {
+                    // code if digital signature not verified
+
+                    $mess_fail = "You are Scanning an Un-Authorized QR Money.Please do not try to Scan again.";
 
                     $_SESSION['failed_transaction'] = [
                         'transaction_id' => $trx_id,

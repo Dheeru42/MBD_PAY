@@ -1129,14 +1129,19 @@ try {
             <?php
             $trans_mode = 'Offline';
             $s_amount = $d_send_amount;
+
+            // Generate HMAC digital signature using SECRET_KEY
+            $signatureData = $token_id . "|" . $s_amount . "|" . $receiver_mobile;
+            $digitalSignature = hash_hmac("sha256", $signatureData, SECRET_KEY);
             ?>
 
             const payload = {
-                pay_mode: "<?php echo $trans_mode; ?>",
-                token_no: "<?php echo encryptData($timestamp); ?>",
-                token_id: "<?php echo $token_id; ?>",
-                amount: "<?php echo encryptData($s_amount); ?>",
-                receiver_mobile: "<?php echo $verify ? encryptData($receiver_mobile) : ''; ?>",
+                pm: "<?php echo $trans_mode; ?>",
+                tn: "<?php echo encryptData($timestamp); ?>",
+                ti: "<?php echo $token_id; ?>",
+                a: "<?php echo encryptData($s_amount); ?>",
+                rm: "<?php echo $verify ? encryptData($receiver_mobile) : ''; ?>",
+                sg: "<?php echo $digitalSignature; ?>"
             };
 
             qrcodeContainer.innerHTML = '';
