@@ -674,13 +674,29 @@ try {
 
         else {
             $encrypted_currency_serial_no =
-                trim((string)($data['encrypted_currency_serial_no'] ?? ''));
+                trim((string)($data['ecsn'] ?? ''));
 
             $currency_serial_no =
-                trim((string)($data['currency_serial_no'] ?? ''));
+                trim((string)($data['csn'] ?? ''));
+
+            $digital_signature =
+                trim((string)($data['sg'] ?? ''));
 
             if ($encrypted_currency_serial_no === '' || $currency_serial_no === '') {
                 setQrFailure('This QR code does not contain valid currency information.');
+            }
+
+            // Reconstruct and verify the HMAC digital signature matching send_offline_money.php
+            $signatureData = $encrypted_currency_serial_no;
+
+            $calculated_signature = hash_hmac("sha256", $signatureData, SECRET_KEY);
+
+            $signature_valid = hash_equals($calculated_signature, $digital_signature);
+
+            if (!$signature_valid) {
+                setQrFailure('Signature Not Verified.', [
+                    'serial_no' => $currency_serial_no
+                ]);
             }
 
             $stmt = mysqli_prepare(
