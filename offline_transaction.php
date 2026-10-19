@@ -6,7 +6,7 @@ session_start();
 
 require_once 'conn.php';
 
-require_once 'config.php';
+require_once 'keys/config.php';
 
 /* Encrypt Function */
 
