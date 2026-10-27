@@ -1143,7 +1143,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
                             <span class="status-dot offline"></span>
 
-                            <span>Offline Mode</span>
+                            <span>Disconnected</span>
 
                         <?php } ?>
 

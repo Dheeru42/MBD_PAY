@@ -321,10 +321,8 @@
         <?php
 
         if ($serverConnected) {
-
-            echo "🟢 Online - Sync Ready";
+            echo "🟢 Online - Server Mode";
         } else {
-
             echo "🔴 Offline - Cache Mode";
         }
 
