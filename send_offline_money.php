@@ -1133,25 +1133,30 @@ try {
             // Generate HMAC digital signature using SECRET_KEY
             $signatureData = $token_id . "|" . $s_amount . "|" . $receiver_mobile;
             $digitalSignature = hash_hmac("sha256", $signatureData, SECRET_KEY);
+
+            $payloadArray = [
+                "pm" => $trans_mode,
+                "tn" => encryptData($timestamp),
+                "ti" => $token_id,
+                "a" => encryptData($s_amount),
+                "rm" => $verify ? encryptData($receiver_mobile) : '',
+                "sg" => $digitalSignature
+            ];
+
+            // Encrypt the entire JSON payload string
+            $encryptedQrPayload = encryptData(json_encode($payloadArray));
             ?>
 
-            const payload = {
-                pm: "<?php echo $trans_mode; ?>",
-                tn: "<?php echo encryptData($timestamp); ?>",
-                ti: "<?php echo $token_id; ?>",
-                a: "<?php echo encryptData($s_amount); ?>",
-                rm: "<?php echo $verify ? encryptData($receiver_mobile) : ''; ?>",
-                sg: "<?php echo $digitalSignature; ?>"
-            };
+            const encryptedPayload = "<?php echo $encryptedQrPayload; ?>";
 
             qrcodeContainer.innerHTML = '';
             new QRCode(qrcodeContainer, {
-                text: JSON.stringify(payload),
+                text: encryptedPayload,
                 width: 250,
                 height: 250,
                 colorDark: "#022c22",
                 colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.H
+                correctLevel: QRCode.CorrectLevel.M
             });
 
             document.getElementById('displayAmount').innerText = parseFloat(amount).toFixed(2);

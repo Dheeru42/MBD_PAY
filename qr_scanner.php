@@ -84,18 +84,20 @@ function encryptData($text)
     return base64_encode($iv . $cipher);
 }
 
-/* Decrypt Function */
+/* Decrypt Function with Safety Checks */
 
 function decryptData($text)
 {
     $key = hash("sha256", SECRET_KEY, true);
 
-    $data = base64_decode($text);
+    $data = base64_decode($text, true);
+    if ($data === false || strlen($data) < 16) {
+        return false;
+    }
 
     $iv = substr($data, 0, 16);
 
     $cipher = substr($data, 16);
-
 
     return openssl_decrypt(
         $cipher,
@@ -188,25 +190,34 @@ try {
             setQrFailure('QR data is empty. Please scan a valid QR code.');
         }
 
-        $data = json_decode($qrData, true);
+        // Attempt decryption for encrypted QR payloads; fallback to unencrypted JSON if necessary
+        $data = null;
+        $decryptedQrData = decryptData($qrData);
+        if ($decryptedQrData !== false && $decryptedQrData !== null) {
+            $data = json_decode($decryptedQrData, true);
+        }
+
+        if (!is_array($data)) {
+            $data = json_decode($qrData, true);
+        }
 
         if (!is_array($data)) {
             setQrFailure('Invalid QR code. The QR data format is not supported.');
         }
 
-        $pay_mode = trim((string)($data['pm']));
+        $pay_mode = trim((string)($data['pm'] ?? ''));
 
         // code for offline money qr code scanner
 
         if ($pay_mode == 'Offline') {
-            $qr_token_id = $data['ti'];
-            $qr_token_no = decryptData($data['tn']);
-            $expires_at = $qr_token_no + 120000; // after check correct to 40 sec
-            $qr_amount = decryptData($data['a']);
-            $e_qr_amount = $data['a'];
-            $qr_reciever_mobile = decryptData($data['rm']);
-            $e_qr_reciever_mobile = $data['rm'];
-            $qr_digital_sign = $data['sg'];
+            $qr_token_id = $data['ti'] ?? '';
+            $qr_token_no = decryptData($data['tn'] ?? '');
+            $expires_at = (int)$qr_token_no + 120000; 
+            $qr_amount = decryptData($data['a'] ?? '');
+            $e_qr_amount = $data['a'] ?? '';
+            $qr_reciever_mobile = decryptData($data['rm'] ?? '');
+            $e_qr_reciever_mobile = $data['rm'] ?? '';
+            $qr_digital_sign = $data['sg'] ?? '';
 
             // Reconstruct and verify the HMAC digital signature matching send_offline_money.php
             $signatureData = $qr_token_id . "|" . $qr_amount . "|" . $qr_reciever_mobile;
@@ -248,6 +259,10 @@ try {
 
             $token_data = mysqli_fetch_assoc($token_result);
 
+            if (!$token_data) {
+                setQrFailure('You are Scanning an Un-Authorized Token.Please do not try to Scan again.');
+            }
+
             $e_qr_sender_mobile = $token_data['sender_mobile'];
 
             $qr_status = $token_data['status'];
@@ -269,6 +284,7 @@ try {
                     'timestamp'       => date("Y-m-d h:i:s A")
                 ];
                 header('Location: fail.php');
+                exit;
             }
 
             // check qr money is rejected or not
@@ -286,6 +302,7 @@ try {
                     'timestamp'       => date("Y-m-d h:i:s A")
                 ];
                 header('Location: fail.php');
+                exit;
             }
 
             // check first token exist and status not scanned then proceed trx
@@ -385,6 +402,7 @@ try {
                             'timestamp'       => date("Y-m-d h:i:s A")
                         ];
                         header('Location: fail.php');
+                        exit;
                     }
 
                     // check qr timeout or not
@@ -402,6 +420,7 @@ try {
                             'timestamp'       => date("Y-m-d h:i:s A")
                         ];
                         header('Location: fail.php');
+                        exit;
                     }
 
                     // check only receiver scanner is scan or not 
@@ -419,6 +438,7 @@ try {
                             'timestamp'       => date("Y-m-d h:i:s A")
                         ];
                         header('Location: fail.php');
+                        exit;
                     }
 
                     // if this condition true then update both users trx
@@ -618,6 +638,7 @@ try {
 
                         $update_token_Stmt->execute();
                         $update_token_Stmt->close();
+                        exit;
                     }
 
                     // no one condition then throgh this error 
@@ -635,6 +656,7 @@ try {
                             'timestamp'       => date("Y-m-d h:i:s A")
                         ];
                         header('Location: fail.php');
+                        exit;
                     }
                 } else {
                     // code if digital signature not verified
@@ -650,6 +672,7 @@ try {
                         'timestamp'       => date("Y-m-d h:i:s A")
                     ];
                     header('Location: fail.php');
+                    exit;
                 }
             } else {
 
@@ -666,6 +689,7 @@ try {
                     'timestamp'       => date("Y-m-d h:i:s A")
                 ];
                 header('Location: fail.php');
+                exit;
             }
         }
 
@@ -742,15 +766,9 @@ try {
             $currency = mysqli_fetch_assoc($currency_result);
 
             if (!$currency) {
-                if ($currency['status'] != 'GENERATED') {
-                    setQrFailure('Currency already scanned.', [
-                        'serial_no' => $currency_serial_no
-                    ]);
-                } else {
-                    setQrFailure('Currency not found, invalid, or already scanned.', [
-                        'serial_no' => $currency_serial_no
-                    ]);
-                }
+                setQrFailure('Currency not found, invalid, or already scanned.', [
+                    'serial_no' => $currency_serial_no
+                ]);
             }
 
 
