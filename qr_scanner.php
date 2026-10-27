@@ -184,6 +184,7 @@ function setQrFailure(string $reason, array $details = []): void
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
         $qrData = trim($_POST['qr_data'] ?? '');
 
         if ($qrData === '') {
@@ -191,8 +192,11 @@ try {
         }
 
         // Attempt decryption for encrypted QR payloads; fallback to unencrypted JSON if necessary
+
         $data = null;
+
         $decryptedQrData = decryptData($qrData);
+
         if ($decryptedQrData !== false && $decryptedQrData !== null) {
             $data = json_decode($decryptedQrData, true);
         }
@@ -210,14 +214,23 @@ try {
         // code for offline money qr code scanner
 
         if ($pay_mode == 'Offline') {
+
             $qr_token_id = $data['ti'] ?? '';
+
             $qr_token_no = decryptData($data['tn'] ?? '');
-            $expires_at = (int)$qr_token_no + 120000; 
+
+            $expires_at = (int)$qr_token_no + 120000;
+
             $qr_amount = decryptData($data['a'] ?? '');
+
             $e_qr_amount = $data['a'] ?? '';
+
             $qr_reciever_mobile = decryptData($data['rm'] ?? '');
+
             $e_qr_reciever_mobile = $data['rm'] ?? '';
+
             $qr_digital_sign = $data['sg'] ?? '';
+
 
             // Reconstruct and verify the HMAC digital signature matching send_offline_money.php
             $signatureData = $qr_token_id . "|" . $qr_amount . "|" . $qr_reciever_mobile;
@@ -738,7 +751,6 @@ try {
              FROM currency
              WHERE encrypted_serial = ?
              AND serial_no = ?
-             AND status = 'GENERATED'
              LIMIT 1"
             );
 
