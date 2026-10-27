@@ -429,7 +429,7 @@ try {
 
             $row = mysqli_fetch_assoc($result);
 
-            $last_id = $row['id'];
+            $last_id = $row['id'] ?? 0;
 
             $next_id = $last_id + 1;
 
