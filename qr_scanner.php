@@ -719,6 +719,12 @@ try {
             $digital_signature =
                 trim((string)($data['sg'] ?? ''));
 
+            $qr_timestamp =
+                trim((string)($data['t'] ?? ''));
+
+            $qr_expires_at =
+                (int)$qr_timestamp + 60;
+
             if ($encrypted_currency_serial_no === '' || $currency_serial_no === '') {
                 setQrFailure('This QR code does not contain valid currency information.');
             }
@@ -801,6 +807,18 @@ try {
                 ]);
             }
 
+            // qr expire
+
+            if ($qr_expires_at < $timestamp) {
+                setQrFailure('Generated Qr is Expired.', [
+                    'amount'        => decryptData($currency['amount']) ?? null,
+                    'serial_no'     => $currency['serial_no'] ?? null,
+                    'sender_mobile' => $currency['sender_mobile'] ?? null,
+                    'generated_at'  => $currency['generated_at'] ?? null,
+                ]);
+                exit();
+            }
+
             $currency_id = (int)$currency['id'];
 
             $updateStmt = mysqli_prepare(
@@ -832,7 +850,6 @@ try {
                     'generated_at'  => $currency['generated_at'] ?? null,
                 ]);
             }
-
 
             $_SESSION['qr_result'] = [
                 'transaction_id' => createTransactionId(),

@@ -2,6 +2,8 @@
 
 session_start();
 
+$timestamp = time();
+
 date_default_timezone_set('Asia/Kolkata');
 
 $message = "";
@@ -2525,6 +2527,22 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
             font-size: 9px;
 
             text-transform: uppercase;
+
+            letter-spacing: 1px;
+
+            font-weight: 750;
+        }
+        .qr-display-qr-label {
+            display: block;
+
+            margin-bottom: 2px;
+
+            color: #dd0505;
+
+            font-size: 12px;
+
+            text-transform: uppercase;
+
             letter-spacing: 1px;
 
             font-weight: 750;
@@ -3304,7 +3322,8 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
         $qrPayload = [
             "csn"  => $currency_serial_no ?? "",
             "ecsn" => $verifiedQrData ?? "",
-            "sg"   => $digitalSignature
+            "sg"   => $digitalSignature,
+            't'    => $timestamp
         ];
 
         // Encrypt the entire JSON payload string to match send_offline_money.php pattern
@@ -3401,6 +3420,10 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                                     2
                                 ); ?>
                         </div>
+
+                        <span class="qr-display-qr-label">
+                            QR Expire in 60 Sec
+                        </span>
 
                     </div>
 
