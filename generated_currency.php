@@ -2532,6 +2532,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             font-weight: 750;
         }
+
         .qr-display-qr-label {
             display: block;
 

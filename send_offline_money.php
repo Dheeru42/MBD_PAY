@@ -549,6 +549,273 @@ try {
             margin-bottom: 15px;
         }
 
+
+
+        /* MBD PAY digital currency-note presentation */
+        .mbd-currency-note {
+            position: relative;
+            max-width: 360px;
+            margin: 0 auto 18px;
+            padding: 20px 18px 16px;
+            overflow: hidden;
+            border: 3px double #d6b45b;
+            border-radius: 18px;
+            color: #f8f3d8;
+            background:
+                radial-gradient(ellipse at 50% 48%, rgba(255, 255, 255, .10), transparent 62%),
+                repeating-linear-gradient(135deg, rgba(215, 180, 91, .07) 0 2px, transparent 2px 9px),
+                linear-gradient(145deg, #064b38, #022c22 58%, #08734f);
+            box-shadow: 0 8px 22px rgba(2, 44, 34, .22), inset 0 0 0 5px rgba(214, 180, 91, .13);
+        }
+
+        .mbd-note-top {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-align: left;
+        }
+
+        .mbd-note-emblem {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            flex: 0 0 42px;
+            border: 2px solid #d6b45b;
+            border-radius: 50%;
+            color: #f8e6a3;
+            font-size: 27px;
+            font-weight: 900;
+        }
+
+        .mbd-note-brand {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+
+        .mbd-note-brand strong {
+            font-size: 20px;
+            letter-spacing: 1.5px;
+            color: #fff5c5;
+        }
+
+        .mbd-note-brand small {
+            margin-top: 4px;
+            font-size: 9px;
+            letter-spacing: 1px;
+            color: #d8e9df;
+        }
+
+        .mbd-note-tag {
+            margin-left: auto;
+            font-size: 8px;
+            font-weight: 800;
+            letter-spacing: .6px;
+            color: #f5df94;
+        }
+
+        .mbd-note-value {
+            margin: 15px 0 0;
+            font-size: 43px;
+            font-weight: 900;
+            line-height: 1;
+            color: #ffe69a;
+            text-shadow: 0 2px 2px #012219;
+        }
+
+        .mbd-currency-symbol {
+            font-size: 29px;
+            vertical-align: 8px;
+            margin-right: 3px;
+        }
+
+        .mbd-note-caption {
+            margin: 7px 0 13px;
+            font-size: 9px;
+            letter-spacing: 1.8px;
+            color: #d9eadf;
+        }
+
+        .mbd-qr-frame {
+            display: inline-block;
+            padding: 9px;
+            background: #fff;
+            border: 3px solid #d6b45b;
+            border-radius: 10px;
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, .08);
+        }
+
+        .mbd-qr-frame #qrcode {
+            display: block;
+            padding: 0;
+            margin: 0;
+            border: 0;
+            border-radius: 0;
+            line-height: 0;
+        }
+
+        .mbd-qr-frame #qrcode img,
+        .mbd-qr-frame #qrcode canvas {
+            display: block;
+            width: 220px;
+            height: 220px;
+        }
+
+        .mbd-note-bottom {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(214, 180, 91, .5);
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: .7px;
+            color: #d7e8dc;
+        }
+
+        .mbd-expiry {
+            margin: 10px 0;
+            color: #dc2626;
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .mbd-note-hint {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        @media(max-width:420px) {
+            .mbd-currency-note {
+                padding: 16px 10px 13px;
+            }
+
+            .mbd-qr-frame #qrcode img,
+            .mbd-qr-frame #qrcode canvas {
+                width: 190px;
+                height: 190px;
+            }
+
+            .mbd-note-brand strong {
+                font-size: 17px;
+            }
+        }
+
+
+        /* Premium MBD PAY digital-note styling */
+        .mbd-currency-note {
+            max-width: 390px;
+            padding: 23px 21px 18px;
+            border: 1px solid #f6dfa0;
+            border-radius: 22px;
+            background:
+                radial-gradient(circle at 8% 10%, rgba(240, 213, 126, .22), transparent 24%),
+                radial-gradient(circle at 92% 90%, rgba(240, 213, 126, .18), transparent 28%),
+                repeating-radial-gradient(ellipse at 50% 50%, transparent 0 11px, rgba(226, 198, 112, .055) 12px 13px),
+                linear-gradient(135deg, #0a7652 0%, #034b37 34%, #012d22 66%, #08734f 100%);
+            box-shadow: 0 18px 40px rgba(1, 38, 28, .28), inset 0 0 0 5px rgba(241, 213, 132, .10), inset 0 0 0 7px rgba(255, 255, 255, .04);
+        }
+
+        .mbd-currency-note::before,
+        .mbd-currency-note::after {
+            content: "";
+            position: absolute;
+            pointer-events: none;
+            border: 1px solid rgba(242, 216, 139, .38);
+            border-radius: 50%;
+        }
+
+        .mbd-currency-note::before {
+            width: 230px;
+            height: 230px;
+            top: 85px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .mbd-currency-note::after {
+            inset: 10px;
+            border-radius: 14px;
+        }
+
+        .mbd-note-top,
+        .mbd-note-value,
+        .mbd-note-caption,
+        .mbd-qr-frame,
+        .mbd-note-bottom {
+            position: relative;
+            z-index: 1;
+        }
+
+        .mbd-note-emblem {
+            width: 48px;
+            height: 48px;
+            flex-basis: 48px;
+            border: 2px solid #f0d68a;
+            outline: 1px solid rgba(240, 214, 138, .45);
+            outline-offset: 3px;
+            background: radial-gradient(circle, #177b56, #023b2b);
+            box-shadow: 0 0 14px rgba(246, 222, 155, .14);
+        }
+
+        .mbd-note-brand strong {
+            font-size: 23px;
+            letter-spacing: 2px;
+            text-shadow: 0 2px 6px #01271c;
+        }
+
+        .mbd-note-brand small {
+            font-size: 8px;
+            letter-spacing: 1.45px;
+        }
+
+        .mbd-note-tag {
+            padding: 5px 7px;
+            border: 1px solid rgba(242, 216, 139, .5);
+            border-radius: 5px;
+        }
+
+        .mbd-note-value {
+            margin-top: 19px;
+            font-size: 52px;
+            letter-spacing: -1px;
+            text-shadow: 0 2px 0 #5d4a1b, 0 5px 13px rgba(0, 0, 0, .28);
+        }
+
+        .mbd-note-caption {
+            letter-spacing: 2.2px;
+            font-size: 8px;
+        }
+
+        .mbd-qr-frame {
+            padding: 10px;
+            border: 2px solid #f0d68a;
+            border-radius: 12px;
+            box-shadow: 0 0 0 3px rgba(3, 37, 28, .35), 0 8px 18px rgba(0, 0, 0, .2);
+        }
+
+        .mbd-note-bottom {
+            margin-top: 13px;
+            padding-top: 12px;
+            font-size: 8px;
+            letter-spacing: 1px;
+        }
+
+        .mbd-note-bottom span:first-child::before {
+            content: "◆  ";
+            color: #f5d987;
+        }
+
+        .mbd-note-bottom span:last-child {
+            color: #f6dfa0;
+        }
+
+        .mbd-expiry {
+            margin-top: 13px;
+        }
+
         .modal-overlay {
             display: none;
             position: fixed;
@@ -900,13 +1167,29 @@ try {
             <!-- QR Container -->
 
             <div id="qrWrapper" class="qr-wrapper" style="display: <?php echo $verify ? 'block' : 'none'; ?>;">
-                <div id="qrcode"></div>
-                <div style="margin: 8px 0 15px; font-size: 18px; font-weight: bold; color: #dc2626;">
-                    QR expires in <span id="qrTimer">40</span> seconds
+                <div class="mbd-currency-note">
+                    <div class="mbd-note-top">
+                        <span class="mbd-note-emblem">₹</span>
+                        <div class="mbd-note-brand">
+                            <strong>MBD PAY</strong>
+                            <small>OFFLINE DIGITAL CURRENCY</small>
+                        </div>
+                        <span class="mbd-note-tag">MBD • DIGITAL</span>
+                    </div>
+                    <div class="mbd-note-value">
+                        <span class="mbd-currency-symbol">₹</span><span id="displayAmount">0.00</span>
+                    </div>
+                    <div class="mbd-note-caption">DIGITAL VALUE • SCAN TO VERIFY</div>
+                    <div class="mbd-qr-frame">
+                        <div id="qrcode"></div>
+                    </div>
+                    <div class="mbd-note-bottom">
+                        <span>SECURE QR TOKEN</span>
+                        <span>ISSUED BY MBD PAY</span>
+                    </div>
                 </div>
-                <div>
-                    <strong>Amount:</strong> ₹<span id="displayAmount"></span><br>
-                </div>
+                <div class="mbd-expiry">QR expires in <strong><span id="qrTimer">40</span> seconds</strong></div>
+                <p class="mbd-note-hint">This is a digital transaction token, not a physical banknote.</p>
             </div>
         </div>
     </div>
@@ -1160,6 +1443,7 @@ try {
             });
 
             document.getElementById('displayAmount').innerText = parseFloat(amount).toFixed(2);
+
         }
 
         <?php if ($verify && $submitted_amount > 0): ?>
