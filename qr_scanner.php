@@ -219,7 +219,7 @@ try {
 
             $qr_token_no = decryptData($data['tn'] ?? '');
 
-            $expires_at = (int)$qr_token_no + 120000;
+            $expires_at = (int)$qr_token_no + 60;
 
             $qr_amount = decryptData($data['a'] ?? '');
 

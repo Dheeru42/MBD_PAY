@@ -1195,7 +1195,7 @@ try {
                                     );
                                     ?>;
 
-                const qrExpiresAt = qrCreatedAt + 40000;
+                const qrExpiresAt = qrCreatedAt + 65000;
 
                 qrWrapper.style.display = 'block';
 
