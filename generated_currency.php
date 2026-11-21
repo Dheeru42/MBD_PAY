@@ -3422,7 +3422,7 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
                         </div>
 
                         <span class="qr-display-qr-label">
-                            QR Expire in 60 Sec
+                            QR expires in <span id="qrCountdown">60</span> seconds
                         </span>
 
                     </div>
@@ -3452,6 +3452,31 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 
     <script>
+        /* QR MODAL COUNTDOWN */
+        let qrExpiryInterval = null;
+
+        function startQrExpiryCountdown() {
+            const modal = document.getElementById("qrDisplayModal");
+            const countdown = document.getElementById("qrCountdown");
+            if (!modal || !countdown || !modal.classList.contains("active")) return;
+
+            let secondsRemaining = 60;
+            countdown.textContent = secondsRemaining;
+
+            if (qrExpiryInterval) clearInterval(qrExpiryInterval);
+
+            qrExpiryInterval = setInterval(function() {
+                secondsRemaining--;
+                countdown.textContent = Math.max(secondsRemaining, 0);
+
+                if (secondsRemaining <= 0) {
+                    clearInterval(qrExpiryInterval);
+                    qrExpiryInterval = null;
+                    closeQrModal();
+                }
+            }, 1000);
+        }
+
         /* PIN MODAL - ONLINE + OFFLINE */
 
         function openPinModal(button) {
@@ -3578,6 +3603,9 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
             if (qrModal) {
 
+                // Start the visible 60-second countdown when this modal is open.
+                startQrExpiryCountdown();
+
                 const qrTarget = document.getElementById("qrDisplayCode");
 
                 if (qrTarget && typeof QRCode !== "undefined") {
@@ -3624,6 +3652,11 @@ fill='white'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
 
         function closeQrModal() {
+
+            if (qrExpiryInterval !== null) {
+                clearInterval(qrExpiryInterval);
+                qrExpiryInterval = null;
+            }
 
             const modal = document.getElementById("qrDisplayModal");
 
